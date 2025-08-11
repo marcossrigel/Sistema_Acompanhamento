@@ -3,204 +3,239 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sistemas - Portal CEHAB</title>
+<title>Acompanhamento — Portal CEHAB</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
-    --bg:#edf3f7;
-    --card:#fff;
-    --text:#1d2129;
-    --muted:#6b7280;
-    --shadow:0 8px 20px rgba(0,0,0,.08);
-    --primary:#2563eb;
-    --danger:#ef4444;
+  --bg:#edf3f7; --card:#fff; --text:#1d2129; --muted:#6b7280;
+  --shadow:0 8px 20px rgba(0,0,0,.08);
+  --primary:#2563eb; --success:#16a34a; --warn:#f59e0b; --line:#e5e7eb;
+  --danger:#ef4444;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{
-    font-family:'Poppins',sans-serif;
-    background:var(--bg);
-    min-height:100vh;
-    display:flex;align-items:center;justify-content:center;
-    color:var(--text);
+  font-family:'Poppins',sans-serif; background:var(--bg); color:var(--text);
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
 }
-.wrap{
-    width:100%;
-    max-width:1100px;
-    padding:32px 20px 48px;
-    display:flex;flex-direction:column;align-items:center;
-    gap:28px;
-}
-.header{
-    width:100%;
-    display:flex;align-items:center;justify-content:space-between;
-    gap:12px;
-}
-.hello{
-    font-weight:600;font-size:18px;color:var(--muted)
-}
-.title{
-    width:100%;
-    text-align:center;
-    font-weight:700;font-size:28px;
-}
-.grid{
-    width:100%;
-    display:grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap:22px;
-    justify-items:center;
-  }
+.wrap{ width:100%; max-width:1100px; padding:28px 20px 42px; display:flex; flex-direction:column; gap:18px; }
+.title{ text-align:center; font-weight:700; font-size:28px; }
+.subtitle{ text-align:center; color:var(--muted); font-weight:600; }
 
-@media (max-width:1200px){ .grid{grid-template-columns: repeat(4, 1fr);} }
-@media (max-width:900px){ .grid{grid-template-columns: repeat(3, 1fr);} }
-@media (max-width:640px){ .grid{grid-template-columns: repeat(2, 1fr);} }
-@media (max-width:420px){ .grid{grid-template-columns: 1fr;} }
-
-.card {
-    width: 220px; /* antes era 180px */
-    height: 140px;
-    background: var(--card);
-    border-radius: 16px;
-    box-shadow: var(--shadow);
-    padding: 18px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-    border: 1px solid rgba(0,0,0,.04);
-    }
-.card:hover, .card:focus{
-    transform:translateY(-2px);
-    box-shadow:0 12px 28px rgba(0,0,0,.12);
-    outline:none;
-    }
-.card .icon{
-    font-size:32px; line-height:1; margin-bottom:12px;
+/* TIMELINE WRAPPER */
+.timeline{
+  background:var(--card);
+  border-radius:16px;
+  box-shadow:var(--shadow);
+  padding:100px; /* antes era 18px */
+  border:1px solid #eef2f7;
 }
-    .card .name{
-    text-align:center; font-weight:700; font-size:18px; color:var(--text);
+/* SCROLL AREA */
+.flow{
+  overflow-x:auto; padding-bottom:10px;
 }
-.card .desc{
-    margin-top:6px; font-size:12px; color:var(--muted); text-align:center;
+.rail{
+  display:flex; align-items:flex-start; gap:28px; min-width:760px; padding:8px 4px;
+  position:relative;
 }
 
+/* base card */
+.step{
+  width:200px; min-width:200px;
+  background:#fff; border:2px solid #e6ebf0; border-radius:12px; padding:14px;
+  text-align:center; position:relative;
+  transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.step:hover{ transform:translateY(-2px); box-shadow:0 10px 20px rgba(0,0,0,.06); }
+.step h4{ font-size:15px; font-weight:700; margin-bottom:6px; }
+.step small{ color:var(--muted); display:block; }
+
+/* status pill */
+.pill{
+  margin-top:10px; display:inline-block; padding:6px 10px; border-radius:999px;
+  font-size:12px; font-weight:700; color:#fff;
+}
+.done .pill{ background:var(--success); }
+.current .pill{ background:var(--warn); }
+.todo .pill{ background:#9ca3af; }
+
+/* connector line + dot */
+.dot{
+  width:28px; height:28px; border-radius:999px; background:#fff; border:3px solid #9ca3af;
+  position:absolute; left:50%; transform:translateX(-50%); bottom:-36px; z-index:2;
+  display:flex; align-items:center; justify-content:center; font-weight:700; color:#9ca3af;
+}
+.done .dot{ border-color:var(--success); color:var(--success); }
+.current .dot{ border-color:var(--warn); color:var(--warn); }
+
+.connector{
+  position:absolute; left:0; right:0; height:6px; background:var(--line); bottom:-25px; z-index:1;
+}
+.progress{
+  position:absolute; left:0; height:6px; background:var(--success); bottom:-25px; z-index:1;
+  width:0%;
+}
+
+/* legend */
+.legend{ display:flex; gap:12px; align-items:center; justify-content:center; color:var(--muted); font-size:13px; }
+.legend span{ display:inline-flex; align-items:center; gap:6px; }
+.legend i{ width:10px; height:10px; border-radius:2px; display:inline-block; }
+.legend .lg-done{ background:var(--success); }
+.legend .lg-current{ background:var(--warn); }
+.legend .lg-todo{ background:#9ca3af; }
+
+/* footer */
+.footer{ margin-top:10px; text-align:center; }
 .logout{
-    border:0; cursor:pointer; padding:10px 16px;
-    border-radius:999px; color:#fff; background:var(--danger);
-    font-weight:700; box-shadow:var(--shadow);
-    transition:filter .15s ease;
+  display:inline-block; text-decoration:none; text-align:center; color:#fff;
+  background:var(--danger); padding:10px 16px; border-radius:999px; font-weight:700; box-shadow:var(--shadow);
+  transition:filter .15s ease;
 }
 .logout:hover{ filter:brightness(.95); }
-.footer{
-    margin-top:6px; display:flex; gap:10px; align-items:center;
-}
 
-.wrap {
-    width: 100%;
-    max-width: 800px;
-    padding: 32px 20px 48px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 28px;
-    min-height: 100vh; 
-}
-
-.grid {
-  display: flex;
-  justify-content: center;
-  gap: 22px;
-  flex-wrap: wrap;
-}
-
-.footer {
-  margin-top: 20px;
-}
-
-.logout {
-  border: 0;
-  cursor: pointer;
-  padding: 10px 16px;
-  border-radius: 999px;
-  color: #fff;
-  background: var(--danger);
-  font-weight: 700;
-  box-shadow: var(--shadow);
-  transition: filter .15s ease;
-}
-.logout:hover {
-  filter: brightness(.95);
-}
-
+@media (max-width:720px){ .title{font-size:22px} }
 </style>
 </head>
 <body>
-    
-    <main class="wrap">
-    <h1 class="title">Informações sobre o último serviço de habilitação</h1>
-    <h1 class="title">Situação: Em Andamento</h1>
+  <main class="wrap">
+    <h1 class="title">Informações sobre o último serviço</h1>
+    <div class="subtitle">Situação: <strong>EM ANDAMENTO</strong></div>
 
-    <section class="grid" aria-label="Lista de sistemas">
-        <a class="card" href="">
-            <div class="name">DAF</div>
-        </a>
+    <section class="timeline">
+      <div class="legend" aria-hidden="true">
+        <span><i class="lg-done"></i> Concluído</span>
+        <span><i class="lg-current"></i> Em andamento</span>
+        <span><i class="lg-todo"></i> Pendente</span>
+      </div>
 
-        <a class="card" href="">
-            <div class="name">GECOMP</div>
-        </a>
+      <div class="flow">
+        <div class="rail" id="rail">
+          <!-- Linha de fundo e progresso -->
+          <div class="connector"></div>
+          <div class="progress" id="progress"></div>
 
-        <a class="card" href="">
-            <div class="name">DDO</div>
-        </a>
+          <!-- Exemplo de etapas (troque textos/datas/status conforme necessário) -->
+          <div class="step done">
+            <h4>DAF</h4>
+            <small>Recebido • 02/08/2025</small>
+            <div class="pill">CONCLUÍDO</div>
+            <div class="dot">✓</div>
+          </div>
 
-        <a class="card" href="">
-            <div class="name">CPL</div>
-        </a>
+          <div class="step done">
+            <h4>GECOMP</h4>
+            <small>Análise • 04/08/2025</small>
+            <div class="pill">CONCLUÍDO</div>
+            <div class="dot">✓</div>
+          </div>
 
-        <a class="card" href="">
-            <div class="name">Licitacao</div>
-        </a>
+          <div class="step current">
+            <h4>DDO</h4>
+            <small>Execução • 11/08/2025</small>
+            <div class="pill">EM ANDAMENTO</div>
+            <div class="dot">•</div>
+          </div>
 
-        <a class="card" href="">
-            <div class="name">Homologação</div>
-        </a>
+          <div class="step todo">
+            <h4>CPL</h4>
+            <small>Aguardando • —</small>
+            <div class="pill">PENDENTE</div>
+            <div class="dot">•</div>
+          </div>
 
-        <a class="card" href="">
-            <div class="name">Parecer Jur.</div>
-        </a>
+          <div class="step todo">
+            <h4>Licitacao</h4>
+            <small>Aguardando • —</small>
+            <div class="pill">PENDENTE</div>
+            <div class="dot">•</div>
+          </div>
 
-        <a class="card" href="">
-            <div class="name">NE</div>
-        </a>
+          <div class="step todo">
+            <h4>Homologação</h4>
+            <small>Aguardando • —</small>
+            <div class="pill">PENDENTE</div>
+            <div class="dot">•</div>
+          </div>
 
-        <a class="card" href="">
-            <div class="name">PF</div>
-        </a>
+          <div class="step todo">
+            <h4>Parecer Jur.</h4>
+            <small>Aguardando • —</small>
+            <div class="pill">PENDENTE</div>
+            <div class="dot">•</div>
+          </div>
 
-        <a class="card" href="">
-            <div class="name">LIQ</div>
-        </a>
+          <div class="step todo">
+            <h4>NE</h4>
+            <small>Aguardando • —</small>
+            <div class="pill">PENDENTE</div>
+            <div class="dot">•</div>
+          </div>
 
-        <a class="card" href="">
-            <div class="name">PD</div>
-        </a>
+          <div class="step todo">
+            <h4>PF</h4>
+            <small>Aguardando • —</small>
+            <div class="pill">PENDENTE</div>
+            <div class="dot">•</div>
+          </div>
 
-        <a class="card" href="">
-            <div class="name">OB</div>
-        </a>
+          <div class="step todo">
+            <h4>LIQ</h4>
+            <small>Aguardando • —</small>
+            <div class="pill">PENDENTE</div>
+            <div class="dot">•</div>
+          </div>
 
-        <a class="card" href="">
-            <div class="name">Remessa</div>
-        </a>
+          <div class="step todo">
+            <h4>PD</h4>
+            <small>Aguardando • —</small>
+            <div class="pill">PENDENTE</div>
+            <div class="dot">•</div>
+          </div>
 
+          <div class="step todo">
+            <h4>OB</h4>
+            <small>Aguardando • —</small>
+            <div class="pill">PENDENTE</div>
+            <div class="dot">•</div>
+          </div>
+
+          <div class="step todo">
+            <h4>Remessa</h4>
+            <small>Aguardando • —</small>
+            <div class="pill">PENDENTE</div>
+            <div class="dot">•</div>
+          </div>
+        </div>
+      </div>
     </section>
 
-    <form action="logout.php" method="post" class="footer">
-        <button class="logout">Sair</button>
-    </form>
-    </main>
+    <div class="footer">
+      <a href="https://www.getic.pe.gov.br/?p=home" class="logout">Sair</a>
+    </div>
+  </main>
+
+<script>
+  // Calcula a largura do "progress" até a etapa marcada como .current (ou última .done)
+  (function(){
+    const rail = document.getElementById('rail');
+    const progress = document.getElementById('progress');
+    const steps = Array.from(rail.querySelectorAll('.step'));
+    const idxCurrent = steps.findIndex(s => s.classList.contains('current'));
+    const lastDoneIdx = Math.max(...steps.map((s,i)=>s.classList.contains('done')?i:-1));
+    const targetIdx = idxCurrent >= 0 ? idxCurrent : lastDoneIdx;
+
+    if (targetIdx >= 0) {
+      const first = steps[0].getBoundingClientRect();
+      const target = steps[targetIdx].getBoundingClientRect();
+      const railRect = rail.getBoundingClientRect();
+      // largura do progresso: do início da trilha até o centro do dot da etapa alvo
+      const startX = first.left + first.width/2 - railRect.left;
+      const endX   = target.left + target.width/2 - railRect.left;
+      progress.style.width = Math.max(0, endX - startX) + 'px';
+    } else {
+      progress.style.width = '0px';
+    }
+  })();
+</script>
+
 </body>
 </html>
