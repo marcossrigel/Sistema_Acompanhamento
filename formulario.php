@@ -327,10 +327,16 @@ body.solicitar-acesso .formulario-container {
 <body>
 
 <div class="pagina-formulario">
-<form class="formulario" action="formulario.php" method="post">
+<form class="formulario" action="processa_formulario.php" method="post">
   <h1 class="main-title">Nova Solicitação</h1>
 
   <div class="linha">
+
+  <div class="campo-longo">
+    <label class="label">Demanda</label>
+    <input type="text" name="demanda" class="campo" placeholder="Descrição da demanda">
+  </div>
+
     <div class="campo-pequeno">
       <label class="label">SEI</label>
       <input type="text" name="sei" class="campo" required placeholder="Ex: 1234567.000000/2025-00">

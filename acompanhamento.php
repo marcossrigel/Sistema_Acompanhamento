@@ -6,30 +6,53 @@
 <title>Acompanhamento — Portal CEHAB</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
+
 :root{
   --bg:#edf3f7; --card:#fff; --text:#1d2129; --muted:#6b7280;
   --shadow:0 8px 20px rgba(0,0,0,.08);
   --primary:#2563eb; --success:#16a34a; --warn:#f59e0b; --line:#e5e7eb;
   --danger:#ef4444;
 }
-*{box-sizing:border-box;margin:0;padding:0}
+
+*{
+  box-sizing:border-box;
+  margin:0;
+  padding:0
+}
+
 body{
   font-family:'Poppins',sans-serif; background:var(--bg); color:var(--text);
   min-height:100vh; display:flex; align-items:center; justify-content:center;
 }
-.wrap{ width:100%; max-width:1100px; padding:28px 20px 42px; display:flex; flex-direction:column; gap:18px; }
-.title{ text-align:center; font-weight:700; font-size:28px; }
-.subtitle{ text-align:center; color:var(--muted); font-weight:600; }
 
-/* TIMELINE WRAPPER */
+.wrap{ width:100%; 
+  max-width:1100px; 
+  padding:28px 20px 42px; 
+  display:flex; 
+  flex-direction:column; 
+  gap:18px; 
+}
+
+.title{ 
+  text-align:center; 
+  font-weight:700; 
+  font-size:28px; 
+}  
+
+.subtitle{ 
+  text-align:center; 
+  color:var(--muted); 
+  font-weight:600; 
+}
+
 .timeline{
   background:var(--card);
   border-radius:16px;
   box-shadow:var(--shadow);
-  padding:100px; /* antes era 18px */
+  padding:100px;
   border:1px solid #eef2f7;
 }
-/* SCROLL AREA */
+
 .flow{
   overflow-x:auto; padding-bottom:10px;
 }
@@ -38,7 +61,6 @@ body{
   position:relative;
 }
 
-/* base card */
 .step{
   width:200px; min-width:200px;
   background:#fff; border:2px solid #e6ebf0; border-radius:12px; padding:14px;
@@ -48,8 +70,6 @@ body{
 .step:hover{ transform:translateY(-2px); box-shadow:0 10px 20px rgba(0,0,0,.06); }
 .step h4{ font-size:15px; font-weight:700; margin-bottom:6px; }
 .step small{ color:var(--muted); display:block; }
-
-/* status pill */
 .pill{
   margin-top:10px; display:inline-block; padding:6px 10px; border-radius:999px;
   font-size:12px; font-weight:700; color:#fff;
@@ -58,7 +78,6 @@ body{
 .current .pill{ background:var(--warn); }
 .todo .pill{ background:#9ca3af; }
 
-/* connector line + dot */
 .dot{
   width:28px; height:28px; border-radius:999px; background:#fff; border:3px solid #9ca3af;
   position:absolute; left:50%; transform:translateX(-50%); bottom:-36px; z-index:2;
@@ -75,22 +94,20 @@ body{
   width:0%;
 }
 
-/* legend */
 .legend{ display:flex; gap:12px; align-items:center; justify-content:center; color:var(--muted); font-size:13px; }
 .legend span{ display:inline-flex; align-items:center; gap:6px; }
 .legend i{ width:10px; height:10px; border-radius:2px; display:inline-block; }
 .legend .lg-done{ background:var(--success); }
 .legend .lg-current{ background:var(--warn); }
 .legend .lg-todo{ background:#9ca3af; }
-
-/* footer */
 .footer{ margin-top:10px; text-align:center; }
-.logout{
-  display:inline-block; text-decoration:none; text-align:center; color:#fff;
-  background:var(--danger); padding:10px 16px; border-radius:999px; font-weight:700; box-shadow:var(--shadow);
-  transition:filter .15s ease;
+.btn-back{
+  display:inline-block; text-decoration:none; text-align:center;
+  color:#fff; background:var(--primary);
+  padding:10px 16px; border-radius:999px; font-weight:700;
+  box-shadow:var(--shadow); transition:filter .15s ease;
 }
-.logout:hover{ filter:brightness(.95); }
+.btn-back:hover{ filter:brightness(.95); }
 
 @media (max-width:720px){ .title{font-size:22px} }
 </style>
@@ -109,11 +126,9 @@ body{
 
       <div class="flow">
         <div class="rail" id="rail">
-          <!-- Linha de fundo e progresso -->
           <div class="connector"></div>
           <div class="progress" id="progress"></div>
 
-          <!-- Exemplo de etapas (troque textos/datas/status conforme necessário) -->
           <div class="step done">
             <h4>DAF</h4>
             <small>Recebido • 02/08/2025</small>
@@ -209,12 +224,11 @@ body{
     </section>
 
     <div class="footer">
-      <a href="https://www.getic.pe.gov.br/?p=home" class="logout">Sair</a>
+      <a href="visualizar.php" class="btn-back">&lt; Voltar</a>
     </div>
   </main>
 
 <script>
-  // Calcula a largura do "progress" até a etapa marcada como .current (ou última .done)
   (function(){
     const rail = document.getElementById('rail');
     const progress = document.getElementById('progress');
@@ -227,7 +241,6 @@ body{
       const first = steps[0].getBoundingClientRect();
       const target = steps[targetIdx].getBoundingClientRect();
       const railRect = rail.getBoundingClientRect();
-      // largura do progresso: do início da trilha até o centro do dot da etapa alvo
       const startX = first.left + first.width/2 - railRect.left;
       const endX   = target.left + target.width/2 - railRect.left;
       progress.style.width = Math.max(0, endX - startX) + 'px';
