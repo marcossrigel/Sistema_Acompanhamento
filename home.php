@@ -3,23 +3,18 @@ if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 require_once __DIR__ . '/config.php';
 date_default_timezone_set('America/Recife');
 
-// precisa estar logado via index.php
 if (!isset($_SESSION['id_usuario'])) {
   header('Location: index.php');
   exit;
 }
 
-// conexões vindas do config
 $dbRemoto = $connRemoto ?? ($conexao2 ?? null);
 
-// id do usuário no portal (g_id)
 $portalId = (int)($_SESSION['id_usuario_cehab_online'] ?? 0);
 
-// fallback: nome salvo no local (tabela usuarios)
 $nomeUsuario = $_SESSION['nome'] ?? 'Usuário';
 
 if ($portalId > 0 && $dbRemoto) {
-  // busca nome completo no cehab_online.users
   if ($st = $dbRemoto->prepare("SELECT u_nome_completo FROM users WHERE g_id = ? LIMIT 1")) {
     $st->bind_param('i', $portalId);
     if ($st->execute()) {
@@ -60,7 +55,7 @@ body{font-family:'Poppins',sans-serif;background:var(--bg);min-height:100vh;disp
 </head>
 <body>
   <main class="wrap">
-    <h1 class="title">Olá <?= e($nomeUsuario) ?> 👋</h1>
+    <h1 class="title">Olá, <?= e($nomeUsuario) ?> 👋</h1>
     <h1 class="title">Seja Bem-Vindo ao Acompanhamento SEI</h1>
 
     <section class="grid" aria-label="Lista de sistemas">
