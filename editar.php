@@ -153,6 +153,10 @@ $stmt->bind_param(
         <label>Data Solicitação</label>
         <input type="date" name="data_solicitacao" required value="<?php echo htmlspecialchars($sol['data_solicitacao']); ?>">
       </div>
+    </div>
+
+    <?php if (isset($_SESSION['tipo']) && $_SESSION['tipo'] !== 'comum'): ?>
+    <div class="linha">
       <div class="campo">
         <label>Data Liberação</label>
         <input type="date" name="data_liberacao" value="<?php echo htmlspecialchars($sol['data_liberacao']); ?>">
@@ -169,6 +173,7 @@ $stmt->bind_param(
         <input type="date" name="tempo_real" value="<?php echo htmlspecialchars($sol['tempo_real']); ?>">
       </div>
     </div>
+    <?php endif; ?>
 
     <div class="acoes">
       <button class="btn primary" type="submit">Salvar</button>

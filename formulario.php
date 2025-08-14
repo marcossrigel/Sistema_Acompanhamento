@@ -44,16 +44,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $tempo_medio     = null_if_empty($tempo_medio);
 
     if (strtolower($perfil) === 'solicitante') {
-      $data_liberacao = date('Y-m-d');
-      $tempo_medio = $TEMPO_MEDIO_PADRAO;
-      $tempo_real = null;
+      $hoje = date('Y-m-d');
+      $data_solicitacao = $hoje;
+      $data_liberacao   = $hoje;
 
-      if ($data_solicitacao) {
-        $t1 = new DateTime($data_solicitacao);
-        $t2 = new DateTime($data_liberacao);
-        $diff = $t1->diff($t2)->days;
-        $tempo_real = (int) max(0, $diff);
-      }
+      // padrão do sistema
+      $tempo_medio = $TEMPO_MEDIO_PADRAO;
+
+      // se solicitação==liberação, tempo_real é 0
+      $tempo_real = 0;
     } else {
       if (!empty($tempo_real_form)) {
         $t1 = new DateTime($data_solicitacao);
@@ -64,13 +63,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
     }
 
-    $sql = "INSERT INTO solicitacoes
-            (sei, codigo, setor, responsavel, data_solicitacao, data_liberacao, tempo_medio, tempo_real, demanda, data_registro)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+    $sql = "INSERT INTO solicitacoes (
+      demanda, sei, codigo, setor, responsavel, data_solicitacao, data_liberacao,
+      tempo_medio, tempo_real, data_registro, setor_responsavel
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
 
     $stmt = $conn->prepare($sql);
     if ($stmt) {
-      $stmt->bind_param("sssssssis", $sei, $codigo, $setor, $responsavel, $data_solicitacao, $data_liberacao, $tempo_medio, $tempo_real, $demanda);
+      $setor_responsavel = 'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS';
+
+      $stmt->bind_param(
+        "ssssssssis",
+        $demanda,           
+        $sei,               
+        $codigo,            
+        $setor,             
+        $responsavel,       
+        $data_solicitacao,  
+        $data_liberacao,    
+        $tempo_medio,       
+        $tempo_real,        
+        $setor_responsavel  
+      );
+
       if ($stmt->execute()) {
         $mensagem = 'sucesso';
       } else {
@@ -142,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   <div class="linha">
     <div class="campo-pequeno" id="grupo-tempo-medio">
-      <label class="label">Tempo Médio (hh:mm)</label>
+      <label class="label">Tempo Médio (hh:mm)</label> 
       <input type="time" name="tempo_medio" id="tempo_medio" class="campo">
     </div>
     <div class="campo-pequeno" id="grupo-tempo-real">
@@ -165,17 +180,22 @@ document.addEventListener('DOMContentLoaded', function () {
   const perfil = document.querySelector('form').dataset.perfil;
   const campoLiberacao = document.getElementById('data_liberacao');
   const campoTempoMedio = document.getElementById('grupo-tempo-medio');
-  const campoTempoReal = document.getElementById('grupo-tempo-real');
-
+  const campoTempoReal  = document.getElementById('grupo-tempo-real');
   if (campoTempoMedio) campoTempoMedio.style.display = 'none';
-  if (campoTempoReal) campoTempoReal.style.display = 'none';
+  if (campoTempoReal)  campoTempoReal.style.display  = 'none';
 
   if (perfil.toLowerCase() === 'solicitante') {
     const hoje = new Date();
     const yyyy = hoje.getFullYear();
     const mm = String(hoje.getMonth() + 1).padStart(2, '0');
     const dd = String(hoje.getDate()).padStart(2, '0');
-    campoLiberacao.value = `${yyyy}-${mm}-${dd}`;
+    const isoHoje = `${yyyy}-${mm}-${dd}`;
+
+    campoLiberacao.value = isoHoje;
+
+    const campoSolic = document.getElementById('data_solicitacao');
+    if (campoSolic) campoSolic.value = isoHoje;
+    campoLiberacao.readOnly = true;
   }
 });
 
@@ -184,13 +204,12 @@ document.addEventListener('DOMContentLoaded', function () {
   const perfil = (form.dataset.perfil || '').toLowerCase();
   const isSolicitante = perfil === 'solicitante';
 
-  const dataSolic = document.getElementById('data_solicitacao');
-  const dataLib   = document.getElementById('data_liberacao');
-  const tempoMed  = document.getElementById('tempo_medio');
-  const tempoRealDias = document.getElementById('tempo_real_dias');
-  const tempoMedioPadrao = form.dataset.tempoMedio || '00:30';
+  const dataSolic       = document.getElementById('data_solicitacao');
+  const dataLib         = document.getElementById('data_liberacao');
+  const tempoMed        = document.getElementById('tempo_medio');
+  const tempoRealDias   = document.getElementById('tempo_real_dias');
+  const tempoMedioPadrao= form.dataset.tempoMedio || '00:30';
 
-  const grupoLiberacao  = document.getElementById('grupo-liberacao');
   const grupoTempoMedio = document.getElementById('grupo-tempo-medio');
   const grupoTempoReal  = document.getElementById('grupo-tempo-real');
 
@@ -199,40 +218,23 @@ document.addEventListener('DOMContentLoaded', function () {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;;
-  }
-
-  function parseISO(v) {
-    if (!v) return null;
-    const [y,m,d] = v.split('-').map(Number);
-    if (!y || !m || !d) return null;
-    return new Date(Date.UTC(y, m - 1, d));
-  }
-
-  function diffDays(a, b) {
-    if (!a || !b) return '';
-    const ms = b.getTime() - a.getTime();
-    return Math.max(0, Math.round(ms / 86400000));
-  }
-
-  function atualizarTempoReal() {
-    const a = parseISO(dataSolic.value);
-    const b = parseISO(dataLib.value);
-    const dias = diffDays(a, b);
-    if (isSolicitante) tempoRealDias.value = dias === '' ? '' : String(dias);
+    return `${y}-${m}-${day}`;
   }
 
   if (isSolicitante) {
+    // esconde campos de tempo
     grupoTempoMedio?.classList.add('hidden');
     grupoTempoReal?.classList.add('hidden');
 
-    if (dataLib)  dataLib.value = hojeLocalISO();
-    if (tempoMed) tempoMed.value = tempoMedioPadrao;
-    if (dataSolic) dataSolic.value = hojeLocalISO();
+    // força hoje nas duas datas e tempo_real 0
+    const hojeISO = hojeLocalISO();
+    if (dataLib)   dataLib.value   = hojeISO;
+    if (dataSolic) dataSolic.value = hojeISO;
+    if (tempoMed)  tempoMed.value  = tempoMedioPadrao;
+    if (tempoRealDias) tempoRealDias.value = '0';
 
-    dataLib.addEventListener('change', atualizarTempoReal);
-    dataSolic.addEventListener('change', atualizarTempoReal);
-    atualizarTempoReal();
+    // impede alterações acidentais
+    if (dataLib)   dataLib.readOnly   = true;
   } else {
     grupoTempoMedio?.classList.remove('hidden');
     grupoTempoReal?.classList.remove('hidden');
@@ -258,7 +260,6 @@ function fecharModal() {
   if (sucesso) sucesso.style.display = 'none';
   if (erro) erro.style.display = 'none';
 
-  // Remove os parâmetros da URL (ex: ?perfil=solicitante)
   window.history.replaceState({}, document.title, window.location.pathname);
 }
 

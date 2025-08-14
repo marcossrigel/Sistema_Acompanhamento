@@ -56,5 +56,9 @@ $_SESSION['nome']                    = $user['nome'];
 $_SESSION['setor']                   = $user['setor'];
 $_SESSION['tipo_usuario']            = (strcasecmp(trim($user['setor']), 'Solicitante') === 0) ? 'solicitante' : 'colaborador';
 
-header('Location: ' . ($_SESSION['tipo_usuario'] === 'solicitante' ? 'home.php' : 'painel.php'));
+$redirectUrl = $_SESSION['tipo_usuario'] === 'solicitante'
+  ? 'home.php'
+  : 'painel.php?access_dinamic=' . urlencode($token);
+
+header('Location: ' . $redirectUrl);
 exit;

@@ -7,34 +7,35 @@ $nomeSetorPainel = "Painel Ainda nao funcionando ";
 
 $token = $_GET['access_dinamic'] ?? '';
 $token = $connRemoto->real_escape_string($token);
-echo "<pre>";
-echo "URL: " . $_SERVER['REQUEST_URI'] . "\n";
-echo "TOKEN: " . $token . "\n";
-echo "</pre>";
+
+if (empty($token)) {
+    echo "<h2 style='color: red; text-align: center;'>Token de acesso nulo ou não identificado.</h2>";
+    exit;
+}
 
 $g_id = null;
 $consultaToken = $connRemoto->query("SELECT g_id FROM token_sessao WHERE token = '$token' LIMIT 1");
 if ($consultaToken && $consultaToken->num_rows > 0) {
     $g_id = $consultaToken->fetch_assoc()['g_id'];
 }
-echo "<pre>G_ID: $g_id</pre>"; // DEBUG 2
 
 if ($g_id) {
     $consultaSetor = $connLocal->query("SELECT setor FROM usuarios WHERE id_usuario_cehab_online = '$g_id' LIMIT 1");
     if ($consultaSetor && $consultaSetor->num_rows > 0) {
         $setor = $consultaSetor->fetch_assoc()['setor'];
-        echo "<pre>Setor: $setor</pre>"; // DEBUG 3
         if ($setor) {
-            $nomeSetorPainel = "Painel - " . $setor;
+            $nomeSetorPainel = $setor;
         }
     }
 }
 
-
-$sql = "SELECT id, demanda, sei, codigo, setor, responsavel, 
-               data_solicitacao, data_liberacao, tempo_medio, tempo_real, data_registro
+$sql = "SELECT id, demanda, sei, codigo, setor, responsavel,
+               data_solicitacao, data_liberacao, tempo_medio, tempo_real, data_registro,
+               setor_responsavel
         FROM solicitacoes
+        WHERE setor_responsavel = '$setor'
         ORDER BY data_solicitacao DESC, id DESC";
+
 $res = $connLocal->query($sql);
 
 function show($v) {
@@ -74,9 +75,16 @@ function show($v) {
             <p><span class="rot">Tempo Médio:</span> <?= show($row['tempo_medio']) ?> &nbsp; | &nbsp;
                <span class="rot">Tempo Real (Data):</span> <?= show($row['tempo_real']) ?></p>
             <p><span class="rot">Registrado em:</span> <?= show($row['data_registro']) ?></p>
+            
             <div class="toolbar">
-              <button onclick="andamentoSetor(<?= (int)$row['id'] ?>)">Andamento do Setor</button>
-            </div>
+            <button onclick="window.location.href='andamento.php?id=<?= (int)$row['id'] ?>'">Andamento do Setor</button>
+            <?php if ($row['setor_responsavel'] === $setor): ?>
+              <form method="get" action="encaminhar.php" style="display:inline;">
+                <input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
+                <input type="hidden" name="access_dinamic" value="<?= htmlspecialchars($_GET['access_dinamic']) ?>">
+                <button type="submit">Encaminhar</button> <!-- herda .toolbar button -->
+              </form>
+            <?php endif; ?>
           </div>
         </div>
       <?php endwhile; ?>
@@ -86,6 +94,7 @@ function show($v) {
 </div>
 
 <script>
+
 document.querySelectorAll('.accordion').forEach(btn => {
   btn.addEventListener('click', () => {
     const id = btn.dataset.id;
@@ -111,8 +120,21 @@ if (abertaId) {
     panel.style.display = 'block';
   }
 }
+
 function andamentoSetor(id){
   window.location.href = 'andamento.php?id=' + id;
+}
+
+function encaminhar(id) {
+  if (!confirm('Encaminhar para o próximo setor?')) return;
+  window.location.href = 'liberar.php?id=' + id;
+}
+
+function encaminhar(id) {
+  if (!confirm('Encaminhar para o próximo setor?')) return;
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('access_dinamic');
+  window.location.href = 'liberar.php?id=' + id + '&access_dinamic=' + encodeURIComponent(token);
 }
 </script>
 </body>
