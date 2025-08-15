@@ -4,14 +4,30 @@ if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 require_once __DIR__ . '/config.php';
 $conn->set_charset('utf8mb4');
 
-$sql = "SELECT id, demanda, sei, codigo, setor, responsavel, 
-               data_solicitacao, data_liberacao, tempo_medio, tempo_real, data_registro
-        FROM solicitacoes
-        ORDER BY data_solicitacao DESC, id DESC";
-$res = $conn->query($sql);
+$idUsuario = $_SESSION['id_usuario'] ?? 0;
+
+$sql = "
+SELECT s.id, s.demanda, s.sei, s.codigo, s.setor, s.responsavel,
+       s.data_solicitacao, s.data_liberacao, s.tempo_medio, s.tempo_real, s.data_registro
+FROM solicitacoes s
+WHERE s.id_usuario = ?
+  AND s.id = (
+        SELECT MIN(s2.id)
+        FROM solicitacoes s2
+        WHERE s2.id_usuario = s.id_usuario
+          AND s2.sei    = s.sei
+          AND s2.codigo = s.codigo
+  )
+ORDER BY s.data_solicitacao DESC, s.id DESC";
+
+$stmt = $conn->prepare($sql);
+$stmt->bind_param('i', $idUsuario);
+$stmt->execute();
+$result = $stmt->get_result();
 
 function show($v) { return $v !== null && $v !== '' ? htmlspecialchars($v) : '—'; }
 ?>
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -24,11 +40,11 @@ function show($v) { return $v !== null && $v !== '' ? htmlspecialchars($v) : '�
 <div class="container">
   <h1>Solicitações</h1>
 
-  <?php if (!$res || $res->num_rows === 0): ?>
-    <div class="vazio">Nenhuma solicitação cadastrada.</div>
-  <?php else: ?>
-    <div id="lista-solicitacoes">
-      <?php while ($row = $res->fetch_assoc()): ?>
+<?php if (!$result || $result->num_rows === 0): ?>
+  <div class="vazio">Nenhuma solicitação cadastrada.</div>
+<?php else: ?>
+  <div id="lista-solicitacoes">
+    <?php while ($row = $result->fetch_assoc()): ?>
         <div class="item">
           <button class="accordion" data-id="<?php echo (int)$row['id']; ?>">
             <span class="titulo"><?php echo show($row['demanda']); ?></span>

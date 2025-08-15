@@ -82,7 +82,7 @@ function show($v) {
               <form method="get" action="encaminhar.php" style="display:inline;">
                 <input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
                 <input type="hidden" name="access_dinamic" value="<?= htmlspecialchars($_GET['access_dinamic']) ?>">
-                <button type="submit">Encaminhar</button> <!-- herda .toolbar button -->
+                <button type="submit">Encaminhar</button>
               </form>
             <?php endif; ?>
           </div>

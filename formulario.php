@@ -47,11 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $hoje = date('Y-m-d');
       $data_solicitacao = $hoje;
       $data_liberacao   = $hoje;
-
-      // padrão do sistema
       $tempo_medio = $TEMPO_MEDIO_PADRAO;
-
-      // se solicitação==liberação, tempo_real é 0
       $tempo_real = 0;
     } else {
       if (!empty($tempo_real_form)) {
@@ -64,26 +60,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $sql = "INSERT INTO solicitacoes (
-      demanda, sei, codigo, setor, responsavel, data_solicitacao, data_liberacao,
+      id_usuario, demanda, sei, codigo, setor, responsavel, data_solicitacao, data_liberacao,
       tempo_medio, tempo_real, data_registro, setor_responsavel
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
 
     $stmt = $conn->prepare($sql);
+    
     if ($stmt) {
       $setor_responsavel = 'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS';
 
       $stmt->bind_param(
-        "ssssssssis",
-        $demanda,           
-        $sei,               
-        $codigo,            
-        $setor,             
-        $responsavel,       
-        $data_solicitacao,  
-        $data_liberacao,    
-        $tempo_medio,       
-        $tempo_real,        
-        $setor_responsavel  
+        "issssssssis",
+        $_SESSION['id_usuario'],
+        $demanda,
+        $sei,
+        $codigo,
+        $setor,
+        $responsavel,
+        $data_solicitacao,
+        $data_liberacao,
+        $tempo_medio,
+        $tempo_real,
+        $setor_responsavel
       );
 
       if ($stmt->execute()) {
