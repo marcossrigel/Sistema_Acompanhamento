@@ -35,30 +35,13 @@ $check = $conn->prepare("
   FROM solicitacoes
   WHERE sei = ? AND codigo = ? 
     AND setor_responsavel = ?
+  ORDER BY id DESC
   LIMIT 1
 ");
 $check->bind_param("sss", $sei, $codigo, $setorResponsavelDAF);
 $check->execute();
 $existeDAF = $check->get_result()->fetch_assoc();
 $check->close();
-
-if (!$existeDAF) {
-  $sql = "INSERT INTO solicitacoes (
-      id_usuario, demanda, sei, codigo, setor, responsavel,
-      data_solicitacao, data_liberacao, tempo_medio, tempo_real,
-      data_registro, setor_responsavel
-    ) VALUES (
-      ?, ?, ?, ?, ?, ?, CURDATE(), NULL, ?, ?, NOW(), ?
-    )";
-  $stmt = $conn->prepare($sql);
-  $stmt->bind_param(
-    "issssssis",
-    $idUsuario, $demanda, $sei, $codigo, $setor, $responsavel,
-    $tempo_medio, $tempo_real, $setorResponsavelDAF
-  );
-  $stmt->execute();
-  $stmt->close();
-}
 
 $st = $conn->prepare("SELECT * FROM solicitacoes WHERE sei = ? AND codigo = ? ORDER BY id ASC");
 $st->bind_param("ss", $sei, $codigo);
@@ -69,14 +52,14 @@ $st->close();
 $ultimoPorSetor = [];
 $setorAtual = null;
 $primeiraLinha = $hist[0] ?? null;
+$ultimaLinha = end($hist); // ✅ agora sim definido corretamente
 
 foreach ($hist as $row) {
   $keySetor = norm($row['setor_responsavel']);
   $ultimoPorSetor[$keySetor] = $row;
-  if ($row['data_liberacao'] === null) {
-    $setorAtual = $keySetor;
-  }
 }
+
+$setorAtual = norm($ultimaLinha['setor_responsavel']);
 
 $steps = [
   ['key' => norm('DEMANDANTE'),  'label' => 'Demandante', 'hint' => 'Recebido'],
@@ -188,7 +171,7 @@ $progressPct = max(0, min(100, ($progressIdx / $total) * 100));
 </head>
 <body>
   <main class="wrap">
-    <h1 class="title">Informações sobre o último serviço</h1>
+    <h2 class="title"><?php echo htmlspecialchars($demanda); ?></h2>
     <?php
       $situacao = ($currentIdx >= 0) ? 'EM ANDAMENTO' : 'CONCLUÍDO';
       $cor = ($currentIdx >= 0) ? 'style="color:#f59e0b"' : 'style="color:#16a34a"';
