@@ -48,8 +48,140 @@ function show($v) {
 <head>
   <meta charset="UTF-8">
   <title><?= htmlspecialchars($nomeSetorPainel) ?></title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="./assets/css/visualizar.css">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #edf3f7;
+      --card: #fff;
+      --text: #1d1d1d;
+      --muted: #6b7280;
+      --line: #e0e0e0;
+      --primary: #0a6be2;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: var(--bg);
+      margin: 0;
+      padding: 30px 15px;
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      font-weight: 700;
+      font-size: 26px;
+      margin-bottom: 24px;
+      color: var(--text);
+    }
+
+    .accordion {
+      background-color: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      padding: 14px 18px;
+      width: 100%;
+      border: none;
+      text-align: left;
+      font-size: 17px;
+      font-weight: 600;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background-color 0.2s ease;
+    }
+
+    .accordion.active {
+      background-color: #f0f4f9;
+    }
+
+    .seta {
+      font-size: 18px;
+      transition: transform 0.2s;
+    }
+
+    .accordion.active .seta {
+      transform: rotate(180deg);
+    }
+
+    .panel {
+      padding: 14px 20px;
+      display: none;
+      background-color: #fff;
+      border-radius: 0 0 12px 12px;
+      border-top: 1px solid var(--line);
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+      margin-top: -10px;
+      margin-bottom: 18px;
+    }
+
+    .panel p {
+      margin: 6px 0;
+      font-size: 14px;
+      color: #333;
+      line-height: 1.4;
+    }
+
+    .panel span.rot {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .toolbar {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar button,
+    .toolbar form button {
+      background-color: var(--primary);
+      color: #fff;
+      padding: 8px 14px;
+      font-size: 13px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .toolbar button:hover,
+    .toolbar form button:hover {
+      background-color: #084a9a;
+    }
+
+    .vazio {
+      text-align: center;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      color: var(--muted);
+      font-size: 16px;
+      border: 1px dashed var(--line);
+    }
+
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 22px;
+      }
+      .accordion {
+        font-size: 15px;
+      }
+      .panel {
+        font-size: 13.5px;
+      }
+    }
+  </style>
 </head>
 <body>
 <div class="container">

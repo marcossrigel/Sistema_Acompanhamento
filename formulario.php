@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (strtolower($perfil) === 'solicitante') {
       $hoje = date('Y-m-d');
       $data_solicitacao = $hoje;
-      $data_liberacao   = $hoje;
+      $data_liberacao   = null; 
       $tempo_medio = $TEMPO_MEDIO_PADRAO;
       $tempo_real = 0;
     } else {

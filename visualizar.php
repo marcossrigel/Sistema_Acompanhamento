@@ -1,27 +1,38 @@
 <?php
+
 if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
+
+if (!isset($_SESSION['id_usuario'])) {
+    echo "<p style='color: red;'>Erro: Sessão de usuário não iniciada ou ID não disponível.</p>";
+    exit;
+}
 
 require_once __DIR__ . '/config.php';
 $conn->set_charset('utf8mb4');
 
 $idUsuario = $_SESSION['id_usuario'] ?? 0;
 
+$PRIMEIRO_SETOR = 'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS';
+
 $sql = "
 SELECT s.id, s.demanda, s.sei, s.codigo, s.setor, s.responsavel,
        s.data_solicitacao, s.data_liberacao, s.tempo_medio, s.tempo_real, s.data_registro
 FROM solicitacoes s
 WHERE s.id_usuario = ?
+  AND s.setor_responsavel = ?
   AND s.id = (
         SELECT MIN(s2.id)
         FROM solicitacoes s2
         WHERE s2.id_usuario = s.id_usuario
-          AND s2.sei    = s.sei
+          AND s2.sei = s.sei
           AND s2.codigo = s.codigo
+          AND s2.setor_responsavel = s.setor_responsavel
   )
-ORDER BY s.data_solicitacao DESC, s.id DESC";
+ORDER BY s.data_solicitacao DESC, s.id DESC
+";
 
 $stmt = $conn->prepare($sql);
-$stmt->bind_param('i', $idUsuario);
+$stmt->bind_param('is', $idUsuario, $PRIMEIRO_SETOR);
 $stmt->execute();
 $result = $stmt->get_result();
 

@@ -8,7 +8,6 @@ $id    = (int)($_GET['id'] ?? 0);
 $token = $_GET['access_dinamic'] ?? '';
 if ($id <= 0) { header('Location: painel.php'); exit; }
 
-// 1) Carrega a linha original
 $stmt = $conn->prepare("SELECT * FROM solicitacoes WHERE id = ?");
 $stmt->bind_param("i", $id);
 $stmt->execute();
@@ -17,7 +16,6 @@ $stmt->close();
 
 if (!$orig) { die('Solicitação não encontrada.'); }
 
-// 2) Define o próximo setor
 $mapaProximo = [
   'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS' => 'GECOMP',
   'GECOMP'      => 'DDO',
@@ -26,8 +24,7 @@ $mapaProximo = [
   'HOMOLOGACAO' => 'PARECER JUR',
   'PARECER JUR' => 'NE',
   'NE'          => 'PF',
-  'PF'          => 'NE',   // atenção: chave repetida “NE” pode causar ambiguidade
-  'NE'          => 'LIQ',  // esta entrada sobrescreve a anterior em arrays PHP
+  'NE'          => 'LIQ',
   'LIQ'         => 'PD',
   'PD'          => 'OB',
   'OB'          => 'REMESSA'
@@ -40,12 +37,10 @@ if (!$proximo) { die('Não há próximo setor configurado para: ' . $atual); }
 $conn->begin_transaction();
 
 try {
-  // 3) Concluir a linha atual (marca liberação hoje)
   $stmt = $conn->prepare("UPDATE solicitacoes SET data_liberacao = CURDATE() WHERE id = ?");
   $stmt->bind_param("i", $id);
   if (!$stmt->execute()) throw new Exception($stmt->error);
 
-  // 4) Criar a nova linha para o próximo setor (recebe hoje, liberação NULL)
   $sql = "INSERT INTO solicitacoes (
             id_usuario, demanda, sei, codigo, setor, responsavel,
             data_solicitacao, data_liberacao, tempo_medio, tempo_real,
@@ -56,17 +51,16 @@ try {
 
   $stmt = $conn->prepare($sql);
 
-  $idUsuario        = (int)$orig['id_usuario'];
-  $demanda          = $orig['demanda'];
-  $sei              = $orig['sei'];
-  $codigo           = $orig['codigo'];
-  $setor            = $orig['setor'];          // setor de origem permanece
-  $responsavel      = $orig['responsavel'];
-  $tempo_medio      = $orig['tempo_medio'];    // mantém
-  $tempo_real       = null;                    // zera para o novo ciclo (NULL)
-  $setor_responsavel= $proximo;                // quem trabalha agora
+  $idUsuario         = (int)$orig['id_usuario'];
+  $demanda           = $orig['demanda'];
+  $sei               = $orig['sei'];
+  $codigo            = $orig['codigo'];
+  $setor             = $orig['setor'];
+  $responsavel       = $orig['responsavel'];
+  $tempo_medio       = $orig['tempo_medio'];
+  $tempo_real        = 0;
+  $setor_responsavel = $proximo;
 
-  // 9 placeholders => 1 int + 8 strings (tempo_real é int/NULL)
   $stmt->bind_param(
     "issssssis",
     $idUsuario,
