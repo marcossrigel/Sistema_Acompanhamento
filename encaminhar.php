@@ -1,86 +1,45 @@
 <?php
+$token = $_POST['access_dinamic'] ?? $_GET['access_dinamic'] ?? '';
+if (!$token) {
+  die("Token de acesso ausente.");
+}
 if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 require_once __DIR__ . '/config.php';
 $conn = $connLocal;
 date_default_timezone_set('America/Recife');
 
-$id    = (int)($_GET['id'] ?? 0);
-$token = $_GET['access_dinamic'] ?? '';
-if ($id <= 0) { header('Location: painel.php'); exit; }
+// 1. Recebe os dados
+$id_demanda = (int)($_POST['id_demanda'] ?? 0);
+$setor_destino = trim($_POST['setor_destino'] ?? '');
+$setor_origem = trim($_POST['setor_origem'] ?? 'INDEFINIDO');
+$status = 'Em andamento';
 
+// 2. Verifica se a demanda existe
 $stmt = $conn->prepare("SELECT * FROM solicitacoes WHERE id = ?");
-$stmt->bind_param("i", $id);
+$stmt->bind_param("i", $id_demanda);
 $stmt->execute();
 $orig = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
-if (!$orig) { die('Solicitação não encontrada.'); }
-
-$mapaProximo = [
-  'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS' => 'GECOMP',
-  'GECOMP'      => 'DDO',
-  'DDO'         => 'LICITACAO',
-  'LICITACAO'   => 'HOMOLOGACAO',
-  'HOMOLOGACAO' => 'PARECER JUR',
-  'PARECER JUR' => 'NE',
-  'NE'          => 'PF',
-  'NE'          => 'LIQ',
-  'LIQ'         => 'PD',
-  'PD'          => 'OB',
-  'OB'          => 'REMESSA'
-];
-
-$atual   = $orig['setor_responsavel'];
-$proximo = $mapaProximo[$atual] ?? null;
-if (!$proximo) { die('Não há próximo setor configurado para: ' . $atual); }
-
-$conn->begin_transaction();
-
-try {
-  $stmt = $conn->prepare("UPDATE solicitacoes SET data_liberacao = CURDATE() WHERE id = ?");
-  $stmt->bind_param("i", $id);
-  if (!$stmt->execute()) throw new Exception($stmt->error);
-
-  $sql = "INSERT INTO solicitacoes (
-            id_usuario, demanda, sei, codigo, setor, responsavel,
-            data_solicitacao, data_liberacao, tempo_medio, tempo_real,
-            data_registro, setor_responsavel
-          ) VALUES (
-            ?, ?, ?, ?, ?, ?, CURDATE(), NULL, ?, ?, NOW(), ?
-          )";
-
-  $stmt = $conn->prepare($sql);
-
-  $idUsuario         = (int)$orig['id_usuario'];
-  $demanda           = $orig['demanda'];
-  $sei               = $orig['sei'];
-  $codigo            = $orig['codigo'];
-  $setor             = $orig['setor'];
-  $responsavel       = $orig['responsavel'];
-  $tempo_medio       = $orig['tempo_medio'];
-  $tempo_real        = 0;
-  $setor_responsavel = $proximo;
-
-  $stmt->bind_param(
-    "issssssis",
-    $idUsuario,
-    $demanda,
-    $sei,
-    $codigo,
-    $setor,
-    $responsavel,
-    $tempo_medio,
-    $tempo_real,
-    $setor_responsavel
-  );
-
-  if (!$stmt->execute()) throw new Exception($stmt->error);
-
-  $conn->commit();
-  header("Location: painel.php?access_dinamic=" . urlencode($token));
-  exit;
-
-} catch (Throwable $e) {
-  $conn->rollback();
-  die('Erro ao encaminhar: ' . $e->getMessage());
+if (!$orig) {
+  die('Solicitação não encontrada.');
 }
+
+// 3. Grava o histórico de encaminhamento
+$stmt = $conn->prepare("INSERT INTO encaminhamentos 
+  (id_demanda, setor_origem, setor_destino, status, data_encaminhamento) 
+  VALUES (?, ?, ?, ?, NOW())");
+$stmt->bind_param("isss", $id_demanda, $setor_origem, $setor_destino, $status);
+$stmt->execute();
+$stmt->close();
+
+// 4. Atualiza o setor atual na tabela solicitacoes
+$stmt = $conn->prepare("UPDATE solicitacoes SET setor_responsavel = ?, data_liberacao = CURDATE() WHERE id = ?");
+$stmt->bind_param("si", $setor_destino, $id_demanda);
+$stmt->execute();
+$stmt->close();
+
+// 5. Redireciona
+header("Location: painel.php?access_dinamic=" . urlencode($token));
+
+exit;

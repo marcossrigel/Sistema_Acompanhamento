@@ -20,31 +20,10 @@ if (!$ref) { echo 'Solicitação não encontrada.'; exit; }
 
 function norm($s){ return strtoupper(trim((string)$s)); }
 
-$idUsuario           = (int)($ref['id_usuario'] ?? 0);
-$demanda             = $ref['demanda'] ?? '';
-$sei                 = trim($ref['sei'] ?? '');
-$codigo              = trim($ref['codigo'] ?? '');
-$setor               = $ref['setor'] ?? '';
-$responsavel         = $ref['responsavel'] ?? '';
-$tempo_medio         = $ref['tempo_medio'] ?? '';
-$tempo_real          = 0;
-$setorResponsavelDAF = 'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS';
+$demanda = $ref['demanda'] ?? '';
 
-$check = $conn->prepare("
-  SELECT 1
-  FROM solicitacoes
-  WHERE sei = ? AND codigo = ? 
-    AND setor_responsavel = ?
-  ORDER BY id DESC
-  LIMIT 1
-");
-$check->bind_param("sss", $sei, $codigo, $setorResponsavelDAF);
-$check->execute();
-$existeDAF = $check->get_result()->fetch_assoc();
-$check->close();
-
-$st = $conn->prepare("SELECT * FROM solicitacoes WHERE sei = ? AND codigo = ? ORDER BY id ASC");
-$st->bind_param("ss", $sei, $codigo);
+$st = $conn->prepare("SELECT * FROM encaminhamentos WHERE id_demanda = ? ORDER BY data_encaminhamento ASC");
+$st->bind_param("i", $id);
 $st->execute();
 $hist = $st->get_result()->fetch_all(MYSQLI_ASSOC);
 $st->close();
@@ -52,14 +31,13 @@ $st->close();
 $ultimoPorSetor = [];
 $setorAtual = null;
 $primeiraLinha = $hist[0] ?? null;
-$ultimaLinha = end($hist); // ✅ agora sim definido corretamente
+$ultimaLinha = end($hist);
+$setorAtual = norm($ultimaLinha['setor_destino'] ?? '');
 
 foreach ($hist as $row) {
-  $keySetor = norm($row['setor_responsavel']);
+  $keySetor = norm($row['setor_destino']);
   $ultimoPorSetor[$keySetor] = $row;
 }
-
-$setorAtual = norm($ultimaLinha['setor_responsavel']);
 
 $steps = [
   ['key' => norm('DEMANDANTE'),  'label' => 'Demandante', 'hint' => 'Recebido'],
@@ -71,13 +49,11 @@ $steps = [
   ['key' => norm('PARECER JUR'), 'label' => 'Parecer Jur.','hint' => 'Aguardando'],
   ['key' => norm('NE'),          'label' => 'NE',         'hint' => 'Aguardando'],
   ['key' => norm('PF'),          'label' => 'PF',         'hint' => 'Aguardando'],
-  ['key' => norm('NE'),          'label' => 'NE',         'hint' => 'Aguardando'],
   ['key' => norm('LIQ'),         'label' => 'LIQ',        'hint' => 'Aguardando'],
   ['key' => norm('PD'),          'label' => 'PD',         'hint' => 'Aguardando'],
   ['key' => norm('OB'),          'label' => 'OB',         'hint' => 'Aguardando'],
   ['key' => norm('REMESSA'),     'label' => 'Remessa',    'hint' => 'Aguardando'],
 ];
-
 
 $currentIdx = -1;
 if ($setorAtual !== null) {
@@ -96,8 +72,8 @@ foreach ($steps as $i => $s) {
 
   if ($keyNorm === norm('DEMANDANTE')) $stRow = $primeiraLinha;
 
-  $recebidoEm = $stRow ? d($stRow['data_solicitacao']) : '—';
-  $liberadoEm = $stRow ? d($stRow['data_liberacao'])   : '—';
+  $recebidoEm = $stRow ? d($stRow['data_encaminhamento']) : '—';
+  $liberadoEm = $recebidoEm;
 
   $status = 'todo';
   if ($keyNorm === norm('DEMANDANTE')) {
@@ -105,8 +81,6 @@ foreach ($steps as $i => $s) {
   } elseif ($currentIdx >= 0) {
     if     ($i <  $currentIdx) $status = 'done';
     elseif ($i === $currentIdx) $status = 'current';
-  } elseif ($stRow && $stRow['data_liberacao'] !== null) {
-    $status = 'done';
   }
 
   if ($keyNorm === norm('DEMANDANTE'))       $small = "Recebido • "   . ($recebidoEm ?? '—');
@@ -120,13 +94,14 @@ foreach ($steps as $i => $s) {
 $progressIdx = -1;
 if ($currentIdx >= 0) $progressIdx = $currentIdx;
 else {
-  for ($i=count($cards)-1; $i>=0; $i--) {
+  for ($i = count($cards) - 1; $i >= 0; $i--) {
     if ($cards[$i]['status'] === 'done') { $progressIdx = $i; break; }
   }
 }
-$total = max(1, count($cards)-1);
+$total = max(1, count($cards) - 1);
 $progressPct = max(0, min(100, ($progressIdx / $total) * 100));
 ?>
+
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>

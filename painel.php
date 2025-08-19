@@ -211,11 +211,31 @@ function show($v) {
             <div class="toolbar">
             <button onclick="window.location.href='andamento.php?id=<?= (int)$row['id'] ?>'">Andamento do Setor</button>
             <?php if ($row['setor_responsavel'] === $setor): ?>
-              <form method="get" action="encaminhar.php" style="display:inline;">
-                <input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
+
+              <form method="post" action="encaminhar.php" style="display:inline;">
+                <input type="hidden" name="id_demanda" value="<?= (int)$row['id'] ?>">
+                <input type="hidden" name="setor_origem" value="<?= htmlspecialchars($row['setor_responsavel']) ?>">
+
+                <?php
+                  $mapaProximo = [
+                    'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS' => 'GECOMP',
+                    'GECOMP'      => 'DDO',
+                    'DDO'         => 'LICITACAO',
+                    'LICITACAO'   => 'HOMOLOGACAO',
+                    'HOMOLOGACAO' => 'PARECER JUR',
+                    'PARECER JUR' => 'NE',
+                    'NE'          => 'PF',
+                    'LIQ'         => 'PD',
+                    'PD'          => 'OB',
+                    'OB'          => 'REMESSA'
+                  ];
+                  $destino = $mapaProximo[$row['setor_responsavel']] ?? '';
+                ?>
+                <input type="hidden" name="setor_destino" value="<?= $destino ?>">
                 <input type="hidden" name="access_dinamic" value="<?= htmlspecialchars($_GET['access_dinamic']) ?>">
                 <button type="submit">Encaminhar</button>
               </form>
+
             <?php endif; ?>
           </div>
         </div>

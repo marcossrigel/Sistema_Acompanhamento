@@ -86,6 +86,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       if ($stmt->execute()) {
         $mensagem = 'sucesso';
+
+        // Inserir encaminhamento inicial para a DAF
+        $id_nova_solicitacao = $stmt->insert_id;
+        $sqlEncaminhamento = "INSERT INTO encaminhamentos (
+          id_demanda, setor_origem, setor_destino, status, data_encaminhamento
+        ) VALUES (?, ?, ?, ?, NOW())";
+
+        $stmtEnc = $conn->prepare($sqlEncaminhamento);
+        if ($stmtEnc) {
+          $setorOrigem = 'DEMANDANTE';
+          $setorDestino = 'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS';
+          $statusEnc = 'Em andamento';
+          $stmtEnc->bind_param("isss", $id_nova_solicitacao, $setorOrigem, $setorDestino, $statusEnc);
+          $stmtEnc->execute();
+          $stmtEnc->close();
+        }
       } else {
         $mensagem = 'erro';
         $detalhe = 'Erro ao inserir: ' . $stmt->error;
