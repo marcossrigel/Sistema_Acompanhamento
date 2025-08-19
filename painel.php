@@ -29,14 +29,30 @@ if ($g_id) {
     }
 }
 
-$sql = "SELECT id, demanda, sei, codigo, setor, responsavel,
-               data_solicitacao, data_liberacao, tempo_medio, tempo_real, data_registro,
-               setor_responsavel
-        FROM solicitacoes
-        WHERE setor_responsavel = '$setor'
-        ORDER BY data_solicitacao DESC, id DESC";
+if (empty($setor)) {
+    echo "<h2 style='color: red; text-align: center;'>Setor do usuário não encontrado.</h2>";
+    exit;
+}
 
-$res = $connLocal->query($sql);
+$stmt = $connLocal->prepare("
+  SELECT
+    s.id, s.demanda, s.sei, s.codigo, s.setor, s.responsavel,
+    s.data_solicitacao, s.data_liberacao, s.tempo_medio, s.tempo_real,
+    s.data_registro, s.setor_responsavel,
+    MAX(e.data_encaminhamento) AS ultimo_movto
+  FROM solicitacoes s
+  JOIN encaminhamentos e
+    ON e.id_demanda = s.id
+   AND e.setor_destino = ?
+  GROUP BY
+    s.id, s.demanda, s.sei, s.codigo, s.setor, s.responsavel,
+    s.data_solicitacao, s.data_liberacao, s.tempo_medio, s.tempo_real,
+    s.data_registro, s.setor_responsavel
+  ORDER BY ultimo_movto DESC, s.id DESC
+");
+$stmt->bind_param("s", $setor);
+$stmt->execute();
+$res = $stmt->get_result();
 
 function show($v) {
     return $v !== null && $v !== '' ? htmlspecialchars($v) : '—';
