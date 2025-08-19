@@ -236,14 +236,15 @@ function show($v) {
                   $mapaProximo = [
                     'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS' => 'GECOMP',
                     'GECOMP'      => 'DDO',
-                    'DDO'         => 'LICITACAO',
-                    'LICITACAO'   => 'HOMOLOGACAO',
-                    'HOMOLOGACAO' => 'PARECER JUR',
-                    'PARECER JUR' => 'NE',
-                    'NE'          => 'PF',
-                    'LIQ'         => 'PD',
-                    'PD'          => 'OB',
-                    'OB'          => 'REMESSA'
+                    'DDO'         => 'CPL',
+                    'CPL'   => 'DAF - HOMOLOGACAO',
+                    'DAF - HOMOLOGACAO' => 'PARECER JUR',
+                    'PARECER JUR' => 'GEFIN NE INICIAL',
+                    'GEFIN NE'          => 'GOP PF (SEFAZ)',
+                    'GOP PF (SEFAZ)'         => 'GEFIN NE DEFINITIVO',
+                    'GEFIN NE DEFINITIVO'          => 'LIQ',
+                    'LIQ'          => 'PD (SEFAZ)',
+                    '' => ''
                   ];
                   $destino = $mapaProximo[$row['setor_responsavel']] ?? '';
                 ?>
