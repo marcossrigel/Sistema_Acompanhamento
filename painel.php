@@ -244,7 +244,8 @@ function show($v) {
                     'GOP PF (SEFAZ)'         => 'GEFIN NE DEFINITIVO',
                     'GEFIN NE DEFINITIVO'          => 'LIQ',
                     'LIQ'          => 'PD (SEFAZ)',
-                    '' => ''
+                    'PD (SEFAZ)' => 'OB',
+                    'OB' => 'REMESSA'
                   ];
                   $destino = $mapaProximo[$row['setor_responsavel']] ?? '';
                 ?>
