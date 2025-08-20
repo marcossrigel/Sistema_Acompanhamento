@@ -228,9 +228,9 @@ function show($v) {
             <button onclick="window.location.href='andamento.php?id=<?= (int)$row['id'] ?>'">Andamento do Setor</button>
             <?php if ($row['setor_responsavel'] === $setor): ?>
 
-              <form method="post" action="encaminhar.php" style="display:inline;">
-                <input type="hidden" name="id_demanda" value="<?= (int)$row['id'] ?>">
-                <input type="hidden" name="setor_origem" value="<?= htmlspecialchars($row['setor_responsavel']) ?>">
+              <form method="get" action="liberar.php" style="display:inline;">
+                <input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
+                <input type="hidden" name="access_dinamic" value="<?= htmlspecialchars($_GET['access_dinamic']) ?>">
 
                 <?php
                   $mapaProximo = [
@@ -264,7 +264,6 @@ function show($v) {
 </div>
 
 <script>
-
 document.querySelectorAll('.accordion').forEach(btn => {
   btn.addEventListener('click', () => {
     const id = btn.dataset.id;
@@ -297,15 +296,11 @@ function andamentoSetor(id){
 
 function encaminhar(id) {
   if (!confirm('Encaminhar para o próximo setor?')) return;
-  window.location.href = 'liberar.php?id=' + id;
-}
-
-function encaminhar(id) {
-  if (!confirm('Encaminhar para o próximo setor?')) return;
   const urlParams = new URLSearchParams(window.location.search);
   const token = urlParams.get('access_dinamic');
   window.location.href = 'liberar.php?id=' + id + '&access_dinamic=' + encodeURIComponent(token);
 }
 </script>
+
 </body>
 </html>
