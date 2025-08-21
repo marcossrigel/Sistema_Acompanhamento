@@ -6,7 +6,7 @@ $conn->set_charset('utf8mb4');
 date_default_timezone_set('America/Recife');
 
 function show($v){ return $v !== null && $v !== '' ? htmlspecialchars($v) : '—'; }
-function d($v){ return $v ? date('Y-m-d', strtotime($v)) : '—'; }
+function d($v){ return $v ? date('d/m/Y', strtotime($v)) : '—'; }
 
 $id = (int)($_GET['id'] ?? 0);
 if ($id <= 0) { http_response_code(400); echo 'ID inválido.'; exit; }
@@ -63,6 +63,7 @@ if ($setorAtual !== null) {
 }
 
 $cards = [];
+
 foreach ($steps as $i => $s) {
   $keyNorm = $s['key'];
   $label   = $s['label'];
@@ -73,7 +74,7 @@ foreach ($steps as $i => $s) {
   if ($keyNorm === norm('DEMANDANTE')) $stRow = $primeiraLinha;
 
   $recebidoEm = $stRow ? d($stRow['data_encaminhamento']) : '—';
-  $liberadoEm = $recebidoEm;
+  $liberadoEm = '—';
 
   $status = 'todo';
   if ($keyNorm === norm('DEMANDANTE')) {
@@ -81,6 +82,20 @@ foreach ($steps as $i => $s) {
   } elseif ($currentIdx >= 0) {
     if     ($i <  $currentIdx) $status = 'done';
     elseif ($i === $currentIdx) $status = 'current';
+  }
+
+  if ($status === 'done') {
+    $stmtLib = $conn->prepare("SELECT data_liberacao FROM solicitacoes 
+      WHERE demanda = ? AND UPPER(TRIM(setor_responsavel)) = ?
+      ORDER BY id DESC LIMIT 1");
+    $stmtLib->bind_param("ss", $demanda, $keyNorm);
+    $stmtLib->execute();
+    $resLib = $stmtLib->get_result()->fetch_assoc();
+    $stmtLib->close();
+
+    if (!empty($resLib['data_liberacao'])) {
+        $liberadoEm = date('d/m/Y', strtotime($resLib['data_liberacao']));
+    }
   }
 
   if ($keyNorm === norm('DEMANDANTE'))       $small = "Recebido • "   . ($recebidoEm ?? '—');
@@ -91,15 +106,18 @@ foreach ($steps as $i => $s) {
   $cards[] = ['label' => $label, 'status' => $status, 'small' => $small];
 }
 
-$progressIdx = -1;
-if ($currentIdx >= 0) $progressIdx = $currentIdx;
-else {
-  for ($i = count($cards) - 1; $i >= 0; $i--) {
-    if ($cards[$i]['status'] === 'done') { $progressIdx = $i; break; }
+// Calcular porcentagem de progresso
+$total = count($cards);
+$concluidos = 0;
+
+foreach ($cards as $c) {
+  if ($c['status'] === 'done') {
+    $concluidos++;
   }
 }
-$total = max(1, count($cards) - 1);
-$progressPct = max(0, min(100, ($progressIdx / $total) * 100));
+
+$progressPct = round(($concluidos / max($total, 1)) * 100);
+
 ?>
 
 <!DOCTYPE html>
