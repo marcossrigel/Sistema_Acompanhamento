@@ -39,24 +39,58 @@ foreach ($hist as $row) {
   $ultimoPorSetor[$keySetor] = $row;
 }
 
+// Agora definimos os steps dinamicamente
+// Verifica se já existe um destino CPL ou DDO vindo da GECOMP
+$existeSetorEscolhido = false;
+foreach ($hist as $row) {
+    if (norm($row['setor_origem']) === norm('GECOMP')) {
+        if (in_array(norm($row['setor_destino']), [norm('CPL'), norm('DDO')])) {
+            $existeSetorEscolhido = norm($row['setor_destino']);
+            break;
+        }
+    }
+}
+
+// Define os steps dinamicamente
 $steps = [
   ['key' => norm('DEMANDANTE'),  'label' => 'Demandante', 'hint' => 'Recebido'],
   ['key' => norm('DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS'), 'label' => 'DAF', 'hint' => 'Recebido'],
   ['key' => norm('GECOMP'),      'label' => 'GECOMP',     'hint' => 'Análise'],
-  ['key' => norm('DDO'),         'label' => 'DDO',        'hint' => 'Execução'],
-  ['key' => norm('CPL'),         'label' => 'CPL',        'hint' => 'Aguardando'],
-  ['key' => norm('HOMOLOGACAO'), 'label' => 'Homologação','hint' => 'Aguardando'],
-  ['key' => norm('PARECER JUR'), 'label' => 'Parecer Jur.','hint' => 'Aguardando'],
-  ['key' => norm('NE'),          'label' => 'NE',         'hint' => 'Aguardando'],
-  ['key' => norm('PF'),          'label' => 'PF',         'hint' => 'Aguardando'],
-  ['key' => norm('LIQ'),         'label' => 'LIQ',        'hint' => 'Aguardando'],
-  ['key' => norm('PD'),          'label' => 'PD',         'hint' => 'Aguardando'],
-  ['key' => norm('OB'),          'label' => 'OB',         'hint' => 'Aguardando'],
-  ['key' => norm('REMESSA'),     'label' => 'Remessa',    'hint' => 'Aguardando'],
 ];
+
+if (!$existeSetorEscolhido) {
+  $steps[] = ['key' => norm('AGUARDANDO_GECOMP_ESCOLHA'), 'label' => 'Aguardando Setor...', 'hint' => 'Aguardando'];
+} else {
+  $steps[] = [
+    'key' => $existeSetorEscolhido,
+    'label' => $existeSetorEscolhido,
+    'hint' => 'Aguardando'
+  ];
+}
+
+// Etapas finais comuns
+$steps[] = ['key' => norm('HOMOLOGACAO'), 'label' => 'Homologação','hint' => 'Aguardando'];
+$steps[] = ['key' => norm('PARECER JUR'), 'label' => 'Parecer Jur.','hint' => 'Aguardando'];
+$steps[] = ['key' => norm('NE'),          'label' => 'NE',         'hint' => 'Aguardando'];
+$steps[] = ['key' => norm('PF'),          'label' => 'PF',         'hint' => 'Aguardando'];
+$steps[] = ['key' => norm('LIQ'),         'label' => 'LIQ',        'hint' => 'Aguardando'];
+$steps[] = ['key' => norm('PD'),          'label' => 'PD',         'hint' => 'Aguardando'];
+$steps[] = ['key' => norm('OB'),          'label' => 'OB',         'hint' => 'Aguardando'];
+$steps[] = ['key' => norm('REMESSA'),     'label' => 'Remessa',    'hint' => 'Aguardando'];
+
 
 $currentIdx = -1;
 if ($setorAtual !== null) {
+
+  if ($setorAtual === norm('AGUARDANDO_GECOMP_ESCOLHA')) {
+      foreach ($hist as $row) {
+          if (in_array(norm($row['setor_destino']), [norm('CPL'), norm('DDO')])) {
+              $setorAtual = norm($row['setor_destino']);
+              break;
+          }
+      }
+  }
+
   foreach ($steps as $i => $s) {
     if ($s['key'] === $setorAtual) { $currentIdx = $i; break; }
   }
@@ -73,6 +107,7 @@ foreach ($steps as $i => $s) {
 
   if ($keyNorm === norm('DEMANDANTE')) $stRow = $primeiraLinha;
 
+  $stRow = $ultimoPorSetor[$keyNorm] ?? null;
   $recebidoEm = $stRow ? d($stRow['data_encaminhamento']) : '—';
   $liberadoEm = '—';
 

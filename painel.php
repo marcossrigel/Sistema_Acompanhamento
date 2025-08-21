@@ -226,6 +226,23 @@ function show($v) {
             
             <div class="toolbar">
             <button onclick="window.location.href='andamento.php?id=<?= (int)$row['id'] ?>'">Andamento do Setor</button>
+
+            <?php if ($row['setor_responsavel'] === 'GECOMP'): ?>
+            <form method="post" action="encaminhar.php">
+              <input type="hidden" name="id_demanda" value="<?= (int)$row['id'] ?>">
+              <input type="hidden" name="setor_origem" value="GECOMP">
+              <input type="hidden" name="access_dinamic" value="<?= htmlspecialchars($_GET['access_dinamic']) ?>">
+
+              <select name="setor_destino" required>
+                <option value="">Escolher próximo setor</option>
+                <option value="DDO">DDO</option>
+                <option value="CPL">CPL</option>
+              </select>
+              <button type="submit">Encaminhar</button>
+            </form>
+          <?php endif; ?>
+
+
             <?php if ($row['setor_responsavel'] === $setor): ?>
 
               <form method="get" action="liberar.php" style="display:inline;">
