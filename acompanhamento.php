@@ -105,7 +105,13 @@ foreach ($steps as $i => $s) {
 
   $stRow = $ultimoPorSetor[$keyNorm] ?? null;
 
-  if ($keyNorm === norm('DEMANDANTE')) $stRow = $primeiraLinha;
+  if ($keyNorm === norm('DEMANDANTE')) {
+      $recebidoEm = d($ref['data_solicitacao']);
+      $status = 'done';
+      $small = "Recebido • " . $recebidoEm;
+      $cards[] = ['label' => $label, 'status' => $status, 'small' => $small];
+      continue;
+  }
 
   $stRow = $ultimoPorSetor[$keyNorm] ?? null;
   $recebidoEm = $stRow ? d($stRow['data_encaminhamento']) : '—';

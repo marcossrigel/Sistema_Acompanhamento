@@ -186,6 +186,45 @@ function show($v) {
       border: 1px dashed var(--line);
     }
 
+        /* SELECT bonito */
+    .select-wrap {
+      position: relative;
+      display: inline-block;
+    }
+
+  .select-wrap select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 44px 10px 12px;
+    font-size: 14px;
+    color: #1f2937;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    transition: border-color .2s, box-shadow .2s;
+  }
+
+  .select-wrap select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(10,107,226,.12);
+  }
+
+  /* seta do select */
+  .select-wrap::after {
+    content: "▾";
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    color: #6b7280;
+    pointer-events: none;
+  }
+
+
     @media (max-width: 600px) {
       h1 {
         font-size: 22px;
@@ -228,51 +267,48 @@ function show($v) {
             <button onclick="window.location.href='andamento.php?id=<?= (int)$row['id'] ?>'">Andamento do Setor</button>
 
             <?php if ($row['setor_responsavel'] === 'GECOMP'): ?>
-            <form method="post" action="encaminhar.php">
-              <input type="hidden" name="id_demanda" value="<?= (int)$row['id'] ?>">
-              <input type="hidden" name="setor_origem" value="GECOMP">
-              <input type="hidden" name="access_dinamic" value="<?= htmlspecialchars($_GET['access_dinamic']) ?>">
-
-              <select name="setor_destino" required>
-                <option value="">Escolher próximo setor</option>
-                <option value="DDO">DDO</option>
-                <option value="CPL">CPL</option>
-              </select>
-              <button type="submit">Encaminhar</button>
-            </form>
-          <?php endif; ?>
-
-
-            <?php if ($row['setor_responsavel'] === $setor): ?>
-
-              <form method="get" action="liberar.php" style="display:inline;">
-                <input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
+              <form method="post" action="encaminhar.php" style="display:inline;">
+                <input type="hidden" name="id_demanda" value="<?= (int)$row['id'] ?>">
+                <input type="hidden" name="setor_origem" value="GECOMP">
                 <input type="hidden" name="access_dinamic" value="<?= htmlspecialchars($_GET['access_dinamic']) ?>">
 
-                <?php
-                  $mapaProximo = [
-                    'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS' => 'GECOMP',
-                    'GECOMP'      => 'DDO',
-                    'DDO'         => 'CPL',
-                    'CPL'   => 'DAF - HOMOLOGACAO',
-                    'DAF - HOMOLOGACAO' => 'PARECER JUR',
-                    'PARECER JUR' => 'GEFIN NE INICIAL',
-                    'GEFIN NE'          => 'GOP PF (SEFAZ)',
-                    'GOP PF (SEFAZ)'         => 'GEFIN NE DEFINITIVO',
-                    'GEFIN NE DEFINITIVO'          => 'LIQ',
-                    'LIQ'          => 'PD (SEFAZ)',
-                    'PD (SEFAZ)' => 'OB',
-                    'OB' => 'REMESSA'
-                  ];
-                  $destino = $mapaProximo[$row['setor_responsavel']] ?? '';
-                ?>
-                <input type="hidden" name="setor_destino" value="<?= $destino ?>">
-                <input type="hidden" name="access_dinamic" value="<?= htmlspecialchars($_GET['access_dinamic']) ?>">
+                <span class="select-wrap">
+                  <select name="setor_destino" required>
+                    <option value="" disabled selected>Escolher próximo setor</option>
+                    <option value="DDO">DDO</option>
+                    <option value="CPL">CPL</option>
+                  </select>
+                </span>
                 <button type="submit">Encaminhar</button>
               </form>
 
+            <?php elseif ($row['setor_responsavel'] === $setor): ?>
+              <form method="get" action="liberar.php" style="display:inline;">
+                <input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
+                <input type="hidden" name="access_dinamic" value="<?= htmlspecialchars($_GET['access_dinamic']) ?>">
+                <?php
+                  $mapaProximo = [
+                    'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS' => 'GECOMP',
+                    'GECOMP'      => 'DDO',              // não cai aqui por causa do elseif acima
+                    'DDO'         => 'CPL',
+                    'CPL'         => 'DAF - HOMOLOGACAO',
+                    'DAF - HOMOLOGACAO' => 'PARECER JUR',
+                    'PARECER JUR' => 'GEFIN NE INICIAL',
+                    'GEFIN NE'    => 'GOP PF (SEFAZ)',
+                    'GOP PF (SEFAZ)' => 'GEFIN NE DEFINITIVO',
+                    'GEFIN NE DEFINITIVO' => 'LIQ',
+                    'LIQ'         => 'PD (SEFAZ)',
+                    'PD (SEFAZ)'  => 'OB',
+                    'OB'          => 'REMESSA'
+                  ];
+                  $destino = $mapaProximo[$row['setor_responsavel']] ?? '';
+                ?>
+                <input type="hidden" name="setor_destino" value="<?= htmlspecialchars($destino) ?>">
+                <button type="submit">Encaminhar</button>
+              </form>
             <?php endif; ?>
           </div>
+
         </div>
       <?php endwhile; ?>
     </div>
