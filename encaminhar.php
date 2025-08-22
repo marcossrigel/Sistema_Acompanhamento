@@ -30,11 +30,17 @@ $stmt->bind_param("isss", $id_demanda, $setor_origem, $setor_destino, $status);
 $stmt->execute();
 $stmt->close();
 
+if (strtoupper(trim($setor_origem)) === 'GECOMP' && in_array(strtoupper(trim($setor_destino)), ['CPL', 'DDO'])) {
+    $update = $conn->prepare("UPDATE solicitacoes SET data_liberacao = NOW() WHERE id = ?");
+    $update->bind_param("i", $id_demanda);
+    $update->execute();
+    $update->close();
+}
+
 $stmt = $conn->prepare("UPDATE solicitacoes SET setor_responsavel = ? WHERE id = ?");
 $stmt->bind_param("si", $setor_destino, $id_demanda);
 $stmt->execute();
 $stmt->close();
 
 header("Location: painel.php?access_dinamic=" . urlencode($token));
-
 exit;

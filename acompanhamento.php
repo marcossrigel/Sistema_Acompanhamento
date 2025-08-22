@@ -125,19 +125,42 @@ foreach ($steps as $i => $s) {
     elseif ($i === $currentIdx) $status = 'current';
   }
 
-  if ($status === 'done') {
-    $stmtLib = $conn->prepare("SELECT data_liberacao FROM solicitacoes 
-      WHERE demanda = ? AND UPPER(TRIM(setor_responsavel)) = ?
-      ORDER BY id DESC LIMIT 1");
-    $stmtLib->bind_param("ss", $demanda, $keyNorm);
-    $stmtLib->execute();
-    $resLib = $stmtLib->get_result()->fetch_assoc();
-    $stmtLib->close();
+if ($status === 'done') {
+    $liberadoEm = '—';
 
-    if (!empty($resLib['data_liberacao'])) {
-        $liberadoEm = date('d/m/Y', strtotime($resLib['data_liberacao']));
+    switch ($keyNorm) {
+        case norm('DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS'):
+            $stmtLib = $conn->prepare("SELECT data_liberacao FROM solicitacoes 
+                WHERE demanda = ? AND UPPER(TRIM(setor_responsavel)) = ? AND id_original IS NULL
+                ORDER BY id DESC LIMIT 1");
+            $stmtLib->bind_param("ss", $demanda, $keyNorm);
+            break;
+
+        case norm('GECOMP'):
+            $stmtLib = $conn->prepare("SELECT data_encaminhamento FROM encaminhamentos 
+                WHERE setor_origem = ? AND id_demanda = ?
+                ORDER BY data_encaminhamento DESC LIMIT 1");
+            $stmtLib->bind_param("si", $keyNorm, $id);
+            break;
+
+        default:
+            $stmtLib = null;
+            break;
     }
-  }
+
+    if (isset($stmtLib)) {
+        $stmtLib->execute();
+        $resLib = $stmtLib->get_result()->fetch_assoc();
+        $stmtLib->close();
+
+        if (!empty($resLib)) {
+            $liberadoEmRaw = current($resLib);
+            if (!empty($liberadoEmRaw)) {
+                $liberadoEm = date('d/m/Y', strtotime($liberadoEmRaw));
+            }
+        }
+    }
+}
 
   if ($keyNorm === norm('DEMANDANTE'))       $small = "Recebido • "   . ($recebidoEm ?? '—');
   elseif ($status === 'done')                $small = "Concluído • " . ($liberadoEm ?? '—');
