@@ -57,6 +57,19 @@ $res = $stmt->get_result();
 function show($v) {
     return $v !== null && $v !== '' ? htmlspecialchars($v) : '—';
 }
+
+function d($v){
+    return ($v && $v !== '0000-00-00')
+        ? htmlspecialchars(date('d/m/Y', strtotime($v)))
+        : '—';
+}
+
+function dt($v){
+    return ($v && $v !== '0000-00-00 00:00:00')
+        ? htmlspecialchars(date('d/m/Y H:i:s', strtotime($v)))
+        : '—';
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -257,11 +270,11 @@ function show($v) {
                <span class="rot">Código:</span> <?= show($row['codigo']) ?> &nbsp; | &nbsp;
                <span class="rot">Setor:</span> <?= show($row['setor']) ?></p>
             <p><span class="rot">Responsável:</span> <?= show($row['responsavel']) ?></p>
-            <p><span class="rot">Data Solicitação:</span> <?= show($row['data_solicitacao']) ?> &nbsp; | &nbsp;
-               <span class="rot">Data Liberação:</span> <?= show($row['data_liberacao']) ?></p>
+            <p><span class="rot">Data Solicitação:</span> <?= d($row['data_solicitacao']) ?> &nbsp; | &nbsp;
+                <span class="rot">Data Liberação:</span> <?= d($row['data_liberacao']) ?></p>
             <p><span class="rot">Tempo Médio:</span> <?= show($row['tempo_medio']) ?> &nbsp; | &nbsp;
                <span class="rot">Tempo Real (Data):</span> <?= show($row['tempo_real']) ?></p>
-            <p><span class="rot">Registrado em:</span> <?= show($row['data_registro']) ?></p>
+            <p><span class="rot">Registrado em:</span> <?= dt($row['data_registro']) ?></p>
             
             <div class="toolbar">
             <button onclick="window.location.href='andamento.php?id=<?= (int)$row['id'] ?>'">Andamento do Setor</button>
