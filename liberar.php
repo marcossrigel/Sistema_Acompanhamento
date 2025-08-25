@@ -13,6 +13,7 @@ $st->bind_param("i", $id);
 $st->execute();
 $origem = $st->get_result()->fetch_assoc();
 $st->close();
+
 if (!$origem) { die("Registro não encontrado."); }
 
 // Usa setor_destino enviado pelo painel.php, se existir
@@ -45,13 +46,13 @@ if (!$proximo) {
 $connLocal->begin_transaction();
 
 try {
-    // Atualiza a data de liberação do setor atual
+    // 1) Atualiza a data de liberação do setor atual
     $upd = $connLocal->prepare("UPDATE solicitacoes SET data_liberacao = CURDATE() WHERE id = ?");
     $upd->bind_param("i", $id);
     $upd->execute();
     $upd->close();
 
-    // Recarrega os dados atualizados
+    // 2) Recarrega os dados atualizados
     $st2 = $connLocal->prepare("SELECT * FROM solicitacoes WHERE id = ?");
     $st2->bind_param("i", $id);
     $st2->execute();
@@ -61,32 +62,48 @@ try {
     if ($proximo) {
         $dataSolicitacao = $origemAtualizada['data_liberacao'];
 
-        // Insere a nova linha da solicitação no próximo setor
+        // setor_original propagado (fallback para dados antigos)
+        $setorOriginal = !empty($origemAtualizada['setor_original'])
+            ? $origemAtualizada['setor_original']
+            : $origemAtualizada['setor'];
+
+        // Tipos seguros
+        $tempoMedio = (string)($origemAtualizada['tempo_medio'] ?? '00:00:00');
+        $tempoReal  = (int)($origemAtualizada['tempo_real']  ?? 0);
+
+        // 3) Insere a nova linha NO PRÓXIMO SETOR
         $ins = $connLocal->prepare("
-          INSERT INTO solicitacoes
-            (id_usuario, demanda, sei, codigo, setor, responsavel, data_solicitacao, data_liberacao, tempo_medio, tempo_real, setor_responsavel)
-          VALUES
-            (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
+            INSERT INTO solicitacoes
+              (id_usuario, demanda, sei, codigo,
+               setor, setor_original, responsavel,
+               data_solicitacao, data_liberacao,
+               tempo_medio, tempo_real, setor_responsavel)
+            VALUES
+              (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
         ");
+        // Tipagem: i + 8s + i + s  -> "issssssssis"
         $ins->bind_param(
-          "isssssssis",  // 10 tipos: int, string, ..., int, string
-          $origemAtualizada['id_usuario'],        // i
-          $origemAtualizada['demanda'],          // s
-          $origemAtualizada['sei'],              // s
-          $origemAtualizada['codigo'],           // s
-          $proximo,                              // s
-          $origemAtualizada['responsavel'],      // s
-          $dataSolicitacao,                      // s
-          $origemAtualizada['tempo_medio'],      // s
-          $origemAtualizada['tempo_real'],       // i
-          $proximo                               // s
+            "issssssssis",
+            $origemAtualizada['id_usuario'],   // i
+            $origemAtualizada['demanda'],      // s
+            $origemAtualizada['sei'],          // s
+            $origemAtualizada['codigo'],       // s
+            $proximo,                          // s
+            $setorOriginal,                    // s
+            $origemAtualizada['responsavel'],  // s
+            $dataSolicitacao,                  // s
+            $tempoMedio,                       // s
+            $tempoReal,                        // i
+            $proximo                           // s
         );
         $ins->execute();
         $novoId = $connLocal->insert_id;
+        $ins->close();
 
-        // Registra o encaminhamento
+        // 4) Registra o encaminhamento apontando PARA A NOVA LINHA
         $insEnc = $connLocal->prepare("
-            INSERT INTO encaminhamentos (id_demanda, setor_origem, setor_destino, status, data_encaminhamento)
+            INSERT INTO encaminhamentos
+              (id_demanda, setor_origem, setor_destino, status, data_encaminhamento)
             VALUES (?, ?, ?, 'Em andamento', NOW())
         ");
         $insEnc->bind_param(
@@ -96,8 +113,6 @@ try {
             $proximo
         );
         $insEnc->execute();
-
-        $ins->close();
         $insEnc->close();
     }
 

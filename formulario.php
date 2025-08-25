@@ -6,10 +6,10 @@ $conn->set_charset('utf8mb4');
 date_default_timezone_set('America/Recife');
 
 $perfil = $_SESSION['tipo_usuario'] ?? ($_GET['perfil'] ?? 'solicitante');
-$TEMPO_MEDIO_PADRAO = defined('TEMPO_MEDIO_PADRAO') ? TEMPO_MEDIO_PADRAO : '00:30';
+$TEMPO_MEDIO_PADRAO = defined('TEMPO_MEDIO_PADRAO') ? TEMPO_MEDIO_PADRAO : '00:30:00';
 
 $mensagem = '';
-$detalhe = '';
+$detalhe  = '';
 
 function null_if_empty($v) {
   $v = isset($v) ? trim($v) : null;
@@ -21,94 +21,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $sei              = $_POST['sei'] ?? '';
   $codigo           = $_POST['codigo'] ?? '';
   $setor            = $_POST['setor'] ?? '';
+  $setor_original   = $setor; // <- sempre igual ao setor escolhido no formulário
   $responsavel      = $_POST['responsavel'] ?? '';
   $data_solicitacao = $_POST['data_solicitacao'] ?? '';
   $data_liberacao   = $_POST['data_liberacao'] ?? '';
   $tempo_medio      = $_POST['tempo_medio'] ?? '';
-  $tempo_real_dias  = isset($_POST['tempo_real_dias']) ? trim($_POST['tempo_real_dias']) : null;
   $tempo_real_form  = $_POST['tempo_real'] ?? null;
 
   $erros = [];
-  if ($sei === '')              { $erros[] = 'SEI é obrigatório.'; }
-  if ($codigo === '')           { $erros[] = 'Código é obrigatório.'; }
-  if ($setor === '')            { $erros[] = 'Setor é obrigatório.'; }
-  if ($responsavel === '')      { $erros[] = 'Responsável é obrigatório.'; }
-  if ($data_solicitacao === '') { $erros[] = 'Data de Solicitação é obrigatória.'; }
+  if ($sei === '')              $erros[] = 'SEI é obrigatório.';
+  if ($codigo === '')           $erros[] = 'Código é obrigatório.';
+  if ($setor === '')            $erros[] = 'Setor é obrigatório.';
+  if ($responsavel === '')      $erros[] = 'Responsável é obrigatório.';
+  if ($data_solicitacao === '') $erros[] = 'Data de Solicitação é obrigatória.';
 
   if ($erros) {
     $mensagem = 'erro';
-    $detalhe = implode('<br>', $erros);
+    $detalhe  = implode('<br>', $erros);
   } else {
-    $demanda         = null_if_empty($demanda);
-    $data_liberacao  = null_if_empty($data_liberacao);
-    $tempo_medio     = null_if_empty($tempo_medio);
+    $demanda        = null_if_empty($demanda);
+    $data_liberacao = null_if_empty($data_liberacao);
+    $tempo_medio    = null_if_empty($tempo_medio);
 
+    // Normalizações
     if (strtolower($perfil) === 'solicitante') {
       $hoje = date('Y-m-d');
       $data_solicitacao = $hoje;
-      $data_liberacao   = null; 
-      $tempo_medio = $TEMPO_MEDIO_PADRAO;
-      $tempo_real = 0;
+      $data_liberacao   = null;            // primeira linha nasce sem liberação
+      $tempo_medio      = $TEMPO_MEDIO_PADRAO;
+      $tempo_real       = 0;               // dias (inteiro)
     } else {
       if (!empty($tempo_real_form)) {
         $t1 = new DateTime($data_solicitacao);
         $t2 = new DateTime($tempo_real_form);
         $tempo_real = (int) max(0, $t1->diff($t2)->days);
       } else {
-        $tempo_real = null;
+        $tempo_real = null;                // pode ser NULL
       }
     }
 
     $sql = "INSERT INTO solicitacoes (
-      id_usuario, demanda, sei, codigo, setor, responsavel, data_solicitacao, data_liberacao,
-      tempo_medio, tempo_real, data_registro, setor_responsavel
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+              id_usuario, demanda, sei, codigo, setor, setor_original, responsavel,
+              data_solicitacao, data_liberacao, tempo_medio, tempo_real, data_registro, setor_responsavel
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
 
     $stmt = $conn->prepare($sql);
-    
     if ($stmt) {
       $setor_responsavel = 'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS';
 
+      // i + 9s + i + s = 12 params
       $stmt->bind_param(
-        "issssssssis",
-        $_SESSION['id_usuario'],
-        $demanda,
-        $sei,
-        $codigo,
-        $setor,
-        $responsavel,
-        $data_solicitacao,
-        $data_liberacao,
-        $tempo_medio,
-        $tempo_real,
-        $setor_responsavel
+        "isssssssssis",
+        $_SESSION['id_usuario'], // i
+        $demanda,                // s
+        $sei,                    // s
+        $codigo,                 // s
+        $setor,                  // s
+        $setor_original,         // s
+        $responsavel,            // s
+        $data_solicitacao,       // s (YYYY-MM-DD)
+        $data_liberacao,         // s ou NULL
+        $tempo_medio,            // s (HH:MM:SS)
+        $tempo_real,             // i ou NULL
+        $setor_responsavel       // s
       );
 
       if ($stmt->execute()) {
         $mensagem = 'sucesso';
 
-        // Inserir encaminhamento inicial para a DAF
-        $id_nova_solicitacao = $stmt->insert_id;
-        $sqlEncaminhamento = "INSERT INTO encaminhamentos (
-          id_demanda, setor_origem, setor_destino, status, data_encaminhamento
-        ) VALUES (?, ?, ?, ?, NOW())";
-
-        $stmtEnc = $conn->prepare($sqlEncaminhamento);
-        if ($stmtEnc) {
-          $setorOrigem = 'DEMANDANTE';
+        // Encaminhamento inicial: DEMANDANTE -> DAF
+        $id_nova = $stmt->insert_id;
+        $sqlEnc  = "INSERT INTO encaminhamentos
+                    (id_demanda, setor_origem, setor_destino, status, data_encaminhamento)
+                    VALUES (?, ?, ?, ?, NOW())";
+        if ($stmtEnc = $conn->prepare($sqlEnc)) {
+          $setorOrigem  = 'DEMANDANTE';
           $setorDestino = 'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS';
-          $statusEnc = 'Em andamento';
-          $stmtEnc->bind_param("isss", $id_nova_solicitacao, $setorOrigem, $setorDestino, $statusEnc);
+          $statusEnc    = 'Em andamento';
+          $stmtEnc->bind_param("isss", $id_nova, $setorOrigem, $setorDestino, $statusEnc);
           $stmtEnc->execute();
           $stmtEnc->close();
         }
       } else {
         $mensagem = 'erro';
-        $detalhe = 'Erro ao inserir: ' . $stmt->error;
+        $detalhe  = 'Erro ao inserir: ' . $stmt->error;
       }
+
+      $stmt->close();
     } else {
       $mensagem = 'erro';
-      $detalhe = 'Erro de preparação: ' . $conn->error;
+      $detalhe  = 'Erro de preparação: ' . $conn->error;
     }
   }
 }

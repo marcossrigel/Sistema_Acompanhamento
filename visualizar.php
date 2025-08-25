@@ -5,7 +5,7 @@ $conn = $connLocal;
 
 $nomeSetorPainel = "Solicitações Registradas";
 
-$sql = "SELECT id, demanda, sei, codigo, setor, responsavel,
+$sql = "SELECT id, demanda, sei, codigo, setor, setor_original, responsavel,
                data_solicitacao, data_liberacao, tempo_medio, tempo_real, data_registro
         FROM solicitacoes
         ORDER BY data_solicitacao DESC, id DESC";
@@ -188,7 +188,7 @@ function dt($v){ return ($v) ? htmlspecialchars(date('d/m/Y H:i:s', strtotime($v
           <div class="panel" id="panel-<?= (int)$row['id'] ?>">
             <p><span class="rot">SEI:</span> <?= show($row['sei']) ?> &nbsp; | &nbsp;
                <span class="rot">Código:</span> <?= show($row['codigo']) ?> &nbsp; | &nbsp;
-               <span class="rot">Setor:</span> <?= show($row['setor']) ?></p>
+               <span class="rot">Setor:</span> <?= show($row['setor_original']) ?>
             <p><span class="rot">Responsável:</span> <?= show($row['responsavel']) ?></p>
             <p><span class="rot">Data Solicitação:</span> <?= d($row['data_solicitacao']) ?> &nbsp; | &nbsp;
                 <span class="rot">Data Liberação:</span> <?= d($row['data_liberacao']) ?></p>
