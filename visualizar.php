@@ -3,10 +3,8 @@ if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 require_once __DIR__ . '/config.php';
 $conn = $connLocal;
 
-// Título fixo para esta página
 $nomeSetorPainel = "Solicitações Registradas";
 
-// Consulta geral
 $sql = "SELECT id, demanda, sei, codigo, setor, responsavel,
                data_solicitacao, data_liberacao, tempo_medio, tempo_real, data_registro
         FROM solicitacoes
