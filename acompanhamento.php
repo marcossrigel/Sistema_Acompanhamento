@@ -39,8 +39,6 @@ foreach ($hist as $row) {
   $ultimoPorSetor[$keySetor] = $row;
 }
 
-// Agora definimos os steps dinamicamente
-// Verifica se já existe um destino CPL ou DDO vindo da GECOMP
 $existeSetorEscolhido = false;
 foreach ($hist as $row) {
     if (norm($row['setor_origem']) === norm('GECOMP')) {
@@ -68,7 +66,6 @@ if (!$existeSetorEscolhido) {
   ];
 }
 
-// Etapas finais comuns
 $steps[] = ['key' => norm('HOMOLOGACAO'), 'label' => 'Homologação','hint' => 'Aguardando'];
 $steps[] = ['key' => norm('PARECER JUR'), 'label' => 'Parecer Jur.','hint' => 'Aguardando'];
 $steps[] = ['key' => norm('NE'),          'label' => 'NE',         'hint' => 'Aguardando'];
@@ -128,37 +125,21 @@ foreach ($steps as $i => $s) {
 if ($status === 'done') {
     $liberadoEm = '—';
 
-    switch ($keyNorm) {
-        case norm('DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS'):
-            $stmtLib = $conn->prepare("SELECT data_liberacao FROM solicitacoes 
-                WHERE demanda = ? AND UPPER(TRIM(setor_responsavel)) = ? AND id_original IS NULL
-                ORDER BY id DESC LIMIT 1");
-            $stmtLib->bind_param("ss", $demanda, $keyNorm);
-            break;
+    $stmtLib = $conn->prepare("
+        SELECT data_liberacao
+          FROM solicitacoes
+         WHERE demanda = ?
+           AND UPPER(TRIM(setor_responsavel)) = ?
+         ORDER BY id DESC
+         LIMIT 1
+    ");
+    $stmtLib->bind_param("ss", $demanda, $keyNorm);
+    $stmtLib->execute();
+    $resLib = $stmtLib->get_result()->fetch_assoc();
+    $stmtLib->close();
 
-        case norm('GECOMP'):
-            $stmtLib = $conn->prepare("SELECT data_encaminhamento FROM encaminhamentos 
-                WHERE setor_origem = ? AND id_demanda = ?
-                ORDER BY data_encaminhamento DESC LIMIT 1");
-            $stmtLib->bind_param("si", $keyNorm, $id);
-            break;
-
-        default:
-            $stmtLib = null;
-            break;
-    }
-
-    if (isset($stmtLib)) {
-        $stmtLib->execute();
-        $resLib = $stmtLib->get_result()->fetch_assoc();
-        $stmtLib->close();
-
-        if (!empty($resLib)) {
-            $liberadoEmRaw = current($resLib);
-            if (!empty($liberadoEmRaw)) {
-                $liberadoEm = date('d/m/Y', strtotime($liberadoEmRaw));
-            }
-        }
+    if (!empty($resLib) && !empty($resLib['data_liberacao'])) {
+        $liberadoEm = date('d/m/Y', strtotime($resLib['data_liberacao']));
     }
 }
 
