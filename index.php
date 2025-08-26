@@ -1,64 +1,66 @@
 <?php
-
 if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 require_once __DIR__ . '/config.php';
 date_default_timezone_set('America/Recife');
 
-$dbLocal  = $connLocal  ?? ($conn ?? ($conexao ?? null));
-$dbRemoto = $connRemoto ?? ($conexao2 ?? null);
-
-if (!$dbLocal || !$dbRemoto) {
-  http_response_code(500);
-  echo 'Erro de configuração das conexões.';
-  exit;
-}
+$dbLocal  = $connLocal;
+$dbRemoto = $connRemoto;
 
 $token = trim($_GET['access_dinamic'] ?? '');
-if ($token === '') { http_response_code(401); echo 'Token inválido ou expirado.'; exit; }
-$idPortal = 0;
-try {
-  $sql = "SELECT g_id AS usuario_id FROM token_sessao WHERE token = ? ORDER BY id DESC LIMIT 1";
-  if ($st = $dbRemoto->prepare($sql)) {
-    $st->bind_param('s', $token);
-    $st->execute();
-    $r = $st->get_result();
-    if ($r && ($row = $r->fetch_assoc()) && !empty($row['usuario_id'])) {
-      $idPortal = (int)$row['usuario_id'];
+if ($token === '') { http_response_code(401); exit('Token inválido ou expirado.'); }
+
+// 1) Busca g_id do token e (opcional) nome no DB remoto
+$gId = 0; $nomePortal = null;
+$sql = "
+  SELECT ts.g_id, u.u_nome_completo
+  FROM token_sessao ts
+  LEFT JOIN users u ON u.g_id = ts.g_id
+  WHERE ts.token = ?
+  ORDER BY ts.id DESC
+  LIMIT 1";
+if ($st = $dbRemoto->prepare($sql)) {
+  $st->bind_param('s', $token);
+  $st->execute();
+  if ($res = $st->get_result()) {
+    if ($row = $res->fetch_assoc()) {
+      $gId = (int)$row['g_id'];
+      $nomePortal = $row['u_nome_completo'] ?? null;
     }
-    $st->close();
   }
-} catch (Throwable $e) {
-
+  $st->close();
 }
+if ($gId <= 0) { http_response_code(401); exit('Token inválido ou expirado.'); }
 
-if ($idPortal <= 0) { http_response_code(401); echo 'Token inválido ou expirado.'; exit; }
-
+// 2) Vê se esse g_id existe como colaborador no banco local
 $sqlLocal = "SELECT id, id_usuario_cehab_online, nome, setor
              FROM usuarios
              WHERE id_usuario_cehab_online = ?
              LIMIT 1";
 $st2 = $dbLocal->prepare($sqlLocal);
-if (!$st2) { http_response_code(500); echo 'Falha ao consultar usuário local.'; exit; }
-$st2->bind_param('i', $idPortal);
+$st2->bind_param('i', $gId);
 $st2->execute();
-$user = $st2->get_result()->fetch_assoc();
+$local = $st2->get_result()->fetch_assoc();
 $st2->close();
 
-if (!$user) {
-  http_response_code(403);
-  echo "Usuário (portal id {$idPortal}) não encontrado no sistema local.";
-  exit;
+// 3) Monta sessão
+$_SESSION['id_portal'] = $gId;                    // <<< ESSENCIAL p/ o formulário
+if ($local) {
+  // Colaborador
+  $_SESSION['tipo_usuario']            = 'colaborador';
+  $_SESSION['id_usuario_local']        = (int)$local['id'];        // opcional
+  $_SESSION['id_usuario_cehab_online'] = (int)$local['id_usuario_cehab_online'];
+  $_SESSION['nome']                    = $local['nome'] ?: ($nomePortal ?? '');
+  $_SESSION['setor']                   = $local['setor'] ?: '';
+  $redirect = 'painel.php?access_dinamic=' . urlencode($token);
+} else {
+  // Solicitante (não cadastrado em usuarios do sistema)
+  $_SESSION['tipo_usuario']            = 'solicitante';
+  $_SESSION['id_usuario_local']        = null;
+  $_SESSION['id_usuario_cehab_online'] = $gId;
+  $_SESSION['nome']                    = $nomePortal ?? '';
+  $_SESSION['setor']                   = 'Solicitante';
+  $redirect = 'home.php';
 }
 
-$_SESSION['id_usuario']              = (int)$user['id'];
-$_SESSION['id_usuario_cehab_online'] = (int)$user['id_usuario_cehab_online'];
-$_SESSION['nome']                    = $user['nome'];
-$_SESSION['setor']                   = $user['setor'];
-$_SESSION['tipo_usuario']            = (strcasecmp(trim($user['setor']), 'Solicitante') === 0) ? 'solicitante' : 'colaborador';
-
-$redirectUrl = $_SESSION['tipo_usuario'] === 'solicitante'
-  ? 'home.php'
-  : 'painel.php?access_dinamic=' . urlencode($token);
-
-header('Location: ' . $redirectUrl);
+header('Location: ' . $redirect);
 exit;

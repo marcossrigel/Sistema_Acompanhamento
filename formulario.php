@@ -41,7 +41,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   } else {
     $demanda        = null_if_empty($demanda);
     $data_liberacao = null_if_empty($data_liberacao);
-    $tempo_medio    = null_if_empty($tempo_medio);
+    $tempo_medio = null_if_empty($tempo_medio);
+
+    if (strtolower($perfil) === 'solicitante') {
+      $data_solicitacao = date('Y-m-d');
+      $data_liberacao   = null;
+      $tempo_medio      = $TEMPO_MEDIO_PADRAO; // ex.: '00:30:00'
+      $tempo_real       = 0;
+    } else {
+      if ($tempo_medio && strlen($tempo_medio) === 5) {
+        $tempo_medio .= ':00'; // 'HH:MM' -> 'HH:MM:SS'
+      }
+      if (!empty($tempo_real_form)) {
+        $t1 = new DateTime($data_solicitacao);
+        $t2 = new DateTime($tempo_real_form);
+        $tempo_real = (int) max(0, $t1->diff($t2)->days);
+      } else {
+        $tempo_real = null; // ok se a coluna aceita NULL
+      }
+    }
 
     // Normalizações
     if (strtolower($perfil) === 'solicitante') {
@@ -70,20 +88,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $setor_responsavel = 'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS';
 
       // i + 9s + i + s = 12 params
+      $idUsuarioPortal = (int)($_SESSION['id_portal'] ?? 0);
+
+      // ...
       $stmt->bind_param(
         "isssssssssis",
-        $_SESSION['id_usuario'], // i
-        $demanda,                // s
-        $sei,                    // s
-        $codigo,                 // s
-        $setor,                  // s
-        $setor_original,         // s
-        $responsavel,            // s
-        $data_solicitacao,       // s (YYYY-MM-DD)
-        $data_liberacao,         // s ou NULL
-        $tempo_medio,            // s (HH:MM:SS)
-        $tempo_real,             // i ou NULL
-        $setor_responsavel       // s
+        $idUsuarioPortal,   // i
+        $demanda,           // s
+        $sei,               // s
+        $codigo,            // s
+        $setor,             // s
+        $setor_original,    // s
+        $responsavel,       // s
+        $data_solicitacao,  // s
+        $data_liberacao,    // s
+        $tempo_medio,       // s
+        $tempo_real,        // i
+        $setor_responsavel  // s
       );
 
       if ($stmt->execute()) {

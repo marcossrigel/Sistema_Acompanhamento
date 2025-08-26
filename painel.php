@@ -325,10 +325,17 @@ function dt($v){
       <?php
         $mapaProximo = [
           'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS' => 'GECOMP',
-          'GECOMP' => 'DDO', 'DDO' => 'CPL', 'CPL' => 'DAF - HOMOLOGACAO',
-          'DAF - HOMOLOGACAO' => 'PARECER JUR', 'PARECER JUR' => 'GEFIN NE INICIAL',
-          'GEFIN NE' => 'GOP PF (SEFAZ)', 'GOP PF (SEFAZ)' => 'GEFIN NE DEFINITIVO',
-          'GEFIN NE DEFINITIVO' => 'LIQ', 'LIQ' => 'PD (SEFAZ)', 'PD (SEFAZ)' => 'OB', 'OB' => 'REMESSA'
+          'GECOMP' => 'DDO', 
+          'DDO' => 'CPL', 
+          'CPL' => 'DAF - HOMOLOGACAO',
+          'DAF - HOMOLOGACAO' => 'PARECER JUR', 
+          'PARECER JUR' => 'GEFIN NE INICIAL',
+          'GEFIN NE' => 'GOP PF (SEFAZ)', 
+          'GOP PF (SEFAZ)' => 'GEFIN NE DEFINITIVO',
+          'GEFIN NE DEFINITIVO' => 'LIQ', 
+          'LIQ' => 'PD (SEFAZ)', 
+          'PD (SEFAZ)' => 'OB', 
+          'OB' => 'REMESSA'
         ];
         $destino = $mapaProximo[$row['setor_responsavel']] ?? '';
       ?>

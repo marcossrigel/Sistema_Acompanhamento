@@ -3,31 +3,67 @@ if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 require_once __DIR__ . '/config.php';
 date_default_timezone_set('America/Recife');
 
-if (!isset($_SESSION['id_usuario'])) {
-  header('Location: index.php');
-  exit;
-}
+$dbLocal  = $connLocal;
+$dbRemoto = $connRemoto;
 
-$dbRemoto = $connRemoto ?? ($conexao2 ?? null);
+function e($s){ return htmlspecialchars($s ?? '', ENT_QUOTES, 'UTF-8'); }
 
-$portalId = (int)($_SESSION['id_usuario_cehab_online'] ?? 0);
+// 1) Tenta usar a sessão; se não houver, tenta resolver pelo token da URL
+$tokenGet = trim($_GET['access_dinamic'] ?? '');
+$gId = (int)($_SESSION['id_portal'] ?? $_SESSION['id_usuario_cehab_online'] ?? 0);
+$nomeUsuario = $_SESSION['nome'] ?? null;
 
-$nomeUsuario = $_SESSION['nome'] ?? 'Usuário';
-
-if ($portalId > 0 && $dbRemoto) {
-  if ($st = $dbRemoto->prepare("SELECT u_nome_completo FROM users WHERE g_id = ? LIMIT 1")) {
-    $st->bind_param('i', $portalId);
-    if ($st->execute()) {
-      $r = $st->get_result();
-      if ($r && ($row = $r->fetch_assoc()) && !empty($row['u_nome_completo'])) {
-        $nomeUsuario = $row['u_nome_completo'];
+if ($gId <= 0 && $tokenGet !== '' && $dbRemoto) {
+  // Resolve g_id e nome a partir do token remoto
+  $sql = "
+    SELECT ts.g_id, u.u_nome_completo
+    FROM token_sessao ts
+    LEFT JOIN users u ON u.g_id = ts.g_id
+    WHERE ts.token = ?
+    ORDER BY ts.id DESC
+    LIMIT 1";
+  if ($st = $dbRemoto->prepare($sql)) {
+    $st->bind_param('s', $tokenGet);
+    $st->execute();
+    if ($res = $st->get_result()) {
+      if ($row = $res->fetch_assoc()) {
+        $gId = (int)$row['g_id'];
+        $nomeUsuario = $row['u_nome_completo'] ?? $nomeUsuario;
+        // Preenche sessão mínima para o fluxo de solicitante
+        $_SESSION['id_portal']                = $gId;
+        $_SESSION['id_usuario_cehab_online']  = $gId;
+        $_SESSION['nome']                     = $nomeUsuario;
+        $_SESSION['setor']                    = $_SESSION['setor'] ?? 'Solicitante';
+        $_SESSION['tipo_usuario']             = $_SESSION['tipo_usuario'] ?? 'solicitante';
       }
     }
     $st->close();
   }
 }
 
-function e($s){ return htmlspecialchars($s ?? '', ENT_QUOTES, 'UTF-8'); }
+// 2) Se ainda assim não tiver gId, bloqueia
+if ($gId <= 0) {
+  http_response_code(401);
+  echo 'Sessão inválida ou token ausente.';
+  exit;
+}
+
+// 3) Garante nome atualizado (caso a sessão exista mas o nome esteja vazio)
+if ((!$nomeUsuario || $nomeUsuario === '') && $dbRemoto) {
+  if ($st = $dbRemoto->prepare("SELECT u_nome_completo FROM users WHERE g_id = ? LIMIT 1")) {
+    $st->bind_param('i', $gId);
+    if ($st->execute()) {
+      if ($r = $st->get_result()->fetch_assoc()) {
+        $nomeUsuario = $r['u_nome_completo'] ?: ($nomeUsuario ?? 'Usuário');
+        $_SESSION['nome'] = $nomeUsuario;
+      }
+    }
+    $st->close();
+  }
+}
+
+// Valor final do nome
+$nomeUsuario = $nomeUsuario ?: 'Usuário';
 ?>
 <!DOCTYPE html>
 <html lang="pt-br">
