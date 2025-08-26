@@ -165,6 +165,26 @@ function dt($v){
       font-weight: 500;
     }
 
+    .obs-wrap{ margin-top:12px; max-width:620px; }
+    .obs-title{
+      display:block;
+      font-weight:600;
+      font-size:13px;
+      color:#111827;
+      margin-bottom:6px;
+    }
+    .obs-text{
+      width:100%;
+      min-height:80px;
+      padding:10px 12px;
+      border:1px solid var(--line);
+      border-radius:8px;
+      font-family:'Poppins',sans-serif;
+      line-height:1.35;
+      resize:vertical;
+      background:#fff;
+    }
+
     .toolbar{
       display:flex;
       gap:12px;
@@ -315,7 +335,9 @@ function dt($v){
           <option value="CPL">CPL</option>
         </select>
       </span>
+
       <button type="submit">Encaminhar</button>
+
     </form>
   <?php elseif ($row['setor_responsavel'] === $setor): ?>
     <!-- Fluxo normal dos demais setores -->
@@ -339,14 +361,14 @@ function dt($v){
         ];
         $destino = $mapaProximo[$row['setor_responsavel']] ?? '';
       ?>
-      <input type="hidden" name="setor_destino" value="<?= htmlspecialchars($destino) ?>">
       <button type="submit">Encaminhar</button>
+      <input type="hidden" name="setor_destino" value="<?= htmlspecialchars($destino) ?>">
     </form>
   <?php endif; ?>
 </div>
 
 <?php if ($row['setor_responsavel'] === 'GECOMP'): ?>
-  <!-- Checklist abaixo da linha dos botões -->
+  <!-- Checklist -->
   <div class="checklist-row">
     <span class="checklist-title">Checklist (GECOMP)</span>
     <label class="chk">
@@ -359,7 +381,18 @@ function dt($v){
       <input type="checkbox" class="gecomp-chk" data-id="<?= (int)$row['id'] ?>" data-field="cotacao"> Cotação
     </label>
   </div>
+
+  <!-- Observações ABAIXO -->
+  <div class="obs-wrap">
+    <label class="obs-title" for="obs-<?= (int)$row['id'] ?>">Observações (GECOMP)</label>
+    <textarea
+      id="obs-<?= (int)$row['id'] ?>"
+      class="obs-text gecomp-obs"
+      data-id="<?= (int)$row['id'] ?>"
+      placeholder="Ex.: pendências, contatos realizados, links de arquivos, etc."></textarea>
+  </div>
 <?php endif; ?>
+
 
 </div>
   <?php endwhile; ?>
@@ -424,6 +457,45 @@ function encaminhar(id) {
     el.addEventListener('change', () => {
       const obj = load(id);
       obj[field] = el.checked;
+      save(id, obj);
+    });
+  });
+})();
+
+(function(){
+  function key(id){ return 'gecomp_chk_' + id; }   // já existe
+  function load(id){
+    try { return JSON.parse(localStorage.getItem(key(id))) || {}; }
+    catch(e){ return {}; }
+  }
+  function save(id, obj){
+    localStorage.setItem(key(id), JSON.stringify(obj));
+  }
+
+  // ✅ iniciar checkboxes a partir do localStorage (já existia)
+  document.querySelectorAll('.gecomp-chk').forEach(el => {
+    const id = el.dataset.id;
+    const field = el.dataset.field;
+    const data = load(id);
+    el.checked = !!data[field];
+
+    el.addEventListener('change', () => {
+      const obj = load(id);
+      obj[field] = el.checked;
+      save(id, obj);
+    });
+  });
+
+  // ✅ iniciar textarea de observações a partir do localStorage
+  document.querySelectorAll('.gecomp-obs').forEach(el => {
+    const id = el.dataset.id;
+    const data = load(id);
+    if (typeof data.obs === 'string') el.value = data.obs;
+
+    // salva a cada digitação
+    el.addEventListener('input', () => {
+      const obj = load(id);
+      obj.obs = el.value;
       save(id, obj);
     });
   });
