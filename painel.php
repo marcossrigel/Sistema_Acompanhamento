@@ -165,12 +165,13 @@ function dt($v){
       font-weight: 500;
     }
 
-    .toolbar {
-      margin-top: 12px;
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
+    .toolbar{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      align-items:center;
     }
+    .toolbar form{ display:flex; align-items:center; gap:8px; }
 
     .toolbar button,
     .toolbar form button {
@@ -237,6 +238,26 @@ function dt($v){
     pointer-events: none;
   }
 
+  .checklist{
+    display:inline-flex;
+    align-items:center;
+    gap:12px;
+    margin:0;
+    padding:8px 12px;
+  }
+.checklist-row{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-top:12px;
+}
+.checklist-title{
+  font-weight:600;
+  font-size:13px;
+  color:#111827;
+}
+.chk{ display:inline-flex; align-items:center; gap:6px; margin-right:14px; }
+.chk input{ width:16px; height:16px; }
 
     @media (max-width: 600px) {
       h1 {
@@ -276,57 +297,66 @@ function dt($v){
                <span class="rot">Tempo Real (Data):</span> <?= show($row['tempo_real']) ?></p>
             <p><span class="rot">Registrado em:</span> <?= dt($row['data_registro']) ?></p>
             
-            <div class="toolbar">
-            <button onclick="window.location.href='andamento.php?id=<?= (int)$row['id'] ?>'">Andamento do Setor</button>
+        <div class="toolbar">
+  <button onclick="window.location.href='andamento.php?id=<?= (int)$row['id'] ?>'">
+    Andamento do Setor
+  </button>
 
-            <?php if ($row['setor_responsavel'] === 'GECOMP'): ?>
-              <form method="post" action="encaminhar.php" style="display:inline;">
-                <input type="hidden" name="id_demanda" value="<?= (int)$row['id'] ?>">
-                <input type="hidden" name="setor_origem" value="GECOMP">
-                <input type="hidden" name="access_dinamic" value="<?= htmlspecialchars($_GET['access_dinamic']) ?>">
-
-                <span class="select-wrap">
-                  <select name="setor_destino" required>
-                    <option value="" disabled selected>Escolher próximo setor</option>
-                    <option value="DDO">DDO</option>
-                    <option value="CPL">CPL</option>
-                  </select>
-                </span>
-                <button type="submit">Encaminhar</button>
-              </form>
-
-            <?php elseif ($row['setor_responsavel'] === $setor): ?>
-              <form method="get" action="liberar.php" style="display:inline;">
-                <input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
-                <input type="hidden" name="access_dinamic" value="<?= htmlspecialchars($_GET['access_dinamic']) ?>">
-                <?php
-                  $mapaProximo = [
-                    'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS' => 'GECOMP',
-                    'GECOMP'      => 'DDO',              // não cai aqui por causa do elseif acima
-                    'DDO'         => 'CPL',
-                    'CPL'         => 'DAF - HOMOLOGACAO',
-                    'DAF - HOMOLOGACAO' => 'PARECER JUR',
-                    'PARECER JUR' => 'GEFIN NE INICIAL',
-                    'GEFIN NE'    => 'GOP PF (SEFAZ)',
-                    'GOP PF (SEFAZ)' => 'GEFIN NE DEFINITIVO',
-                    'GEFIN NE DEFINITIVO' => 'LIQ',
-                    'LIQ'         => 'PD (SEFAZ)',
-                    'PD (SEFAZ)'  => 'OB',
-                    'OB'          => 'REMESSA'
-                  ];
-                  $destino = $mapaProximo[$row['setor_responsavel']] ?? '';
-                ?>
-                <input type="hidden" name="setor_destino" value="<?= htmlspecialchars($destino) ?>">
-                <button type="submit">Encaminhar</button>
-              </form>
-            <?php endif; ?>
-          </div>
-
-        </div>
-      <?php endwhile; ?>
-    </div>
+  <?php if ($row['setor_responsavel'] === 'GECOMP'): ?>
+    <!-- Select + Encaminhar (GECOMP) -->
+    <form method="post" action="encaminhar.php" style="display:inline;">
+      <input type="hidden" name="id_demanda" value="<?= (int)$row['id'] ?>">
+      <input type="hidden" name="setor_origem" value="GECOMP">
+      <input type="hidden" name="access_dinamic" value="<?= htmlspecialchars($_GET['access_dinamic']) ?>">
+      <span class="select-wrap">
+        <select name="setor_destino" required>
+          <option value="" disabled selected>Escolher próximo setor</option>
+          <option value="DDO">DDO</option>
+          <option value="CPL">CPL</option>
+        </select>
+      </span>
+      <button type="submit">Encaminhar</button>
+    </form>
+  <?php elseif ($row['setor_responsavel'] === $setor): ?>
+    <!-- Fluxo normal dos demais setores -->
+    <form method="get" action="liberar.php" style="display:inline;">
+      <input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
+      <input type="hidden" name="access_dinamic" value="<?= htmlspecialchars($_GET['access_dinamic']) ?>">
+      <?php
+        $mapaProximo = [
+          'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS' => 'GECOMP',
+          'GECOMP' => 'DDO', 'DDO' => 'CPL', 'CPL' => 'DAF - HOMOLOGACAO',
+          'DAF - HOMOLOGACAO' => 'PARECER JUR', 'PARECER JUR' => 'GEFIN NE INICIAL',
+          'GEFIN NE' => 'GOP PF (SEFAZ)', 'GOP PF (SEFAZ)' => 'GEFIN NE DEFINITIVO',
+          'GEFIN NE DEFINITIVO' => 'LIQ', 'LIQ' => 'PD (SEFAZ)', 'PD (SEFAZ)' => 'OB', 'OB' => 'REMESSA'
+        ];
+        $destino = $mapaProximo[$row['setor_responsavel']] ?? '';
+      ?>
+      <input type="hidden" name="setor_destino" value="<?= htmlspecialchars($destino) ?>">
+      <button type="submit">Encaminhar</button>
+    </form>
   <?php endif; ?>
+</div>
 
+<?php if ($row['setor_responsavel'] === 'GECOMP'): ?>
+  <!-- Checklist abaixo da linha dos botões -->
+  <div class="checklist-row">
+    <span class="checklist-title">Checklist (GECOMP)</span>
+    <label class="chk">
+      <input type="checkbox" class="gecomp-chk" data-id="<?= (int)$row['id'] ?>" data-field="tr"> TR
+    </label>
+    <label class="chk">
+      <input type="checkbox" class="gecomp-chk" data-id="<?= (int)$row['id'] ?>" data-field="etp"> ETP
+    </label>
+    <label class="chk">
+      <input type="checkbox" class="gecomp-chk" data-id="<?= (int)$row['id'] ?>" data-field="cotacao"> Cotação
+    </label>
+  </div>
+<?php endif; ?>
+
+</div>
+  <?php endwhile; ?>
+  <?php endif; ?>
 </div>
 
 <script>
@@ -366,6 +396,32 @@ function encaminhar(id) {
   const token = urlParams.get('access_dinamic');
   window.location.href = 'liberar.php?id=' + id + '&access_dinamic=' + encodeURIComponent(token);
 }
+
+(function(){
+  function key(id){ return 'gecomp_chk_' + id; }
+  function load(id){
+    try { return JSON.parse(localStorage.getItem(key(id))) || {}; }
+    catch(e){ return {}; }
+  }
+  function save(id, obj){
+    localStorage.setItem(key(id), JSON.stringify(obj));
+  }
+
+  // inicia checkboxes a partir do localStorage
+  document.querySelectorAll('.gecomp-chk').forEach(el => {
+    const id = el.dataset.id;
+    const field = el.dataset.field;
+    const data = load(id);
+    el.checked = !!data[field];
+
+    el.addEventListener('change', () => {
+      const obj = load(id);
+      obj[field] = el.checked;
+      save(id, obj);
+    });
+  });
+})();
+
 </script>
 
 </body>
