@@ -3,14 +3,24 @@ if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 require_once __DIR__ . '/config.php';
 $conn = $connLocal;
 
-$nomeSetorPainel = "Solicitações Registradas";
+if (!isset($_SESSION['id_portal']) || (int)$_SESSION['id_portal'] <= 0) {
+  header('Location: index.php');
+  exit;
+}
+$meuIdPortal = (int)$_SESSION['id_portal'];
 
-$sql = "SELECT id, demanda, sei, codigo, setor, setor_original, responsavel,
-               data_solicitacao, data_liberacao, tempo_medio, tempo_real, data_registro
-        FROM solicitacoes
-        ORDER BY data_solicitacao DESC, id DESC";
+$nomeSetorPainel = "Minhas Solicitações";
 
-$res = $conn->query($sql);
+$stmt = $conn->prepare("
+  SELECT id, demanda, sei, codigo, setor, setor_original, responsavel,
+         data_solicitacao, data_liberacao, tempo_medio, tempo_real, data_registro
+    FROM solicitacoes
+   WHERE id_usuario = ?
+ORDER BY data_solicitacao DESC, id DESC
+");
+$stmt->bind_param("i", $meuIdPortal);
+$stmt->execute();
+$res = $stmt->get_result();
 
 function show($v) {
     return $v !== null && $v !== '' ? htmlspecialchars($v) : '—';
