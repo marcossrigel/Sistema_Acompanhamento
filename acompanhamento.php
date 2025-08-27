@@ -22,58 +22,78 @@ function norm($s){ return strtoupper(trim((string)$s)); }
 
 $demanda = $ref['demanda'] ?? '';
 
-$st = $conn->prepare("SELECT * FROM encaminhamentos WHERE id_demanda = ? ORDER BY data_encaminhamento ASC");
-$st->bind_param("i", $id);
-$st->execute();
-$hist = $st->get_result()->fetch_all(MYSQLI_ASSOC);
-$st->close();
+$st0 = $conn->prepare("
+  SELECT data_liberacao_original
+    FROM solicitacoes
+   WHERE demanda = ?
+     AND data_liberacao_original IS NOT NULL
+   ORDER BY id ASC
+   LIMIT 1
+");
+$st0->bind_param("s", $demanda);
+$st0->execute();
+$row0 = $st0->get_result()->fetch_assoc();
+$st0->close();
+
+$dataOriginalProcesso = $row0['data_liberacao_original'] ?? ($ref['data_liberacao_original'] ?? null);
+
+$stH = $conn->prepare("
+  SELECT setor_origem, setor_destino, data_encaminhamento, id
+    FROM encaminhamentos
+   WHERE id_demanda = ?
+   ORDER BY data_encaminhamento ASC, id ASC
+");
+$stH->bind_param("i", $id);
+$stH->execute();
+$hist = $stH->get_result()->fetch_all(MYSQLI_ASSOC);
+$stH->close();
 
 $ultimoPorSetor = [];
-$setorAtual = null;
-$primeiraLinha = $hist[0] ?? null;
-$ultimaLinha = end($hist);
-$setorAtual = norm($ultimaLinha['setor_destino'] ?? '');
-
-foreach ($hist as $row) {
-  $keySetor = norm($row['setor_destino']);
-  $ultimoPorSetor[$keySetor] = $row;
+if (!empty($hist)) {
+  foreach ($hist as $h) {
+    $ultimoPorSetor[norm($h['setor_destino'])] = $h;
+  }
+  $ultimaLinha = end($hist);
+  $setorAtual  = norm($ultimaLinha['setor_destino'] ?? '');
+} else {
+  $setorAtual = norm($ref['setor_responsavel'] ?? $ref['setor'] ?? '');
 }
 
 $existeSetorEscolhido = false;
-foreach ($hist as $row) {
-    if (norm($row['setor_origem']) === norm('GECOMP')) {
-        if (in_array(norm($row['setor_destino']), [norm('CPL'), norm('DDO')])) {
-            $existeSetorEscolhido = norm($row['setor_destino']);
-            break;
-        }
-    }
+foreach ($hist as $h) {
+  if (norm($h['setor_origem']) === norm('GECOMP')
+      && in_array(norm($h['setor_destino']), [norm('CPL'), norm('DDO')], true)) {
+    $existeSetorEscolhido = norm($h['setor_destino']);
+    break;
+  }
 }
 
-// Define os steps dinamicamente
 $steps = [
-  ['key' => norm('DEMANDANTE'),  'label' => 'Demandante', 'hint' => 'Recebido'],
-  ['key' => norm('DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS'), 'label' => 'DAF', 'hint' => 'Recebido'],
-  ['key' => norm('GECOMP'),      'label' => 'GECOMP',     'hint' => 'Análise'],
+  ['key'=>norm('DEMANDANTE'), 'label'=>'Demandante', 'hint'=>'Recebido'],
+  ['key'=>norm('DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS'), 'label'=>'DAF', 'hint'=>'Recebido'],
+  ['key'=>norm('GECOMP'), 'label'=>'GECOMP', 'hint'=>'Análise'],
 ];
 
+// adiciona o passo logo após GECOMP, dependendo da escolha
 if (!$existeSetorEscolhido) {
-  $steps[] = ['key' => norm('AGUARDANDO_GECOMP_ESCOLHA'), 'label' => 'Aguardando Setor...', 'hint' => 'Aguardando'];
+  $steps[] = ['key'=>norm('AGUARDANDO_GECOMP_ESCOLHA'), 'label'=>'Aguardando Setor...', 'hint'=>'Aguardando'];
 } else {
-  $steps[] = [
-    'key' => $existeSetorEscolhido,
-    'label' => $existeSetorEscolhido,
-    'hint' => 'Aguardando'
-  ];
+  $steps[] = ['key'=>$existeSetorEscolhido, 'label'=>$existeSetorEscolhido, 'hint'=>'Aguardando'];
 }
 
-$steps[] = ['key' => norm('HOMOLOGACAO'), 'label' => 'Homologação','hint' => 'Aguardando'];
-$steps[] = ['key' => norm('PARECER JUR'), 'label' => 'Parecer Jur.','hint' => 'Aguardando'];
-$steps[] = ['key' => norm('NE'),          'label' => 'NE',         'hint' => 'Aguardando'];
-$steps[] = ['key' => norm('PF'),          'label' => 'PF',         'hint' => 'Aguardando'];
-$steps[] = ['key' => norm('LIQ'),         'label' => 'LIQ',        'hint' => 'Aguardando'];
-$steps[] = ['key' => norm('PD'),          'label' => 'PD',         'hint' => 'Aguardando'];
-$steps[] = ['key' => norm('OB'),          'label' => 'OB',         'hint' => 'Aguardando'];
-$steps[] = ['key' => norm('REMESSA'),     'label' => 'Remessa',    'hint' => 'Aguardando'];
+// adiciona os demais passos do fluxo
+$steps = array_merge($steps, [
+  ['key'=>norm('DAF - HOMOLOGACAO'),   'label'=>'Homologação',     'hint'=>'Aguardando'],
+  ['key'=>norm('PARECER JUR'),         'label'=>'Parecer Jur.',    'hint'=>'Aguardando'],
+  ['key'=>norm('GEFIN NE INICIAL'),    'label'=>'NE (Inicial)',    'hint'=>'Aguardando'],
+  ['key'=>norm('GOP PF (SEFAZ)'),      'label'=>'PF',              'hint'=>'Aguardando'],
+  ['key'=>norm('GEFIN NE DEFINITIVO'), 'label'=>'NE (Definitivo)', 'hint'=>'Aguardando'],
+  ['key'=>norm('LIQ'),                 'label'=>'LIQ',             'hint'=>'Aguardando'],
+  ['key'=>norm('PD (SEFAZ)'),          'label'=>'PD',              'hint'=>'Aguardando'],
+  ['key'=>norm('OB'),                  'label'=>'OB',              'hint'=>'Aguardando'],
+  ['key'=>norm('REMESSA'),             'label'=>'Remessa',         'hint'=>'Aguardando'],
+]);
+
 
 
 $currentIdx = -1;
@@ -100,17 +120,15 @@ foreach ($steps as $i => $s) {
   $label   = $s['label'];
   $hint    = $s['hint'];
 
-  $stRow = $ultimoPorSetor[$keyNorm] ?? null;
-
   if ($keyNorm === norm('DEMANDANTE')) {
-      $recebidoEm = d($ref['data_solicitacao']);
-      $status = 'done';
-      $small = "Recebido • " . $recebidoEm;
-      $cards[] = ['label' => $label, 'status' => $status, 'small' => $small];
-      continue;
+    $recebidoEm = d($dataOriginalProcesso ?: $ref['data_solicitacao']);
+    $status = 'done';
+    $small = "Recebido • " . $recebidoEm;
+    $cards[] = ['label' => $label, 'status' => $status, 'small' => $small];
+    continue;
   }
 
-  $stRow = $ultimoPorSetor[$keyNorm] ?? null;
+  $stRow = $ultimoPorSetor[$keyNorm] ?? null;   // <- fica só esta
   $recebidoEm = $stRow ? d($stRow['data_encaminhamento']) : '—';
   $liberadoEm = '—';
 
@@ -143,10 +161,12 @@ if ($status === 'done') {
     }
 }
 
-  if ($keyNorm === norm('DEMANDANTE'))       $small = "Recebido • "   . ($recebidoEm ?? '—');
-  elseif ($status === 'done')                $small = "Concluído • " . ($liberadoEm ?? '—');
-  elseif ($status === 'current')             $small = $hint . " • "  . ($recebidoEm ?? '—');
-  else                                       $small = "Aguardando • —";
+  if     ($status === 'done')    
+    $small = "Concluído • " . ($liberadoEm ?? '—');
+  elseif ($status === 'current') 
+    $small = $hint . " • "  . ($recebidoEm ?? '—');
+  else                           
+    $small = "Aguardando • —";
 
   $cards[] = ['label' => $label, 'status' => $status, 'small' => $small];
 }
@@ -212,8 +232,10 @@ $progressPct = round(($concluidos / max($total, 1)) * 100);
   <main class="wrap">
     <h2 class="title"><?php echo htmlspecialchars($demanda); ?></h2>
     <?php
-      $situacao = ($currentIdx >= 0) ? 'EM ANDAMENTO' : 'CONCLUÍDO';
-      $cor = ($currentIdx >= 0) ? 'style="color:#f59e0b"' : 'style="color:#16a34a"';
+      $situacao = ($concluidos === $total && $total > 0) ? 'CONCLUÍDO' : 'EM ANDAMENTO';
+      $cor = ($situacao === 'EM ANDAMENTO')
+        ? 'style="color:#f59e0b"'
+        : 'style="color:#16a34a"';
     ?>
     <div class="subtitle">Situação: <strong <?= $cor ?>><?= $situacao ?></strong></div>
 

@@ -45,31 +45,34 @@ try {
   $upd->close();
 
   // 3) Cria a nova linha no setor de destino (propagando setor_original)
-  $tempoMedio = (string)($orig['tempo_medio'] ?? '00:00:00'); // TIME
+  // 3) Cria a nova linha no setor de destino (propagando setor_original e data_liberacao_original)
+  $tempoMedio = (string)($orig['tempo_medio'] ?? '00:00:00');
   $tempoReal  = isset($orig['tempo_real']) ? (int)$orig['tempo_real'] : null;
 
   $ins = $conn->prepare("
     INSERT INTO solicitacoes
       (id_usuario, demanda, sei, codigo, setor, setor_original, responsavel,
-       data_solicitacao, data_liberacao, tempo_medio, tempo_real, setor_responsavel)
+      data_solicitacao, data_liberacao, data_liberacao_original,
+      tempo_medio, tempo_real, setor_responsavel)
     VALUES
-      (?, ?, ?, ?, ?, ?, ?, CURDATE(), NULL, ?, ?, ?)
+      (?, ?, ?, ?, ?, ?, ?, CURDATE(), NULL, ?, ?, ?, ?)
   ");
 
-  // i + 7s + i + s = 10 parâmetros
   $ins->bind_param(
-    "isssssssis",
-    $orig['id_usuario'],
-    $orig['demanda'],
-    $orig['sei'],
-    $orig['codigo'],
-    $setor_destino,
-    $setorOriginal,          // <- agora vem preenchido
-    $orig['responsavel'],
-    $tempoMedio,
-    $tempoReal,
-    $setor_destino
+    "issssssssis",
+    $orig['id_usuario'],                 // i
+    $orig['demanda'],                    // s
+    $orig['sei'],                        // s
+    $orig['codigo'],                     // s
+    $setor_destino,                      // s
+    $setorOriginal,                      // s
+    $orig['responsavel'],                // s
+    $orig['data_liberacao_original'],    // s  <-- replica a original
+    $tempoMedio,                         // s
+    $tempoReal,                          // i
+    $setor_destino                       // s
   );
+
   $ins->execute();
   $novoId = $conn->insert_id;
   $ins->close();

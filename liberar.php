@@ -68,33 +68,35 @@ try {
             : $origemAtualizada['setor'];
 
         // Tipos seguros
-        $tempoMedio = (string)($origemAtualizada['tempo_medio'] ?? '00:00:00');
-        $tempoReal  = (int)($origemAtualizada['tempo_real']  ?? 0);
+        $dataSolicitacao    = $origemAtualizada['data_liberacao'];            // segue igual
+        $dataLibOriginal    = $origemAtualizada['data_liberacao_original'];   // <- replica
 
         // 3) Insere a nova linha NO PRÓXIMO SETOR
+        
         $ins = $connLocal->prepare("
-            INSERT INTO solicitacoes
-              (id_usuario, demanda, sei, codigo,
-               setor, setor_original, responsavel,
-               data_solicitacao, data_liberacao,
-               tempo_medio, tempo_real, setor_responsavel)
-            VALUES
-              (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
+        INSERT INTO solicitacoes
+            (id_usuario, demanda, sei, codigo,
+            setor, setor_original, responsavel,
+            data_solicitacao, data_liberacao, data_liberacao_original,
+            tempo_medio, tempo_real, setor_responsavel)
+        VALUES
+            (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)
         ");
         // Tipagem: i + 8s + i + s  -> "issssssssis"
         $ins->bind_param(
-            "issssssssis",
-            $origemAtualizada['id_usuario'],   // i
-            $origemAtualizada['demanda'],      // s
-            $origemAtualizada['sei'],          // s
-            $origemAtualizada['codigo'],       // s
-            $proximo,                          // s
-            $setorOriginal,                    // s
-            $origemAtualizada['responsavel'],  // s
-            $dataSolicitacao,                  // s
-            $tempoMedio,                       // s
-            $tempoReal,                        // i
-            $proximo                           // s
+            "isssssssssis",
+            $origemAtualizada['id_usuario'],  // i
+            $origemAtualizada['demanda'],     // s
+            $origemAtualizada['sei'],         // s
+            $origemAtualizada['codigo'],      // s
+            $proximo,                         // s
+            $setorOriginal,                   // s
+            $origemAtualizada['responsavel'], // s
+            $dataSolicitacao,                 // s
+            $dataLibOriginal,                 // s  <-- replica original
+            $tempoMedio,                      // s
+            $tempoReal,                       // i
+            $proximo                          // s
         );
         $ins->execute();
         $novoId = $connLocal->insert_id;
