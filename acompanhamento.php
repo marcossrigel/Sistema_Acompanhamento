@@ -172,6 +172,7 @@ $progressPct = round(($concluidos / max($total, 1)) * 100);
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Acompanhamento — Portal CEHAB</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="assets/css/acompanhamentos.css" rel="stylesheet">
 <style>
   :root{--bg:#eef3f7;--ink:#223;--muted:#6b7280;--done:#16a34a;--doing:#f59e0b;--todo:#9ca3af;
   --card:#fff;--rail:#e5e7eb;--rail-fill:#2563eb;--shadow:0 8px 24px rgba(0,0,0,.06);--radius:18px}

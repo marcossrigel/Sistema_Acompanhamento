@@ -41,6 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   } else {
     $demanda        = null_if_empty($demanda);
     $data_liberacao = null_if_empty($data_liberacao);
+    $data_liberacao_original = $data_liberacao;
     $tempo_medio = null_if_empty($tempo_medio);
 
     if (strtolower($perfil) === 'solicitante') {
@@ -79,9 +80,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $sql = "INSERT INTO solicitacoes (
-              id_usuario, demanda, sei, codigo, setor, setor_original, responsavel,
-              data_solicitacao, data_liberacao, tempo_medio, tempo_real, data_registro, setor_responsavel
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+          id_usuario, demanda, sei, codigo, setor, setor_original, responsavel,
+          data_solicitacao, data_liberacao, data_liberacao_original,
+          tempo_medio, tempo_real, data_registro, setor_responsavel
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
 
     $stmt = $conn->prepare($sql);
     if ($stmt) {
@@ -92,20 +94,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       // ...
       $stmt->bind_param(
-        "isssssssssis",
-        $idUsuarioPortal,   // i
-        $demanda,           // s
-        $sei,               // s
-        $codigo,            // s
-        $setor,             // s
-        $setor_original,    // s
-        $responsavel,       // s
-        $data_solicitacao,  // s
-        $data_liberacao,    // s
-        $tempo_medio,       // s
-        $tempo_real,        // i
-        $setor_responsavel  // s
+        "issssssssssis",
+        $idUsuarioPortal,        // i
+        $demanda,                // s
+        $sei,                    // s
+        $codigo,                 // s
+        $setor,                  // s
+        $setor_original,         // s
+        $responsavel,            // s
+        $data_solicitacao,       // s
+        $data_liberacao,         // s
+        $data_liberacao_original,// s  <-- novo
+        $tempo_medio,            // s
+        $tempo_real,             // i
+        $setor_responsavel       // s
       );
+
 
       if ($stmt->execute()) {
         $mensagem = 'sucesso';
