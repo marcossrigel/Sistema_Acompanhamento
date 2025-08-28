@@ -1,6 +1,6 @@
 <?php
 if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../config.php';
 $conn = $connLocal ?? $conn ?? $conexao ?? null;
 $conn->set_charset('utf8mb4');
 date_default_timezone_set('America/Recife');
@@ -171,7 +171,6 @@ if ($status === 'done') {
   $cards[] = ['label' => $label, 'status' => $status, 'small' => $small];
 }
 
-// Calcular porcentagem de progresso
 $total = count($cards);
 $concluidos = 0;
 
@@ -268,7 +267,7 @@ $progressPct = round(($concluidos / max($total, 1)) * 100);
     </section>
 
     <div class="footer">
-      <a href="visualizar.php" class="btn-back">‹ Voltar</a>
+      <a href="templates/visualizar.php" class="btn-back">‹ Voltar</a>
     </div>
   </main>
 </body>
