@@ -1,6 +1,6 @@
 <?php
 if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/templates/config.php';
 date_default_timezone_set('America/Recife');
 
 $dbLocal  = $connLocal;
@@ -9,7 +9,6 @@ $dbRemoto = $connRemoto;
 $token = trim($_GET['access_dinamic'] ?? '');
 if ($token === '') { http_response_code(401); exit('Token inválido ou expirado.'); }
 
-// 1) Busca g_id do token e (opcional) nome no DB remoto
 $gId = 0; $nomePortal = null;
 $sql = "
   SELECT ts.g_id, u.u_nome_completo
@@ -31,7 +30,6 @@ if ($st = $dbRemoto->prepare($sql)) {
 }
 if ($gId <= 0) { http_response_code(401); exit('Token inválido ou expirado.'); }
 
-// 2) Vê se esse g_id existe como colaborador no banco local
 $sqlLocal = "SELECT id, id_usuario_cehab_online, nome, setor
              FROM usuarios
              WHERE id_usuario_cehab_online = ?
@@ -42,24 +40,21 @@ $st2->execute();
 $local = $st2->get_result()->fetch_assoc();
 $st2->close();
 
-// 3) Monta sessão
-$_SESSION['id_portal'] = $gId;                    // <<< ESSENCIAL p/ o formulário
+$_SESSION['id_portal'] = $gId;
 if ($local) {
-  // Colaborador
   $_SESSION['tipo_usuario']            = 'colaborador';
   $_SESSION['id_usuario_local']        = (int)$local['id'];        // opcional
   $_SESSION['id_usuario_cehab_online'] = (int)$local['id_usuario_cehab_online'];
   $_SESSION['nome']                    = $local['nome'] ?: ($nomePortal ?? '');
   $_SESSION['setor']                   = $local['setor'] ?: '';
-  $redirect = 'painel.php?access_dinamic=' . urlencode($token);
+  $redirect = 'templates/painel.php?access_dinamic=' . urlencode($token);
 } else {
-  // Solicitante (não cadastrado em usuarios do sistema)
   $_SESSION['tipo_usuario']            = 'solicitante';
   $_SESSION['id_usuario_local']        = null;
   $_SESSION['id_usuario_cehab_online'] = $gId;
   $_SESSION['nome']                    = $nomePortal ?? '';
   $_SESSION['setor']                   = 'Solicitante';
-  $redirect = 'home.php';
+  $redirect = 'templates/home.php?access_dinamic=' . urlencode($token);
 }
 
 header('Location: ' . $redirect);

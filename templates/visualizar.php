@@ -38,7 +38,7 @@ function dt($v){ return ($v) ? htmlspecialchars(date('d/m/Y H:i:s', strtotime($v
   <title><?= htmlspecialchars($nomeSetorPainel) ?></title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-  <link href="assets/css/visualizar.css" rel="stylesheet">
+  <link href="../assets/css/visualizar.css" rel="stylesheet">
 </head>
 <body>
 <div class="container">
@@ -86,7 +86,7 @@ function dt($v){ return ($v) ? htmlspecialchars(date('d/m/Y H:i:s', strtotime($v
                 <button type="submit" class="botao-minimalista">Excluir</button>
               </form>
 
-              <a href="templates/acompanhamento.php?id=<?= (int)$row['id'] ?>" class="botao-minimalista">Acompanhar</a>
+              <a href="../templates/acompanhamento.php?id=<?= (int)$row['id'] ?>" class="botao-minimalista">Acompanhar</a>
             </div>
 
 
@@ -105,6 +105,6 @@ function dt($v){ return ($v) ? htmlspecialchars(date('d/m/Y H:i:s', strtotime($v
 
 </div>
 
-<script src="js/visualizar.js"></script>
+<script src="../js/visualizar.js"></script>
 </body>
 </html>

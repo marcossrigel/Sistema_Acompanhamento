@@ -147,7 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Solicitação</title>
-  <link rel="stylesheet" href="assets/css/formulario.css">
+  <link rel="stylesheet" href="../assets/css/formulario.css">
 </head>
 <body>
 <div class="pagina-formulario">

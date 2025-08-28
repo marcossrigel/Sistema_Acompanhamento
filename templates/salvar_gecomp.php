@@ -8,8 +8,6 @@ header('Content-Type: application/json; charset=utf-8');
 $token = $_GET['access_dinamic'] ?? $_POST['access_dinamic'] ?? '';
 if ($token === '') { http_response_code(401); echo json_encode(['ok'=>false,'msg'=>'token ausente']); exit; }
 
-/* Aqui, se quiser, valide o token como você já faz no painel.php */
-
 $raw = file_get_contents('php://input');
 $body = json_decode($raw, true) ?: $_POST;
 
@@ -21,7 +19,6 @@ $obs      = isset($body['obs'])      ? trim((string)$body['obs']) : null;
 
 if ($id <= 0) { http_response_code(400); echo json_encode(['ok'=>false,'msg'=>'ID inválido']); exit; }
 
-/* Monta UPDATE parcial somente com o que veio */
 $fields = [];
 $params = [];
 $types  = '';

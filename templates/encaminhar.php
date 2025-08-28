@@ -15,7 +15,6 @@ if ($id_demanda <= 0 || $setor_destino === '') {
   die('Parâmetros inválidos.');
 }
 
-// 1) Busca a linha atual
 $stmt = $conn->prepare("SELECT * FROM solicitacoes WHERE id = ?");
 $stmt->bind_param("i", $id_demanda);
 $stmt->execute();
@@ -24,13 +23,11 @@ $stmt->close();
 
 if (!$orig) die('Solicitação não encontrada.');
 
-// AGORA sim podemos definir o setor_original
 $setorOriginal = $orig['setor_original'] ?: $orig['setor'];
 
 $conn->begin_transaction();
 
 try {
-  // (opcional, mas recomendado) garante que a linha atual também tenha setor_original
   if (empty($orig['setor_original'])) {
     $fix = $conn->prepare("UPDATE solicitacoes SET setor_original = ? WHERE id = ?");
     $fix->bind_param("si", $setorOriginal, $id_demanda);
@@ -38,14 +35,10 @@ try {
     $fix->close();
   }
 
-  // 2) Libera a linha atual
   $upd = $conn->prepare("UPDATE solicitacoes SET data_liberacao = CURDATE() WHERE id = ?");
   $upd->bind_param("i", $id_demanda);
   $upd->execute();
   $upd->close();
-
-  // 3) Cria a nova linha no setor de destino (propagando setor_original)
-  // 3) Cria a nova linha no setor de destino (propagando setor_original e data_liberacao_original)
   $tempoMedio = (string)($orig['tempo_medio'] ?? '00:00:00');
   $tempoReal  = isset($orig['tempo_real']) ? (int)$orig['tempo_real'] : null;
 
