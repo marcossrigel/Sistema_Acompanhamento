@@ -140,7 +140,7 @@ function dt($v){
           'CPL' => 'DAF - HOMOLOGACAO',
           'DAF - HOMOLOGACAO' => 'PARECER JUR', 
           'PARECER JUR' => 'GEFIN NE INICIAL',
-          'GEFIN NE' => 'GOP PF (SEFAZ)', 
+          'GEFIN NE INICIAL' => 'GOP PF (SEFAZ)', 
           'GOP PF (SEFAZ)' => 'GEFIN NE DEFINITIVO',
           'GEFIN NE DEFINITIVO' => 'LIQ', 
           'LIQ' => 'PD (SEFAZ)', 

@@ -82,7 +82,6 @@ try {
         VALUES
             (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)
         ");
-        // Tipagem: i + 8s + i + s  -> "issssssssis"
         $ins->bind_param(
             "isssssssssis",
             $origemAtualizada['id_usuario'],  // i
@@ -102,7 +101,6 @@ try {
         $novoId = $connLocal->insert_id;
         $ins->close();
 
-        // 4) Registra o encaminhamento apontando PARA A NOVA LINHA
         $insEnc = $connLocal->prepare("
             INSERT INTO encaminhamentos
               (id_demanda, setor_origem, setor_destino, status, data_encaminhamento)
@@ -124,6 +122,5 @@ try {
     die("Falha ao encaminhar: " . $e->getMessage());
 }
 
-// Redireciona de volta para o painel
 header("Location: painel.php?access_dinamic=" . urlencode($access));
 exit;

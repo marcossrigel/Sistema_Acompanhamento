@@ -215,7 +215,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </form>
 </div>
 
-<script src="js/formulario.js"></script>
+<script src="../js/formulario.js"></script>
 
 <?php if ($mensagem === 'sucesso'): ?>
 <div class="modal-overlay" id="modal-sucesso">

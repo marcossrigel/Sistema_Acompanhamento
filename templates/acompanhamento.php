@@ -267,7 +267,7 @@ $progressPct = round(($concluidos / max($total, 1)) * 100);
     </section>
 
     <div class="footer">
-      <a href="templates/visualizar.php" class="btn-back">‹ Voltar</a>
+      <a href="../templates/visualizar.php" class="btn-back">‹ Voltar</a>
     </div>
   </main>
 </body>

@@ -13,7 +13,7 @@ function time_to_input($t){ return $t ? substr($t,0,5) : ''; }
 $id = (int)($_GET['id'] ?? 0);
 if ($id <= 0) { header('Location: listar_solicitacoes.php'); exit; }
 
-// carrega a linha
+
 $stmt = $conn->prepare("SELECT * FROM solicitacoes WHERE id=?");
 $stmt->bind_param("i",$id);
 $stmt->execute();
@@ -21,7 +21,6 @@ $sol = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 if (!$sol){ echo "<h2 style='color:red;text-align:center'>Solicitação não encontrada.</h2>"; exit; }
 
-// Salvar edições do setor (não é liberação!)
 if ($_SERVER['REQUEST_METHOD']==='POST'){
   $id               = (int)($_POST['id'] ?? 0);
   $demanda          = $_POST['demanda'] ?? '';
@@ -31,7 +30,6 @@ if ($_SERVER['REQUEST_METHOD']==='POST'){
   $responsavel      = $_POST['responsavel'] ?? '';
   $data_solicitacao = $_POST['data_solicitacao'] ?? '';
 
-  // Data liberação NÃO é editável aqui; tempo_medio/tempo_real opcionais p/ admin
   $tempo_medio = null_if_empty($_POST['tempo_medio'] ?? null);
   $tempo_real  = null_if_empty($_POST['tempo_real']  ?? null);
 
@@ -48,7 +46,6 @@ if ($_SERVER['REQUEST_METHOD']==='POST'){
     exit;
   }
 
-  // Atualiza a própria linha (sem mexer em data_liberacao)
   $sql="UPDATE solicitacoes
         SET demanda=?, sei=?, codigo=?, setor=?, responsavel=?,
             data_solicitacao=?, tempo_medio=?, tempo_real=?
@@ -73,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST'){
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Processo Andamento</title>
-<link rel="stylesheet" href="./assets/css/editar.css">
+<link rel="stylesheet" href="../assets/css/editar.css">
 </head>
 <body>
 <div class="wrap">
