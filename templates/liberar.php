@@ -46,6 +46,19 @@ if (!$proximo) {
 $connLocal->begin_transaction();
 
 try {
+    $tempoMedio = (string)($origemAtualizada['tempo_medio'] ?? '00:00:00');
+    $tempoReal  = isset($origemAtualizada['tempo_real']) ? (int)$origemAtualizada['tempo_real'] : null;
+
+    // Finaliza encaminhamento em aberto do registro atual
+    $fin = $connLocal->prepare("
+      UPDATE encaminhamentos
+         SET status = 'Finalizado'
+       WHERE id_demanda = ?
+         AND status = 'Em andamento'
+    ");
+    $fin->bind_param("i", $id);
+    $fin->execute();
+    $fin->close();
     // 1) Atualiza a data de liberação do setor atual
     $upd = $connLocal->prepare("UPDATE solicitacoes SET data_liberacao = CURDATE() WHERE id = ?");
     $upd->bind_param("i", $id);

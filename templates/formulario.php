@@ -5,6 +5,22 @@ require_once __DIR__ . '/config.php';
 $conn->set_charset('utf8mb4');
 date_default_timezone_set('America/Recife');
 
+$SETOR_OPCOES = [
+  'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS',
+  'GECOMP',
+  'DDO',
+  'CPL',
+  'DAF - HOMOLOGACAO',
+  'PARECER JUR',
+  'GEFIN NE INICIAL',
+  'GOP PF (SEFAZ)',
+  'GEFIN NE DEFINITIVO',
+  'LIQ',
+  'PD (SEFAZ)',
+  'OB',
+  'REMESSA'
+];
+
 $perfil = $_SESSION['tipo_usuario'] ?? ($_GET['perfil'] ?? 'solicitante');
 $TEMPO_MEDIO_PADRAO = defined('TEMPO_MEDIO_PADRAO') ? TEMPO_MEDIO_PADRAO : '00:30:00';
 
@@ -21,12 +37,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $sei              = $_POST['sei'] ?? '';
   $codigo           = $_POST['codigo'] ?? '';
   $setor            = $_POST['setor'] ?? '';
-  $setor_original   = $setor; // <- sempre igual ao setor escolhido no formulário
+  $setor_original   = $setor;
   $responsavel      = $_POST['responsavel'] ?? '';
   $data_solicitacao = $_POST['data_solicitacao'] ?? '';
   $data_liberacao   = $_POST['data_liberacao'] ?? '';
   $tempo_medio      = $_POST['tempo_medio'] ?? '';
   $tempo_real_form  = $_POST['tempo_real'] ?? null;
+  $enviado_para     = $_POST['enviado_para'] ?? '';
 
   $erros = [];
   if ($sei === '')              $erros[] = 'SEI é obrigatório.';
@@ -34,6 +51,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if ($setor === '')            $erros[] = 'Setor é obrigatório.';
   if ($responsavel === '')      $erros[] = 'Responsável é obrigatório.';
   if ($data_solicitacao === '') $erros[] = 'Data de Solicitação é obrigatória.';
+  if ($enviado_para === '') $erros[] = 'Selecione o setor de destino (Enviar demanda para).';
+  if ($enviado_para && !in_array($enviado_para, $SETOR_OPCOES, true)) {
+    $erros[] = 'Destino inválido.';
+  }
 
   if ($erros) {
     $mensagem = 'erro';
@@ -47,18 +68,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (strtolower($perfil) === 'solicitante') {
       $data_solicitacao = date('Y-m-d');
       $data_liberacao   = null;
-      $tempo_medio      = $TEMPO_MEDIO_PADRAO; // ex.: '00:30:00'
+      $tempo_medio      = $TEMPO_MEDIO_PADRAO;
       $tempo_real       = 0;
     } else {
       if ($tempo_medio && strlen($tempo_medio) === 5) {
-        $tempo_medio .= ':00'; // 'HH:MM' -> 'HH:MM:SS'
+        $tempo_medio .= ':00';
       }
       if (!empty($tempo_real_form)) {
         $t1 = new DateTime($data_solicitacao);
         $t2 = new DateTime($tempo_real_form);
         $tempo_real = (int) max(0, $t1->diff($t2)->days);
       } else {
-        $tempo_real = null; // ok se a coluna aceita NULL
+        $tempo_real = null;
       }
     }
 
@@ -66,62 +87,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (strtolower($perfil) === 'solicitante') {
       $hoje = date('Y-m-d');
       $data_solicitacao = $hoje;
-      $data_liberacao   = null;            // primeira linha nasce sem liberação
+      $data_liberacao   = null;          
       $tempo_medio      = $TEMPO_MEDIO_PADRAO;
-      $tempo_real       = 0;               // dias (inteiro)
+      $tempo_real       = 0;
     } else {
       if (!empty($tempo_real_form)) {
         $t1 = new DateTime($data_solicitacao);
         $t2 = new DateTime($tempo_real_form);
         $tempo_real = (int) max(0, $t1->diff($t2)->days);
       } else {
-        $tempo_real = null;                // pode ser NULL
+        $tempo_real = null;
       }
     }
-
+    $setor_responsavel = $enviado_para; // responsável inicial = destino escolhido
     $sql = "INSERT INTO solicitacoes (
           id_usuario, demanda, sei, codigo, setor, setor_original, responsavel,
           data_solicitacao, data_liberacao, data_liberacao_original,
-          tempo_medio, tempo_real, data_registro, setor_responsavel
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+          tempo_medio, tempo_real, enviado_para, data_registro, setor_responsavel
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
 
     $stmt = $conn->prepare($sql);
     if ($stmt) {
-      $setor_responsavel = 'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS';
-
-      // i + 9s + i + s = 12 params
       $idUsuarioPortal = (int)($_SESSION['id_portal'] ?? 0);
 
-      // ...
+      // Tipos: i + 10s + i + s + s  => total 14
       $stmt->bind_param(
-        "issssssssssis",
-        $idUsuarioPortal,        // i
-        $demanda,                // s
-        $sei,                    // s
-        $codigo,                 // s
-        $setor,                  // s
-        $setor_original,         // s
-        $responsavel,            // s
-        $data_solicitacao,       // s
-        $data_liberacao,         // s
-        $data_liberacao_original,// s  <-- novo
-        $tempo_medio,            // s
-        $tempo_real,             // i
-        $setor_responsavel       // s
+        "issssssssssiss", // i + 10s + i + s + s = 14 parâmetros
+        $idUsuarioPortal,
+        $demanda,
+        $sei,
+        $codigo,
+        $setor,
+        $setor_original,
+        $responsavel,
+        $data_solicitacao,
+        $data_liberacao,
+        $data_liberacao_original,
+        $tempo_medio,
+        $tempo_real,       // INT (dias) - ok usar 'i'
+        $enviado_para,     // NOVO
+        $setor_responsavel // = enviado_para
       );
-
 
       if ($stmt->execute()) {
         $mensagem = 'sucesso';
-
-        // Encaminhamento inicial: DEMANDANTE -> DAF
         $id_nova = $stmt->insert_id;
         $sqlEnc  = "INSERT INTO encaminhamentos
-                    (id_demanda, setor_origem, setor_destino, status, data_encaminhamento)
-                    VALUES (?, ?, ?, ?, NOW())";
+          (id_demanda, setor_origem, setor_destino, status, data_encaminhamento)
+          VALUES (?, ?, ?, ?, NOW())";
         if ($stmtEnc = $conn->prepare($sqlEnc)) {
           $setorOrigem  = 'DEMANDANTE';
-          $setorDestino = 'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS';
+          $setorDestino = $enviado_para;   // <-- vai para o setor escolhido
           $statusEnc    = 'Em andamento';
           $stmtEnc->bind_param("isss", $id_nova, $setorOrigem, $setorDestino, $statusEnc);
           $stmtEnc->execute();
@@ -201,12 +217,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <label class="label">Tempo Médio (hh:mm)</label> 
       <input type="time" name="tempo_medio" id="tempo_medio" class="campo">
     </div>
+    
     <div class="campo-pequeno" id="grupo-tempo-real">
       <label class="label">Tempo Real (Data)</label>
       <input type="date" name="tempo_real" id="tempo_real_date" class="campo">
+      <input type="hidden" name="tempo_real_dias" id="tempo_real_dias">
+      <input type="hidden" name="data_solicitacao" id="data_solicitacao">
     </div>
-    <input type="hidden" name="tempo_real_dias" id="tempo_real_dias">
-    <input type="hidden" name="data_solicitacao" id="data_solicitacao">
+
+    <div class="campo-pequeno" id="grupo-tempo-real">
+      <label class="label">Enviar demanda para</label>
+      <select name="enviado_para" class="campo" required>
+        <option value="">Selecione...</option>
+        <?php foreach ($SETOR_OPCOES as $opt): ?>
+          <option value="<?= htmlspecialchars($opt) ?>"><?= htmlspecialchars($opt) ?></option>
+        <?php endforeach; ?>
+      </select>
+    </div>
+
   </div>
 
   <button type="submit" class="btn btn-create-account">Salvar</button>

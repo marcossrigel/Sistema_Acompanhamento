@@ -75,14 +75,12 @@ $steps = [
   ['key'=>norm('GECOMP'), 'label'=>'GECOMP', 'hint'=>'Análise'],
 ];
 
-// adiciona o passo logo após GECOMP, dependendo da escolha
 if (!$existeSetorEscolhido) {
   $steps[] = ['key'=>norm('AGUARDANDO_GECOMP_ESCOLHA'), 'label'=>'Aguardando Setor...', 'hint'=>'Aguardando'];
 } else {
   $steps[] = ['key'=>$existeSetorEscolhido, 'label'=>$existeSetorEscolhido, 'hint'=>'Aguardando'];
 }
 
-// adiciona os demais passos do fluxo
 $steps = array_merge($steps, [
   ['key'=>norm('DAF - HOMOLOGACAO'),   'label'=>'Homologação',     'hint'=>'Aguardando'],
   ['key'=>norm('PARECER JUR'),         'label'=>'Parecer Jur.',    'hint'=>'Aguardando'],
@@ -94,8 +92,6 @@ $steps = array_merge($steps, [
   ['key'=>norm('OB'),                  'label'=>'OB',              'hint'=>'Aguardando'],
   ['key'=>norm('REMESSA'),             'label'=>'Remessa',         'hint'=>'Aguardando'],
 ]);
-
-
 
 $currentIdx = -1;
 if ($setorAtual !== null) {
