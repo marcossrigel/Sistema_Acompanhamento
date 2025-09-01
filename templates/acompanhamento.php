@@ -7,7 +7,21 @@ $conn->set_charset('utf8mb4');
 date_default_timezone_set('America/Recife');
 
 function show($v){ return $v !== null && $v !== '' ? htmlspecialchars($v) : '—'; }
-function d($v){ return $v ? date('d/m/Y', strtotime($v)) : '—'; }
+function d($v){ return ($v && $v !== '0000-00-00' && $v !== '0000-00-00 00:00:00') ? date('d/m/Y', strtotime($v)) : '—'; }
+
+function label_setor(string $s): string {
+  static $map = [
+    'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS' => 'DAF',
+    'DAF - HOMOLOGACAO'                           => 'Homologação',
+    'PARECER JUR'                                 => 'Parecer Jur.',
+    'GEFIN NE INICIAL'                            => 'NE (Inicial)',
+    'GOP PF (SEFAZ)'                              => 'PF',
+    'GEFIN NE DEFINITIVO'                         => 'NE (Definitivo)',
+    'PD (SEFAZ)'                                   => 'PD',
+  ];
+  return $map[$s] ?? $s;
+}
+function norm($s){ return strtoupper(trim((string)$s)); }
 
 $id = (int)($_GET['id'] ?? 0);
 if ($id <= 0) { http_response_code(400); echo 'ID inválido.'; exit; }
@@ -19,168 +33,90 @@ $ref = $st->get_result()->fetch_assoc();
 $st->close();
 if (!$ref) { echo 'Solicitação não encontrada.'; exit; }
 
-function norm($s){ return strtoupper(trim((string)$s)); }
+$demanda     = $ref['demanda'] ?? '';
+$id_original = (int)($ref['id_original'] ?? 0);
+$rootId      = $id_original > 0 ? $id_original : $id;
 
-$demanda = $ref['demanda'] ?? '';
-
-$st0 = $conn->prepare("
-  SELECT data_liberacao_original
-    FROM solicitacoes
-   WHERE demanda = ?
-     AND data_liberacao_original IS NOT NULL
-   ORDER BY id ASC
-   LIMIT 1
-");
-$st0->bind_param("s", $demanda);
-$st0->execute();
-$row0 = $st0->get_result()->fetch_assoc();
-$st0->close();
-
-$dataOriginalProcesso = $row0['data_liberacao_original'] ?? ($ref['data_liberacao_original'] ?? null);
-
-$stH = $conn->prepare("
-  SELECT setor_origem, setor_destino, data_encaminhamento, id
-    FROM encaminhamentos
-   WHERE id_demanda = ?
-   ORDER BY data_encaminhamento ASC, id ASC
-");
-$stH->bind_param("i", $id);
-$stH->execute();
-$hist = $stH->get_result()->fetch_all(MYSQLI_ASSOC);
-$stH->close();
-
-$ultimoPorSetor = [];
-if (!empty($hist)) {
-  foreach ($hist as $h) {
-    $ultimoPorSetor[norm($h['setor_destino'])] = $h;
-  }
-  $ultimaLinha = end($hist);
-  $setorAtual  = norm($ultimaLinha['setor_destino'] ?? '');
-} else {
-  $setorAtual = norm($ref['setor_responsavel'] ?? $ref['setor'] ?? '');
+$rows = [];
+if ($id_original > 0) {
+  $q = $conn->prepare("
+    SELECT id, setor, setor_responsavel, data_solicitacao, data_liberacao, data_registro
+      FROM solicitacoes
+     WHERE id = ? OR id_original = ?
+     ORDER BY data_registro ASC, id ASC
+  ");
+  $q->bind_param("ii", $rootId, $rootId);
+  $q->execute();
+  $rows = $q->get_result()->fetch_all(MYSQLI_ASSOC);
+  $q->close();
 }
 
-$existeSetorEscolhido = false;
-foreach ($hist as $h) {
-  if (norm($h['setor_origem']) === norm('GECOMP')
-      && in_array(norm($h['setor_destino']), [norm('CPL'), norm('DDO')], true)) {
-    $existeSetorEscolhido = norm($h['setor_destino']);
-    break;
-  }
+if (!$rows) {
+  $q = $conn->prepare("
+    SELECT id, setor, setor_responsavel, data_solicitacao, data_liberacao, data_registro
+      FROM solicitacoes
+     WHERE demanda = ?
+     ORDER BY data_registro ASC, id ASC
+  ");
+  $q->bind_param("s", $demanda);
+  $q->execute();
+  $rows = $q->get_result()->fetch_all(MYSQLI_ASSOC);
+  $q->close();
 }
 
-$steps = [
-  ['key'=>norm('DEMANDANTE'), 'label'=>'Demandante', 'hint'=>'Recebido'],
-  ['key'=>norm('DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS'), 'label'=>'DAF', 'hint'=>'Recebido'],
-  ['key'=>norm('GECOMP'), 'label'=>'GECOMP', 'hint'=>'Análise'],
-];
+if (!$rows) { echo 'Sem histórico para esta demanda.'; exit; }
 
-if (!$existeSetorEscolhido) {
-  $steps[] = ['key'=>norm('AGUARDANDO_GECOMP_ESCOLHA'), 'label'=>'Aguardando Setor...', 'hint'=>'Aguardando'];
-} else {
-  $steps[] = ['key'=>$existeSetorEscolhido, 'label'=>$existeSetorEscolhido, 'hint'=>'Aguardando'];
-}
-
-$steps = array_merge($steps, [
-  ['key'=>norm('DAF - HOMOLOGACAO'),   'label'=>'Homologação',     'hint'=>'Aguardando'],
-  ['key'=>norm('PARECER JUR'),         'label'=>'Parecer Jur.',    'hint'=>'Aguardando'],
-  ['key'=>norm('GEFIN NE INICIAL'),    'label'=>'NE (Inicial)',    'hint'=>'Aguardando'],
-  ['key'=>norm('GOP PF (SEFAZ)'),      'label'=>'PF',              'hint'=>'Aguardando'],
-  ['key'=>norm('GEFIN NE DEFINITIVO'), 'label'=>'NE (Definitivo)', 'hint'=>'Aguardando'],
-  ['key'=>norm('LIQ'),                 'label'=>'LIQ',             'hint'=>'Aguardando'],
-  ['key'=>norm('PD (SEFAZ)'),          'label'=>'PD',              'hint'=>'Aguardando'],
-  ['key'=>norm('OB'),                  'label'=>'OB',              'hint'=>'Aguardando'],
-  ['key'=>norm('REMESSA'),             'label'=>'Remessa',         'hint'=>'Aguardando'],
-]);
-
-$currentIdx = -1;
-if ($setorAtual !== null) {
-
-  if ($setorAtual === norm('AGUARDANDO_GECOMP_ESCOLHA')) {
-      foreach ($hist as $row) {
-          if (in_array(norm($row['setor_destino']), [norm('CPL'), norm('DDO')])) {
-              $setorAtual = norm($row['setor_destino']);
-              break;
-          }
-      }
-  }
-
-  foreach ($steps as $i => $s) {
-    if ($s['key'] === $setorAtual) { $currentIdx = $i; break; }
-  }
-}
+$primeira = $rows[0];
+$data_inicial = $primeira['data_solicitacao'] ?? null;
 
 $cards = [];
 
-foreach ($steps as $i => $s) {
-  $keyNorm = $s['key'];
-  $label   = $s['label'];
-  $hint    = $s['hint'];
+$cards[] = [
+  'label'  => 'Demandante',
+  'status' => 'done',
+  'small'  => 'Concluído • ' . d($data_inicial),
+];
 
-  if ($keyNorm === norm('DEMANDANTE')) {
-    $recebidoEm = d($dataOriginalProcesso ?: $ref['data_solicitacao']);
-    $status = 'done';
-    $small = "Recebido • " . $recebidoEm;
-    $cards[] = ['label' => $label, 'status' => $status, 'small' => $small];
-    continue;
+$contagemOcorrencias = [];
+foreach ($rows as $r) {
+  $setor = $r['setor_responsavel'] ?: $r['setor'];
+  $labelBase    = label_setor($setor);
+  $contagemOcorrencias[$labelBase] = ($contagemOcorrencias[$labelBase] ?? 0) + 1;
+  $label = $labelBase;
+  if ($contagemOcorrencias[$labelBase] > 1) {
+    $label .= ' (' . $contagemOcorrencias[$labelBase] . 'ª vez)';
   }
 
-  $stRow = $ultimoPorSetor[$keyNorm] ?? null;   // <- fica só esta
-  $recebidoEm = $stRow ? d($stRow['data_encaminhamento']) : '—';
-  $liberadoEm = '—';
+  $recebidoEm = d($r['data_solicitacao']);
+  $liberadoEm = d($r['data_liberacao']);
 
-  $status = 'todo';
-  if ($keyNorm === norm('DEMANDANTE')) {
-    $status = 'done';
-  } elseif ($currentIdx >= 0) {
-    if     ($i <  $currentIdx) $status = 'done';
-    elseif ($i === $currentIdx) $status = 'current';
+  if (!empty($r['data_liberacao'])) {
+    $cards[] = [
+      'label'  => $label,
+      'status' => 'done',
+      'small'  => 'Concluído • ' . $liberadoEm,
+    ];
+  } else {
+    $cards[] = [
+      'label'  => $label,
+      'status' => 'current',
+      'small'  => 'Recebido • ' . $recebidoEm,
+    ];
   }
-
-if ($status === 'done') {
-    $liberadoEm = '—';
-
-    $stmtLib = $conn->prepare("
-        SELECT data_liberacao
-          FROM solicitacoes
-         WHERE demanda = ?
-           AND UPPER(TRIM(setor_responsavel)) = ?
-         ORDER BY id DESC
-         LIMIT 1
-    ");
-    $stmtLib->bind_param("ss", $demanda, $keyNorm);
-    $stmtLib->execute();
-    $resLib = $stmtLib->get_result()->fetch_assoc();
-    $stmtLib->close();
-
-    if (!empty($resLib) && !empty($resLib['data_liberacao'])) {
-        $liberadoEm = date('d/m/Y', strtotime($resLib['data_liberacao']));
-    }
 }
 
-  if     ($status === 'done')    
-    $small = "Concluído • " . ($liberadoEm ?? '—');
-  elseif ($status === 'current') 
-    $small = $hint . " • "  . ($recebidoEm ?? '—');
-  else                           
-    $small = "Aguardando • —";
-
-  $cards[] = ['label' => $label, 'status' => $status, 'small' => $small];
-}
-
-$total = count($cards);
-$concluidos = 0;
-
+$total       = count($cards);
+$concluidos  = 0;
+$temAtual    = false;
 foreach ($cards as $c) {
-  if ($c['status'] === 'done') {
-    $concluidos++;
-  }
+  if ($c['status'] === 'done')    $concluidos++;
+  if ($c['status'] === 'current') $temAtual = true;
 }
-
 $progressPct = round(($concluidos / max($total, 1)) * 100);
+$situacao    = $temAtual ? 'EM ANDAMENTO' : 'CONCLUÍDO';
+$corSit      = $temAtual ? 'style="color:#f59e0b"' : 'style="color:#16a34a"';
 
 ?>
-
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -225,14 +161,8 @@ $progressPct = round(($concluidos / max($total, 1)) * 100);
 </head>
 <body>
   <main class="wrap">
-    <h2 class="title"><?php echo htmlspecialchars($demanda); ?></h2>
-    <?php
-      $situacao = ($concluidos === $total && $total > 0) ? 'CONCLUÍDO' : 'EM ANDAMENTO';
-      $cor = ($situacao === 'EM ANDAMENTO')
-        ? 'style="color:#f59e0b"'
-        : 'style="color:#16a34a"';
-    ?>
-    <div class="subtitle">Situação: <strong <?= $cor ?>><?= $situacao ?></strong></div>
+    <h2 class="title"><?= show($demanda) ?></h2>
+    <div class="subtitle">Situação: <strong <?= $corSit ?>><?= $situacao ?></strong></div>
 
     <section class="timeline">
       <div class="legend" aria-hidden="true">
@@ -243,16 +173,20 @@ $progressPct = round(($concluidos / max($total, 1)) * 100);
 
       <div class="grid" id="flow">
         <div class="rail"><div class="progress" id="progress"></div></div>
+
         <?php foreach ($cards as $c): ?>
           <article class="step <?= $c['status'] ?>">
             <h4><?= show($c['label']) ?></h4>
             <small><?= show($c['small']) ?></small>
+
             <?php if ($c['status']==='done'): ?>
               <span class="pill">CONCLUÍDO</span>
               <div class="dots"><div class="dot">✓</div></div>
+
             <?php elseif ($c['status']==='current'): ?>
               <span class="pill">EM ANDAMENTO</span>
               <div class="dots"><div class="dot">✓</div></div>
+
             <?php else: ?>
               <span class="pill">PENDENTE</span>
               <div class="dots"><div class="dot">•</div></div>
