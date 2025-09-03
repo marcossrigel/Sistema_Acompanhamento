@@ -38,23 +38,23 @@ $setor = $_SESSION['setor'] ?? '—';
         <div class="name">Nova Demanda</div>
         <div class="desc">Abrir um novo processo</div>
       </a>
-
-      <a class="card" href="painel.php?access_dinamic=<?= urlencode($token) ?>">
-        <div class="icon">📦</div>
-        <div class="name">Demandas</div>
-        <div class="desc">Abrir um novo processo</div>
-      </a>
-
+      
       <a class="card" href="minhas_demandas.php?access_dinamic=<?= urlencode($token) ?>">
         <div class="icon">🔎</div>
         <div class="name">Acompanhamento</div>
-        <div class="desc">Minhas demandas em andamento</div>
+        <div class="desc">Visualizar o status e andamento</div>
+      </a>
+      
+      <a class="card" href="painel.php?access_dinamic=<?= urlencode($token) ?>">
+        <div class="icon">📦</div>
+        <div class="name">Demandas</div>
+        <div class="desc">Abrir as demandas recebidas</div>
       </a>
 
       <a class="card" href="historico.php?access_dinamic=<?= urlencode($token) ?>">
         <div class="icon">🗂️</div>
         <div class="name">Histórico</div>
-        <div class="desc">Demandas finalizadas ou em andamento</div>
+        <div class="desc">Processos encaminhados </div>
       </a>
     </section>
 
