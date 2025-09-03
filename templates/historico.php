@@ -16,6 +16,13 @@ if ($token === '') { http_response_code(401); exit('Token inválido.'); }
   <div class="container">
     <h1>Histórico</h1>
     <div class="vazio">Em breve exibiremos as demandas finalizadas/arquivadas.</div>
+    <div class="footer-actions">
+    <a class="btn-back"
+       href="home_setor.php?access_dinamic=<?= urlencode($_GET['access_dinamic'] ?? '') ?>">
+       ‹ Voltar
+    </a>
+  </div>
+  
   </div>
 </body>
 </html>

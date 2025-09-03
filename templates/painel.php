@@ -178,6 +178,12 @@ $SETOR_OPCOES = [
   </div>
 
 <?php endif; ?>
+<div class="footer-actions">
+    <a class="btn-back"
+       href="home_setor.php?access_dinamic=<?= urlencode($_GET['access_dinamic'] ?? '') ?>">
+       ‹ Voltar
+    </a>
+  </div>
 </div>
 
 <script src="../js/painel.js"></script>
