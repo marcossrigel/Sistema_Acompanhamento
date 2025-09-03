@@ -69,3 +69,11 @@ function fecharModal() {
 
   window.history.replaceState({}, document.title, window.location.pathname);
 }
+
+(function () {
+    var el = document.getElementById('data_liberacao');
+    if (el && !el.value) {
+      // valueAsDate usa timezone do navegador e já formata yyyy-mm-dd
+      el.valueAsDate = new Date();
+    }
+  })();

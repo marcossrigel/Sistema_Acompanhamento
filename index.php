@@ -47,7 +47,7 @@ if ($local) {
   $_SESSION['id_usuario_cehab_online'] = (int)$local['id_usuario_cehab_online'];
   $_SESSION['nome']                    = $local['nome'] ?: ($nomePortal ?? '');
   $_SESSION['setor']                   = $local['setor'] ?: '';
-  $redirect = 'templates/painel.php?access_dinamic=' . urlencode($token);
+  $redirect = 'templates/home_setor.php?access_dinamic=' . urlencode($token);
 } else {
   $_SESSION['tipo_usuario']            = 'solicitante';
   $_SESSION['id_usuario_local']        = null;
