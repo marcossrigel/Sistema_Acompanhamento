@@ -34,7 +34,11 @@ $rs = $st->get_result();
   <title>Minhas Demandas</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-  <link href="../assets/css/painel.css" rel="stylesheet">
+  <link href="../assets/css/visualizar.css" rel="stylesheet">
+  <style>
+    /* espaçamento e centralização do botão Voltar */
+    .footer-actions { text-align:center; margin: 32px 0 12px; }
+  </style>
 </head>
 <body>
 <div class="container">
@@ -44,13 +48,15 @@ $rs = $st->get_result();
     <div class="vazio">Você ainda não abriu nenhuma demanda.</div>
   <?php else: ?>
     <div id="lista-solicitacoes">
-      <?php while($row = $rs->fetch_assoc()): ?>
+      <?php while($row = $rs->fetch_assoc()):
+            $id = (int)$row['id']; ?>
         <div class="item">
-          <button class="accordion">
+          <button class="accordion" data-id="<?= $id ?>">
             <span class="titulo"><?= e($row['demanda'] ?: '(sem título)') ?></span>
             <span class="seta">⌄</span>
           </button>
-          <div class="panel">
+
+          <div class="panel" id="panel-<?= $id ?>">
             <p><span class="rot">SEI:</span> <?= e($row['sei']) ?> &nbsp; | &nbsp;
                <span class="rot">Código:</span> <?= e($row['codigo']) ?> &nbsp; | &nbsp;
                <span class="rot">Aberto em:</span> <?= e(d($row['data_solicitacao'])) ?></p>
@@ -60,13 +66,23 @@ $rs = $st->get_result();
                <span class="rot">Tempo Real (dias):</span> <?= e($row['tempo_real'] ?? '—') ?></p>
 
             <div class="toolbar">
-              <a class="btn-like" href="formulario_comum.php?id=<?= (int)$row['id'] ?>">Formulário</a>
+              <a class="botao-minimalista"
+                 href="acompanhamento.php?id=<?= $id ?>&access_dinamic=<?= urlencode($token) ?>">
+                 Acompanhar
+              </a>
             </div>
           </div>
         </div>
       <?php endwhile; ?>
     </div>
   <?php endif; ?>
+
+  <div class="footer-actions">
+    <a class="botao-minimalista"
+       href="home_setor.php?access_dinamic=<?= urlencode($token) ?>">
+       ‹ Voltar
+    </a>
+  </div>
 </div>
 
 <script src="../js/painel.js"></script>

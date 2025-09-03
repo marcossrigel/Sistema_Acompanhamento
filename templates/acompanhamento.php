@@ -6,6 +6,26 @@ $conn = $connLocal ?? $conn ?? $conexao ?? null;
 $conn->set_charset('utf8mb4');
 date_default_timezone_set('America/Recife');
 
+/* --- NOVO: calcula para onde o botão Voltar deve ir --- */
+$token    = trim($_GET['access_dinamic'] ?? '');
+$idPortal = (int)($_SESSION['id_portal'] ?? $_SESSION['id_usuario_cehab_online'] ?? 0);
+
+$isColaborador = false;
+if ($idPortal > 0 && $conn) {
+  if ($st = $conn->prepare("SELECT setor FROM usuarios WHERE id_usuario_cehab_online = ? LIMIT 1")) {
+    $st->bind_param('i', $idPortal);
+    if ($st->execute()) {
+      $r = $st->get_result()->fetch_assoc();
+      $isColaborador = $r && !empty($r['setor']);
+    }
+    $st->close();
+  }
+}
+
+$backPage = $isColaborador ? 'minhas_demandas.php' : 'visualizar.php';
+$backUrl  = $backPage . ($token !== '' ? ('?access_dinamic=' . urlencode($token)) : '');
+
+/* --- resto do arquivo como já está --- */
 function show($v){ return $v !== null && $v !== '' ? htmlspecialchars($v) : '—'; }
 function d($v){ return ($v && $v !== '0000-00-00' && $v !== '0000-00-00 00:00:00') ? date('d/m/Y', strtotime($v)) : '—'; }
 
@@ -197,8 +217,9 @@ $corSit      = $temAtual ? 'style="color:#f59e0b"' : 'style="color:#16a34a"';
     </section>
 
     <div class="footer">
-      <a href="../templates/visualizar.php" class="btn-back">‹ Voltar</a>
+      <a href="<?= htmlspecialchars($backUrl) ?>" class="btn-back">‹ Voltar</a>
     </div>
+
   </main>
 </body>
 </html>

@@ -49,16 +49,14 @@ function dt($v){ return ($v) ? htmlspecialchars(date('d/m/Y H:i:s', strtotime($v
   <?php else: ?>
     <div id="lista-solicitacoes">
       <?php
-        $demandas_exibidas = []; // novo array de controle
+        $demandas_exibidas = [];
 
         while ($row = $res->fetch_assoc()):
-            $demanda = trim(mb_strtolower($row['demanda'])); // normaliza para evitar variações
-            
+            $demanda = trim(mb_strtolower($row['demanda'])); 
             if (in_array($demanda, $demandas_exibidas)) {
-                continue; // já exibido, pula
+                continue;
             }
-
-            $demandas_exibidas[] = $demanda; // adiciona como exibido
+            $demandas_exibidas[] = $demanda;
         ?>
 
         <div class="item">

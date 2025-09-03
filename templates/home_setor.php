@@ -23,8 +23,21 @@ $setor = $_SESSION['setor'] ?? '—';
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="../assets/css/home.css" rel="stylesheet">
   <style>
-    .sub { font-size: 14px; color:#6b7280; margin-top:-6px; }
-    .grid .card .name{ margin-top:2px; }
+  .sub { 
+    font-size: 14px; 
+    color:#6b7280; 
+    margin-top:-6px; 
+  }
+  .grid .card .name{ 
+    margin-top:2px; 
+  }
+
+  a.logout,
+  a.logout:visited,
+  a.logout:hover,
+  a.logout:focus {
+    text-decoration: none;
+  }
   </style>
 </head>
 <body>
