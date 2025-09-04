@@ -4,12 +4,11 @@ require_once __DIR__ . '/config.php';
 $conn->set_charset('utf8mb4');
 date_default_timezone_set('America/Recife');
 
-// ===== retorno inteligente p/ o botão Cancelar =====
 $token     = trim($_GET['access_dinamic'] ?? '');
 $idPortal  = (int)($_SESSION['id_portal'] ?? $_SESSION['id_usuario_cehab_online'] ?? 0);
 
 $isColaborador = false;
-$setorUsuario  = ''; // <- NÃO usar $_SESSION['setor'] aqui
+$setorUsuario  = '';
 
 if ($idPortal > 0) {
   if ($st = $conn->prepare("SELECT setor FROM usuarios WHERE id_usuario_cehab_online = ? LIMIT 1")) {
@@ -43,7 +42,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $setor = $isColaborador ? $setorUsuario : ($_POST['setor'] ?? '');
   $setor_original = $setor;
   $responsavel      = $_POST['responsavel'] ?? '';
-  // Vamos sempre definir a data da solicitação no servidor (não precisa vir do form)
   $data_solicitacao = date('Y-m-d');
   $hoje = date('Y-m-d');
   $data_liberacao           = null;
@@ -69,7 +67,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $tempo_medio = null_if_empty($tempo_medio);
 
     if (strtolower($perfil)==='solicitante') {
-      // solicitante: define tempo_medio padrão e tempo_real 0
       $tempo_medio = $TEMPO_MEDIO_PADRAO;
       $tempo_real = 0;
     } else {
@@ -227,7 +224,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <script src="../js/formulario.js"></script>
 <script>
-  // Preenche automaticamente a Data de Liberação com a data local do navegador
   (function () {
     var el = document.getElementById('data_liberacao');
     if (el && !el.value) {
@@ -238,9 +234,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   (function () {
     var el = document.getElementById('data_solicitacao_view');
     if (el) {
-      // pega a data local da máquina do usuário
       let hoje = new Date();
-      // formata para yyyy-mm-dd
       let localDate = hoje.toISOString().split('T')[0];
       el.value = localDate;
     }
