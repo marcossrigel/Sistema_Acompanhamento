@@ -20,14 +20,14 @@ $orig = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 if (!$orig) die('Solicitação não encontrada.');
 
-// depois de buscar $orig:
+// id raiz do processo e setor "original" de referência
 $setorOriginal = $orig['setor_original'] ?: $orig['setor'];
-$rootId = (int)($orig['id_original'] ?: $id_demanda); // <-- id da demanda raiz
+$rootId        = (int)($orig['id_original'] ?: $id_demanda);
 
 $conn->begin_transaction();
 
 try {
-  // Finaliza o encaminhamento aberto da RAIZ
+  // 1) Finaliza o encaminhamento em aberto da RAIZ (se houver)
   $fin = $conn->prepare("
     UPDATE encaminhamentos
        SET status = 'Finalizado'
@@ -38,46 +38,50 @@ try {
   $fin->execute();
   $fin->close();
 
-  // Fecha a etapa atual
-  $upd = $conn->prepare("UPDATE solicitacoes SET data_liberacao = CURDATE() WHERE id = ?");
+  // 2) Fecha a etapa ATUAL (somente se ainda não fechada)
+  $upd = $conn->prepare("
+    UPDATE solicitacoes
+       SET data_liberacao = NOW()
+     WHERE id = ?
+       AND data_liberacao IS NULL
+  ");
   $upd->bind_param("i", $id_demanda);
   $upd->execute();
   $upd->close();
 
-  // Replica tempos
-  $tempoMedio = (string)($orig['tempo_medio'] ?? '00:00:00');
+  // 3) Replica tempos (garantindo tipos)
+  $tempoMedio = (string)($orig['tempo_medio'] ?? '00:00:00'); // HH:MM:SS
   $tempoReal  = isset($orig['tempo_real']) ? (int)$orig['tempo_real'] : null;
 
-  // NOVA ETAPA (repare em id_original na lista de colunas)
+  // 4) Cria a NOVA ETAPA (data_liberacao = NULL => EM ANDAMENTO)
   $ins = $conn->prepare("
     INSERT INTO solicitacoes
       (id_usuario, demanda, sei, codigo, setor, setor_original, responsavel,
        data_solicitacao, data_liberacao, data_liberacao_original,
        tempo_medio, tempo_real, setor_responsavel, id_original)
     VALUES
-      (?, ?, ?, ?, ?, ?, ?, CURDATE(), NULL, ?, ?, ?, ?, ?)
+      (?, ?, ?, ?, ?, ?, ?, NOW(), NULL, ?, ?, ?, ?, ?)
   ");
-
-  // 12 variáveis  →  tipos: i s s s s s s s s i s i  => "issssssssisi"
+  // Tipos: i + 8s + i + s + i  => "issssssssisi"
   $ins->bind_param(
     "issssssssisi",
-    $orig['id_usuario'],
-    $orig['demanda'],
-    $orig['sei'],
-    $orig['codigo'],
-    $setor_destino,
-    $setorOriginal,
-    $orig['responsavel'],
-    $orig['data_liberacao_original'],
-    $tempoMedio,
-    $tempoReal,
-    $setor_destino,
-    $rootId
+    $orig['id_usuario'],          // i
+    $orig['demanda'],             // s
+    $orig['sei'],                 // s
+    $orig['codigo'],              // s
+    $setor_destino,               // s
+    $setorOriginal,               // s
+    $orig['responsavel'],         // s
+    $orig['data_liberacao_original'], // s (pode ser NULL)
+    $tempoMedio,                  // s
+    $tempoReal,                   // i (pode ser NULL)
+    $setor_destino,               // s (setor_responsavel)
+    $rootId                       // i (id_original)
   );
   $ins->execute();
   $ins->close();
 
-  // Novo encaminhamento ABERTO apontando para a RAIZ
+  // 5) Abre um novo encaminhamento na RAIZ
   $enc = $conn->prepare("
     INSERT INTO encaminhamentos
       (id_demanda, setor_origem, setor_destino, status, data_encaminhamento)
@@ -93,5 +97,5 @@ try {
   die('Falha ao encaminhar: ' . $e->getMessage());
 }
 
-header("Location: painel.php?access_dinamic=".urlencode($token));
+header("Location: painel.php?access_dinamic=" . urlencode($token));
 exit;

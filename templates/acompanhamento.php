@@ -6,7 +6,6 @@ $conn = $connLocal ?? $conn ?? $conexao ?? null;
 $conn->set_charset('utf8mb4');
 date_default_timezone_set('America/Recife');
 
-/* --- NOVO: calcula para onde o botão Voltar deve ir --- */
 $token    = trim($_GET['access_dinamic'] ?? '');
 $idPortal = (int)($_SESSION['id_portal'] ?? $_SESSION['id_usuario_cehab_online'] ?? 0);
 
@@ -25,7 +24,6 @@ if ($idPortal > 0 && $conn) {
 $backPage = $isColaborador ? 'minhas_demandas.php' : 'visualizar.php';
 $backUrl  = $backPage . ($token !== '' ? ('?access_dinamic=' . urlencode($token)) : '');
 
-/* --- resto do arquivo como já está --- */
 function show($v){ return $v !== null && $v !== '' ? htmlspecialchars($v) : '—'; }
 function d($v){ return ($v && $v !== '0000-00-00' && $v !== '0000-00-00 00:00:00') ? date('d/m/Y', strtotime($v)) : '—'; }
 
@@ -71,6 +69,7 @@ if ($id_original > 0) {
   $q->close();
 }
 
+
 if (!$rows) {
   $q = $conn->prepare("
     SELECT id, setor, setor_responsavel, data_solicitacao, data_liberacao, data_registro
@@ -89,6 +88,10 @@ if (!$rows) { echo 'Sem histórico para esta demanda.'; exit; }
 $primeira = $rows[0];
 $data_inicial = $primeira['data_solicitacao'] ?? null;
 
+function hasDate($v){
+  return $v && $v !== '0000-00-00' && $v !== '0000-00-00 00:00:00';
+}
+
 $cards = [];
 
 $cards[] = [
@@ -97,32 +100,31 @@ $cards[] = [
   'small'  => 'Concluído • ' . d($data_inicial),
 ];
 
+$latestIdx = max(count($rows) - 1, 0);
 $contagemOcorrencias = [];
-foreach ($rows as $r) {
+
+foreach ($rows as $idx => $r) {
   $setor = $r['setor_responsavel'] ?: $r['setor'];
-  $labelBase    = label_setor($setor);
+
+  $labelBase = label_setor($setor);
   $contagemOcorrencias[$labelBase] = ($contagemOcorrencias[$labelBase] ?? 0) + 1;
+
   $label = $labelBase;
   if ($contagemOcorrencias[$labelBase] > 1) {
     $label .= ' (' . $contagemOcorrencias[$labelBase] . 'ª vez)';
   }
 
+  $temLib = hasDate($r['data_liberacao']);
   $recebidoEm = d($r['data_solicitacao']);
   $liberadoEm = d($r['data_liberacao']);
+  $status = ($idx === $latestIdx && !$temLib) ? 'current' : 'done';
 
-  if (!empty($r['data_liberacao'])) {
-    $cards[] = [
-      'label'  => $label,
-      'status' => 'done',
-      'small'  => 'Concluído • ' . $liberadoEm,
-    ];
-  } else {
-    $cards[] = [
-      'label'  => $label,
-      'status' => 'current',
-      'small'  => 'Recebido • ' . $recebidoEm,
-    ];
-  }
+  $cards[] = [
+    'label'  => $label,
+    'status' => $status,
+    'small'  => $status === 'done' ? ('Concluído • ' . $liberadoEm)
+                                   : ('Recebido • ' . $recebidoEm),
+  ];
 }
 
 $total       = count($cards);

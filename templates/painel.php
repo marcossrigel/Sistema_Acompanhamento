@@ -38,18 +38,11 @@ $stmt = $connLocal->prepare("
   SELECT
     s.id, s.demanda, s.sei, s.codigo, s.setor, s.responsavel,
     s.data_solicitacao, s.data_liberacao, s.tempo_medio, s.tempo_real,
-    s.data_registro, s.setor_responsavel,
-    MAX(e.data_encaminhamento) AS ultimo_movto
-  FROM solicitacoes s
-  JOIN encaminhamentos e
-    ON e.id_demanda = s.id
-   AND e.setor_destino = ?
-   AND e.status = 'Em andamento'
-  GROUP BY
-    s.id, s.demanda, s.sei, s.codigo, s.setor, s.responsavel,
-    s.data_solicitacao, s.data_liberacao, s.tempo_medio, s.tempo_real,
     s.data_registro, s.setor_responsavel
-  ORDER BY ultimo_movto DESC, s.id DESC
+  FROM solicitacoes s
+  WHERE s.setor_responsavel = ?
+    AND s.data_liberacao IS NULL         -- só etapas em andamento
+  ORDER BY s.data_registro DESC, s.id DESC
 ");
 $stmt->bind_param("s", $setor);
 $stmt->execute();

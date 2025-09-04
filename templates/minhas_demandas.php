@@ -20,6 +20,7 @@ $sql = "
          s.enviado_para, s.setor_responsavel, s.data_registro
   FROM solicitacoes s
   WHERE s.id_usuario = ?
+    AND s.id = COALESCE(s.id_original, s.id)  -- só a raiz
   ORDER BY s.id DESC
 ";
 $st = $conn->prepare($sql);
@@ -36,7 +37,6 @@ $rs = $st->get_result();
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="../assets/css/visualizar.css" rel="stylesheet">
   <style>
-    /* espaçamento e centralização do botão Voltar */
     .footer-actions { text-align:center; margin: 32px 0 12px; }
   </style>
 </head>

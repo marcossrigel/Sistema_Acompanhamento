@@ -45,7 +45,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $responsavel      = $_POST['responsavel'] ?? '';
   // Vamos sempre definir a data da solicitação no servidor (não precisa vir do form)
   $data_solicitacao = date('Y-m-d');
-  $data_liberacao   = $_POST['data_liberacao'] ?? '';
+  $hoje = date('Y-m-d');
+  $data_liberacao           = null;
+  $data_liberacao_original  = null;
   $tempo_medio      = $_POST['tempo_medio'] ?? '';
   $tempo_real_form  = $_POST['tempo_real'] ?? null;
   $enviado_para     = $_POST['enviado_para'] ?? '';
@@ -84,10 +86,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $setor_responsavel = $enviado_para;
 
     $sql = "INSERT INTO solicitacoes (
-              id_usuario, demanda, sei, codigo, setor, setor_original, responsavel,
-              data_solicitacao, data_liberacao, data_liberacao_original,
-              tempo_medio, tempo_real, enviado_para, data_registro, setor_responsavel
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+      id_usuario, demanda, sei, codigo, setor, setor_original, responsavel,
+      data_solicitacao, data_liberacao, data_liberacao_original,
+      tempo_medio, tempo_real, enviado_para, data_registro, setor_responsavel
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
 
     if ($stmt = $conn->prepare($sql)) {
       $idUsuarioPortal = (int)($_SESSION['id_portal'] ?? 0);
@@ -183,9 +185,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <label class="label">Responsável</label>
       <input type="text" name="responsavel" class="campo" required placeholder="Nome do responsável">
     </div>
-    <div class="campo-pequeno" id="grupo-liberacao">
+
+    <div class="campo-pequeno">
+      <label class="label">Data da Solicitação</label>
+      <input type="date" id="data_solicitacao_view" class="campo" readonly>
+    </div>
+
+    <div class="campo-pequeno" id="grupo-liberacao" style="display:none;">
       <label class="label">Data Liberação</label>
-      <input type="date" name="data_liberacao" id="data_liberacao" class="campo" required>
+      <input type="date" name="data_liberacao" id="data_liberacao" class="campo">
     </div>
   </div>
 
@@ -224,6 +232,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     var el = document.getElementById('data_liberacao');
     if (el && !el.value) {
       el.valueAsDate = new Date();
+    }
+  })();
+
+  (function () {
+    var el = document.getElementById('data_solicitacao_view');
+    if (el) {
+      // pega a data local da máquina do usuário
+      let hoje = new Date();
+      // formata para yyyy-mm-dd
+      let localDate = hoje.toISOString().split('T')[0];
+      el.value = localDate;
     }
   })();
 </script>
