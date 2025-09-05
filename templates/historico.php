@@ -24,6 +24,7 @@ function e($v){ return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
 function d($v){ return ($v && $v!=='0000-00-00') ? date('d/m/Y', strtotime($v)) : '—'; }
 function dt($v){ return ($v && $v!=='0000-00-00 00:00:00') ? date('d/m/Y H:i:s', strtotime($v)) : '—'; }
 
+/* === ALTERAÇÃO: incluir campos da GECOMP no SELECT === */
 $sql = "
 SELECT
   s.id,
@@ -37,10 +38,10 @@ SELECT
   s.data_registro,
   COALESCE(s.id_original, s.id) AS root_id,
   e.setor_destino AS prox_setor,
-  e.data_encaminhamento AS quando_encaminhou
+  e.data_encaminhamento AS quando_encaminhou,
+  s.gecomp_tr, s.gecomp_etp, s.gecomp_cotacao, s.gecomp_obs   -- << aqui
 FROM solicitacoes s
 LEFT JOIN (
-  /* último encaminhamento por (id_demanda, setor_origem) */
   SELECT x.id_demanda, x.setor_origem, x.setor_destino, x.data_encaminhamento
   FROM encaminhamentos x
   JOIN (
@@ -71,7 +72,16 @@ $rs = $st->get_result();
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="../assets/css/painel.css" rel="stylesheet">
-  <style>.footer-actions{ text-align:center; margin:32px 0 12px; }</style>
+  <style>
+    .footer-actions{ text-align:center; margin:32px 0 12px; }
+    /* === estilos só-leitura para a seção GECOMP === */
+    .gecomp-hist .tags { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 4px; }
+    .tag { display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:600; }
+    .tag.ok { background:#e6f7ea; color:#2f855a; border:1px solid #c6f0d0; }
+    .tag.off{ background:#f1f5f9; color:#64748b; border:1px solid #e5e7eb; }
+    .obs-read{ background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:12px; white-space:pre-wrap; }
+    .gecomp-title{ font-weight:600; margin-top:10px; display:block; }
+  </style>
 </head>
 <body>
 <div class="container">
@@ -105,6 +115,31 @@ $rs = $st->get_result();
                   &nbsp; • &nbsp; <?= e(dt($row['quando_encaminhou'])) ?>
                 <?php endif; ?>
               </p>
+            <?php endif; ?>
+
+            <?php
+              // Mostra bloco GECOMP apenas quando o histórico é desse setor
+              // (como a página já filtra por s.setor_responsavel = $setor)
+              // ou quando há algum dado preenchido.
+              $temGecomp = ($setor === 'GECOMP') ||
+                           ((int)$row['gecomp_tr'] === 1 ||
+                            (int)$row['gecomp_etp'] === 1 ||
+                            (int)$row['gecomp_cotacao'] === 1 ||
+                            trim((string)$row['gecomp_obs']) !== '');
+              if ($temGecomp):
+            ?>
+              <div class="gecomp-hist">
+                <span class="gecomp-title">Checklist / Observações — GECOMP (somente leitura)</span>
+                <div class="tags">
+                  <span class="tag <?= ((int)$row['gecomp_tr']===1?'ok':'off') ?>">TR <?= ((int)$row['gecomp_tr']===1?'✔':'—') ?></span>
+                  <span class="tag <?= ((int)$row['gecomp_etp']===1?'ok':'off') ?>">ETP <?= ((int)$row['gecomp_etp']===1?'✔':'—') ?></span>
+                  <span class="tag <?= ((int)$row['gecomp_cotacao']===1?'ok':'off') ?>">Cotação <?= ((int)$row['gecomp_cotacao']===1?'✔':'—') ?></span>
+                </div>
+
+                <?php if (trim((string)$row['gecomp_obs']) !== ''): ?>
+                  <div class="obs-read"><?= nl2br(e($row['gecomp_obs'])) ?></div>
+                <?php endif; ?>
+              </div>
             <?php endif; ?>
 
           </div>

@@ -157,29 +157,23 @@ $SETOR_OPCOES = [
 
           <label class="chk">
             <input type="checkbox" class="gecomp-chk"
-              data-id="<?= (int)$row['id'] ?>"
-              data-field="tr"
-              data-initial="<?= (int)$row['gecomp_tr'] ?>"
-              data-ver="<?= htmlspecialchars($ver) ?>"
-              <?= ((int)$row['gecomp_tr'] === 1 ? 'checked' : '') ?>> TR
+                  data-id="<?= (int)$row['id'] ?>" data-field="tr"
+                  data-initial="<?= (int)$row['gecomp_tr'] ?>"
+                  <?= ((int)$row['gecomp_tr'] === 1 ? 'checked' : '') ?>> TR
           </label>
 
           <label class="chk">
             <input type="checkbox" class="gecomp-chk"
-              data-id="<?= (int)$row['id'] ?>"
-              data-field="tr"
-              data-initial="<?= (int)$row['gecomp_etp'] ?>"
-              data-ver="<?= htmlspecialchars($ver) ?>"
-              <?= ((int)$row['gecomp_etp'] === 1 ? 'checked' : '') ?>> ETP
+                  data-id="<?= (int)$row['id'] ?>" data-field="etp"
+                  data-initial="<?= (int)$row['gecomp_etp'] ?>"
+                  <?= ((int)$row['gecomp_etp'] === 1 ? 'checked' : '') ?>> ETP
           </label>
 
           <label class="chk">
             <input type="checkbox" class="gecomp-chk"
-              data-id="<?= (int)$row['id'] ?>"
-              data-field="tr"
-              data-initial="<?= (int)$row['gecomp_cotacao'] ?>"
-              data-ver="<?= htmlspecialchars($ver) ?>"
-              <?= ((int)$row['gecomp_cotacao'] === 1 ? 'checked' : '') ?>> Cotação
+                  data-id="<?= (int)$row['id'] ?>" data-field="cotacao"
+                  data-initial="<?= (int)$row['gecomp_cotacao'] ?>"
+                  <?= ((int)$row['gecomp_cotacao'] === 1 ? 'checked' : '') ?>> Cotação
           </label>
         </div>
 
