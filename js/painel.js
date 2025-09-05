@@ -35,66 +35,117 @@ function encaminhar(id) {
   window.location.href = 'liberar.php?id=' + id + '&access_dinamic=' + encodeURIComponent(token);
 }
 
-(function(){
+(function () {
   function key(id){ return 'gecomp_chk_' + id; }
   function load(id){
     try { return JSON.parse(localStorage.getItem(key(id))) || {}; }
-    catch(e){ return {}; }
+    catch { return {}; }
   }
-  function save(id, obj){
-    localStorage.setItem(key(id), JSON.stringify(obj));
-  }
+  function save(id, obj){ localStorage.setItem(key(id), JSON.stringify(obj)); }
 
-  // inicia checkboxes a partir do localStorage
+  // CHECKBOXES
   document.querySelectorAll('.gecomp-chk').forEach(el => {
-    const id = el.dataset.id;
-    const field = el.dataset.field;
-    const data = load(id);
-    el.checked = !!data[field];
+    const id      = el.dataset.id;
+    const field   = el.dataset.field;    // 'tr' | 'etp' | 'cotacao'
+    const initial = (el.dataset.initial === '1');
+    const ver     = el.dataset.ver || '';
+
+    let obj = load(id);
+
+    // se o versor mudou, reseta o rascunho para os valores vindos do banco
+    if (obj.__ver !== ver) {
+      obj = { __ver: ver, tr: 0, etp: 0, cotacao: 0, obs: '' };
+    }
+
+    // se o campo ainda não existe (primeiro acesso), semeia com o valor do banco
+    if (!(field in obj)) obj[field] = initial;
+
+    el.checked = !!obj[field];
 
     el.addEventListener('change', () => {
-      const obj = load(id);
-      obj[field] = el.checked;
-      save(id, obj);
-    });
-  });
-})();
-
-(function(){
-  function key(id){ return 'gecomp_chk_' + id; }   // já existe
-  function load(id){
-    try { return JSON.parse(localStorage.getItem(key(id))) || {}; }
-    catch(e){ return {}; }
-  }
-  function save(id, obj){
-    localStorage.setItem(key(id), JSON.stringify(obj));
-  }
-
-  // ✅ iniciar checkboxes a partir do localStorage (já existia)
-  document.querySelectorAll('.gecomp-chk').forEach(el => {
-    const id = el.dataset.id;
-    const field = el.dataset.field;
-    const data = load(id);
-    el.checked = !!data[field];
-
-    el.addEventListener('change', () => {
-      const obj = load(id);
-      obj[field] = el.checked;
-      save(id, obj);
+      const o = load(id);
+      if (o.__ver !== ver) { o.__ver = ver; o.tr = 0; o.etp = 0; o.cotacao = 0; } // defesa extra
+      o[field] = el.checked;
+      save(id, o);
     });
   });
 
-  // ✅ iniciar textarea de observações a partir do localStorage
+  // TEXTAREA
   document.querySelectorAll('.gecomp-obs').forEach(el => {
-    const id = el.dataset.id;
-    const data = load(id);
-    if (typeof data.obs === 'string') el.value = data.obs;
+    const id  = el.dataset.id;
+    const ver = el.dataset.ver || '';
 
-    // salva a cada digitação
-    el.addEventListener('input', () => {
-      const obj = load(id);
-      obj.obs = el.value;
+    let obj = load(id);
+
+    if (obj.__ver !== ver) {
+      obj = { __ver: ver, tr: obj.tr ?? 0, etp: obj.etp ?? 0, cotacao: obj.cotacao ?? 0, obs: el.value || '' };
       save(id, obj);
+    }
+
+    if (typeof obj.obs !== 'string') { obj.obs = el.value || ''; save(id, obj); }
+    el.value = obj.obs;
+
+    let t;
+    el.addEventListener('input', () => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        const o = load(id);
+        if (o.__ver !== ver) o.__ver = ver;
+        o.obs = el.value;
+        save(id, o);
+      }, 300);
     });
   });
 })();
+
+document.querySelectorAll('form[action="encaminhar.php"]').forEach(form => {
+  form.addEventListener('submit', () => {
+    const id = form.querySelector('input[name="id_demanda"]').value;
+
+    const pick = (f) => document.querySelector(`.gecomp-chk[data-id="${id}"][data-field="${f}"]`);
+    const tr      = pick('tr')?.checked ? 1 : 0;
+    const etp     = pick('etp')?.checked ? 1 : 0;
+    const cotacao = pick('cotacao')?.checked ? 1 : 0;
+    const obs     = document.querySelector(`#obs-${id}`)?.value || '';
+
+    (document.getElementById(`hid-tr-${id}`)  || {}).value = tr;
+    (document.getElementById(`hid-etp-${id}`) || {}).value = etp;
+    (document.getElementById(`hid-cot-${id}`) || {}).value = cotacao;
+    (document.getElementById(`hid-obs-${id}`) || {}).value = obs;
+  });
+});
+
+
+const tokenQS = new URLSearchParams(location.search).get('access_dinamic');
+
+function autosaveGecomp(id) {
+  const get = (attr) =>
+    document.querySelector(`.gecomp-chk[data-id="${id}"][data-field="${attr}"]`);
+
+  const body = {
+    id,
+    tr:      get('tr')?.checked ? 1 : 0,
+    etp:     get('etp')?.checked ? 1 : 0,
+    cotacao: get('cotacao')?.checked ? 1 : 0,
+    obs:     document.querySelector(`#obs-${id}`)?.value || ''
+  };
+
+  fetch('salvar_gecomp.php?access_dinamic=' + encodeURIComponent(tokenQS), {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).catch(() => {});
+}
+
+document.querySelectorAll('.gecomp-chk').forEach(chk => {
+  chk.addEventListener('change', () => autosaveGecomp(chk.dataset.id));
+});
+
+document.querySelectorAll('.gecomp-obs').forEach(txt => {
+  let t;
+  txt.addEventListener('input', () => {
+    clearTimeout(t);
+    t = setTimeout(() => autosaveGecomp(txt.dataset.id), 500);
+  });
+  txt.addEventListener('blur', () => autosaveGecomp(txt.dataset.id));
+});

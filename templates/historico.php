@@ -7,7 +7,6 @@ date_default_timezone_set('America/Recife');
 $token = $_GET['access_dinamic'] ?? '';
 if ($token === '') { http_response_code(401); exit('Token inválido.'); }
 
-// Descobre o setor do usuário a partir do token (mesma lógica do painel)
 $token = $connRemoto->real_escape_string($token);
 $g_id = null;
 if ($q = $connRemoto->query("SELECT g_id FROM token_sessao WHERE token = '$token' LIMIT 1")) {
@@ -21,15 +20,10 @@ if ($r = $conn->query("SELECT setor FROM usuarios WHERE id_usuario_cehab_online 
 }
 if ($setor === '') { http_response_code(401); exit('Setor do usuário não encontrado.'); }
 
-// Helpers
 function e($v){ return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
 function d($v){ return ($v && $v!=='0000-00-00') ? date('d/m/Y', strtotime($v)) : '—'; }
 function dt($v){ return ($v && $v!=='0000-00-00 00:00:00') ? date('d/m/Y H:i:s', strtotime($v)) : '—'; }
 
-// Consulta:
-// - pega etapas JÁ CONCLUÍDAS do setor do usuário (data_liberacao IS NOT NULL)
-// - busca também o último encaminhamento (setor_destino + data_encaminhamento) que
-//   esse setor fez dentro do mesmo processo (id_demanda = id_original da raiz)
 $sql = "
 SELECT
   s.id,

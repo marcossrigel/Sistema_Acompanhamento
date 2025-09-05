@@ -36,14 +36,17 @@ if (empty($setor)) {
 
 $stmt = $connLocal->prepare("
   SELECT
-    s.id, s.demanda, s.sei, s.codigo, s.setor, s.responsavel,
+    s.id, s.id_original,
+    s.demanda, s.sei, s.codigo, s.setor, s.responsavel,
     s.data_solicitacao, s.data_liberacao, s.tempo_medio, s.tempo_real,
-    s.data_registro, s.setor_responsavel
+    s.data_registro, s.setor_responsavel,
+    s.gecomp_tr, s.gecomp_etp, s.gecomp_cotacao, s.gecomp_obs
   FROM solicitacoes s
   WHERE s.setor_responsavel = ?
-    AND s.data_liberacao IS NULL         -- só etapas em andamento
+    AND s.data_liberacao IS NULL
   ORDER BY s.data_registro DESC, s.id DESC
 ");
+
 $stmt->bind_param("s", $setor);
 $stmt->execute();
 $res = $stmt->get_result();
@@ -128,43 +131,65 @@ $SETOR_OPCOES = [
                 <input type="hidden" name="setor_origem" value="<?= htmlspecialchars($setor) ?>">
                 <input type="hidden" name="access_dinamic" value="<?= htmlspecialchars($_GET['access_dinamic']) ?>">
 
+                <input type="hidden" name="gecomp_tr"      id="hid-tr-<?= (int)$row['id'] ?>">
+                <input type="hidden" name="gecomp_etp"     id="hid-etp-<?= (int)$row['id'] ?>">
+                <input type="hidden" name="gecomp_cotacao" id="hid-cot-<?= (int)$row['id'] ?>">
+                <input type="hidden" name="gecomp_obs"     id="hid-obs-<?= (int)$row['id'] ?>">
+
                 <span class="select-wrap">
                   <select name="setor_destino" required>
                     <option value="" disabled selected>Escolher próximo setor</option>
-                    <?php
-                      foreach ($SETOR_OPCOES as $opt) {
-                        if ($opt === $setor) continue; // opcional
-                        echo '<option value="'.htmlspecialchars($opt).'">'.htmlspecialchars($opt).'</option>';
-                      }
-                    ?>
+                    <?php foreach ($SETOR_OPCOES as $opt) { if ($opt === $setor) continue;
+                      echo '<option value="'.htmlspecialchars($opt).'">'.htmlspecialchars($opt).'</option>';
+                    } ?>
                   </select>
                 </span>
 
                 <button type="submit">Encaminhar</button>
               </form>
+
             <?php } ?>
           </div>
 
           <?php if ($row['setor_responsavel'] === 'GECOMP'): ?>
-            <div class="checklist-row">
-              <span class="checklist-title">Checklist (GECOMP)</span>
-              <label class="chk">
-                <input type="checkbox" class="gecomp-chk" data-id="<?= (int)$row['id'] ?>" data-field="tr"> TR
-              </label>
-              <label class="chk">
-                <input type="checkbox" class="gecomp-chk" data-id="<?= (int)$row['id'] ?>" data-field="etp"> ETP
-              </label>
-              <label class="chk">
-                <input type="checkbox" class="gecomp-chk" data-id="<?= (int)$row['id'] ?>" data-field="cotacao"> Cotação
-              </label>
-            </div>
+          <div class="checklist-row">
+          <span class="checklist-title">Checklist (GECOMP)</span>
 
-            <div class="obs-wrap">
-              <label class="obs-title" for="obs-<?= (int)$row['id'] ?>">Observações (GECOMP)</label>
-              <textarea id="obs-<?= (int)$row['id'] ?>" class="obs-text gecomp-obs"
-                data-id="<?= (int)$row['id'] ?>" placeholder="Ex.: pendências, contatos realizados, links de arquivos, etc."></textarea>
-            </div>
-          <?php endif; ?>
+          <label class="chk">
+            <input type="checkbox" class="gecomp-chk"
+              data-id="<?= (int)$row['id'] ?>"
+              data-field="tr"
+              data-initial="<?= (int)$row['gecomp_tr'] ?>"
+              data-ver="<?= htmlspecialchars($ver) ?>"
+              <?= ((int)$row['gecomp_tr'] === 1 ? 'checked' : '') ?>> TR
+          </label>
+
+          <label class="chk">
+            <input type="checkbox" class="gecomp-chk"
+              data-id="<?= (int)$row['id'] ?>"
+              data-field="tr"
+              data-initial="<?= (int)$row['gecomp_etp'] ?>"
+              data-ver="<?= htmlspecialchars($ver) ?>"
+              <?= ((int)$row['gecomp_etp'] === 1 ? 'checked' : '') ?>> ETP
+          </label>
+
+          <label class="chk">
+            <input type="checkbox" class="gecomp-chk"
+              data-id="<?= (int)$row['id'] ?>"
+              data-field="tr"
+              data-initial="<?= (int)$row['gecomp_cotacao'] ?>"
+              data-ver="<?= htmlspecialchars($ver) ?>"
+              <?= ((int)$row['gecomp_cotacao'] === 1 ? 'checked' : '') ?>> Cotação
+          </label>
+        </div>
+
+
+          <div class="obs-wrap">
+            <label class="obs-title" for="obs-<?= (int)$row['id'] ?>">Observações (GECOMP)</label>
+            <textarea id="obs-<?= (int)$row['id'] ?>" class="obs-text gecomp-obs"
+              data-id="<?= (int)$row['id'] ?>" placeholder="Ex.: pendências, contatos realizados, links de arquivos, etc."><?= htmlspecialchars((string)$row['gecomp_obs']) ?></textarea>
+          </div>
+        <?php endif; ?>
         </div>
       </div>
     <?php endwhile; ?>
