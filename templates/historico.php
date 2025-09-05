@@ -118,9 +118,6 @@ $rs = $st->get_result();
             <?php endif; ?>
 
             <?php
-              // Mostra bloco GECOMP apenas quando o histórico é desse setor
-              // (como a página já filtra por s.setor_responsavel = $setor)
-              // ou quando há algum dado preenchido.
               $temGecomp = ($setor === 'GECOMP') ||
                            ((int)$row['gecomp_tr'] === 1 ||
                             (int)$row['gecomp_etp'] === 1 ||
@@ -129,13 +126,13 @@ $rs = $st->get_result();
               if ($temGecomp):
             ?>
               <div class="gecomp-hist">
-                <span class="gecomp-title">Checklist / Observações — GECOMP (somente leitura)</span>
+                <span class="gecomp-title">Checklist — GECOMP</span>
                 <div class="tags">
                   <span class="tag <?= ((int)$row['gecomp_tr']===1?'ok':'off') ?>">TR <?= ((int)$row['gecomp_tr']===1?'✔':'—') ?></span>
                   <span class="tag <?= ((int)$row['gecomp_etp']===1?'ok':'off') ?>">ETP <?= ((int)$row['gecomp_etp']===1?'✔':'—') ?></span>
                   <span class="tag <?= ((int)$row['gecomp_cotacao']===1?'ok':'off') ?>">Cotação <?= ((int)$row['gecomp_cotacao']===1?'✔':'—') ?></span>
                 </div>
-
+                <span class="gecomp-title">Observações — GECOMP</span>
                 <?php if (trim((string)$row['gecomp_obs']) !== ''): ?>
                   <div class="obs-read"><?= nl2br(e($row['gecomp_obs'])) ?></div>
                 <?php endif; ?>
