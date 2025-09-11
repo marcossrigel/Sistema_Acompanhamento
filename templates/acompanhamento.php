@@ -20,121 +20,104 @@ if ($idPortal > 0 && $conn) {
     $st->close();
   }
 }
-
 $backPage = $isColaborador ? 'minhas_demandas.php' : 'visualizar.php';
 $backUrl  = $backPage . ($token !== '' ? ('?access_dinamic=' . urlencode($token)) : '');
 
 function show($v){ return $v !== null && $v !== '' ? htmlspecialchars($v) : '—'; }
-function d($v){ return ($v && $v !== '0000-00-00' && $v !== '0000-00-00 00:00:00') ? date('d/m/Y', strtotime($v)) : '—'; }
-
+function d($v){
+  if (!$v || $v==='0000-00-00' || $v==='0000-00-00 00:00:00') return '—';
+  return date('d/m/Y', strtotime($v));
+}
 function label_setor(string $s): string {
   static $map = [
     'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS' => 'DAF',
-    'DAF - HOMOLOGACAO'                           => 'Homologação',
-    'PARECER JUR'                                 => 'Parecer Jur.',
-    'GEFIN NE INICIAL'                            => 'NE (Inicial)',
-    'GOP PF (SEFAZ)'                              => 'PF',
-    'GEFIN NE DEFINITIVO'                         => 'NE (Definitivo)',
-    'PD (SEFAZ)'                                   => 'PD',
+    'DAF - HOMOLOGACAO' => 'Homologação',
+    'PARECER JUR' => 'Parecer Jur.',
+    'GEFIN NE INICIAL' => 'NE (Inicial)',
+    'GOP PF (SEFAZ)' => 'PF',
+    'GEFIN NE DEFINITIVO' => 'NE (Definitivo)',
+    'PD (SEFAZ)' => 'PD',
   ];
   return $map[$s] ?? $s;
 }
-function norm($s){ return strtoupper(trim((string)$s)); }
 
 $id = (int)($_GET['id'] ?? 0);
 if ($id <= 0) { http_response_code(400); echo 'ID inválido.'; exit; }
 
-$st = $conn->prepare("SELECT * FROM solicitacoes WHERE id=?");
+/* 1) pega a raiz da demanda e dados principais */
+$st = $conn->prepare("SELECT id, demanda, id_original, data_solicitacao FROM solicitacoes WHERE id=?");
 $st->bind_param("i", $id);
 $st->execute();
-$ref = $st->get_result()->fetch_assoc();
+$base = $st->get_result()->fetch_assoc();
 $st->close();
-if (!$ref) { echo 'Solicitação não encontrada.'; exit; }
+if (!$base) { echo 'Solicitação não encontrada.'; exit; }
 
-$demanda     = $ref['demanda'] ?? '';
-$id_original = (int)($ref['id_original'] ?? 0);
-$rootId      = $id_original > 0 ? $id_original : $id;
+$demanda   = $base['demanda'];
+$rootId    = (int)($base['id_original'] ?: $base['id']);
+$dataIni   = $base['data_solicitacao'];
 
-$rows = [];
-if ($id_original > 0) {
-  $q = $conn->prepare("
-    SELECT id, setor, setor_responsavel, data_solicitacao, data_liberacao, data_registro
-      FROM solicitacoes
-     WHERE id = ? OR id_original = ?
-     ORDER BY data_registro ASC, id ASC
-  ");
-  $q->bind_param("ii", $rootId, $rootId);
-  $q->execute();
-  $rows = $q->get_result()->fetch_all(MYSQLI_ASSOC);
-  $q->close();
-}
+/* 2) busca o “caminho” na tabela de encaminhamentos, e junta datas de recebimento/conclusão da tabela solicitacoes */
+$q = $conn->prepare("
+  SELECT
+    e.setor_origem,
+    e.setor_destino,
+    e.status        AS st_enc,
+    e.data_encaminhamento,
+    s.data_solicitacao AS data_recebido,
+    s.data_liberacao    AS data_concluido
+  FROM encaminhamentos e
+  LEFT JOIN solicitacoes s
+         ON s.id_original = ? AND s.setor_responsavel = e.setor_destino
+  WHERE e.id_demanda = ?
+  ORDER BY e.data_encaminhamento ASC, e.id ASC
+");
+$q->bind_param("ii", $rootId, $rootId);
+$q->execute();
+$passos = $q->get_result()->fetch_all(MYSQLI_ASSOC);
+$q->close();
 
+if (!$passos) { echo 'Sem histórico para esta demanda.'; exit; }
 
-if (!$rows) {
-  $q = $conn->prepare("
-    SELECT id, setor, setor_responsavel, data_solicitacao, data_liberacao, data_registro
-      FROM solicitacoes
-     WHERE demanda = ?
-     ORDER BY data_registro ASC, id ASC
-  ");
-  $q->bind_param("s", $demanda);
-  $q->execute();
-  $rows = $q->get_result()->fetch_all(MYSQLI_ASSOC);
-  $q->close();
-}
-
-if (!$rows) { echo 'Sem histórico para esta demanda.'; exit; }
-
-$primeira = $rows[0];
-$data_inicial = $primeira['data_solicitacao'] ?? null;
-
-function hasDate($v){
-  return $v && $v !== '0000-00-00' && $v !== '0000-00-00 00:00:00';
-}
-
+/* 3) monta os cards */
 $cards = [];
 
+/* Demandante sempre primeiro */
 $cards[] = [
   'label'  => 'Demandante',
   'status' => 'done',
-  'small'  => 'Concluído • ' . d($data_inicial),
+  'small'  => 'Concluído • ' . d($dataIni),
 ];
 
-$latestIdx = max(count($rows) - 1, 0);
-$contagemOcorrencias = [];
+$temAtual = false;
+$done = 1; // já contamos o Demandante
 
-foreach ($rows as $idx => $r) {
-  $setor = $r['setor_responsavel'] ?: $r['setor'];
+foreach ($passos as $p) {
+  $label = label_setor($p['setor_destino']);
 
-  $labelBase = label_setor($setor);
-  $contagemOcorrencias[$labelBase] = ($contagemOcorrencias[$labelBase] ?? 0) + 1;
+  // datas
+  $dtReceb = $p['data_recebido'] ?: substr((string)$p['data_encaminhamento'], 0, 10);
+  $dtConc  = $p['data_concluido'] ?: null;
 
-  $label = $labelBase;
-  if ($contagemOcorrencias[$labelBase] > 1) {
-    $label .= ' (' . $contagemOcorrencias[$labelBase] . 'ª vez)';
-  }
+  // status visual pela própria tabela de encaminhamentos
+  $status = (strcasecmp($p['st_enc'], 'Finalizado') === 0) ? 'done' : 'current';
 
-  $temLib = hasDate($r['data_liberacao']);
-  $recebidoEm = d($r['data_solicitacao']);
-  $liberadoEm = d($r['data_liberacao']);
-  $status = ($idx === $latestIdx && !$temLib) ? 'current' : 'done';
+  $small = ($status === 'done')
+             ? ('Concluído • ' . d($dtConc ?: $dtReceb))
+             : ('Recebido • ' . d($dtReceb));
+
+  if ($status === 'done') $done++;
+  if ($status === 'current') $temAtual = true;
 
   $cards[] = [
     'label'  => $label,
     'status' => $status,
-    'small'  => $status === 'done' ? ('Concluído • ' . $liberadoEm)
-                                   : ('Recebido • ' . $recebidoEm),
+    'small'  => $small,
   ];
 }
 
-$total       = count($cards);
-$concluidos  = 0;
-$temAtual    = false;
-foreach ($cards as $c) {
-  if ($c['status'] === 'done')    $concluidos++;
-  if ($c['status'] === 'current') $temAtual = true;
-}
-$progressPct = round(($concluidos / max($total, 1)) * 100);
+/* 4) progresso e situação */
+$total = max(count($cards), 1);
+$progressPct = round(($done / $total) * 100);
 $situacao    = $temAtual ? 'EM ANDAMENTO' : 'CONCLUÍDO';
 $corSit      = $temAtual ? 'style="color:#f59e0b"' : 'style="color:#16a34a"';
 
@@ -204,11 +187,9 @@ $corSit      = $temAtual ? 'style="color:#f59e0b"' : 'style="color:#16a34a"';
             <?php if ($c['status']==='done'): ?>
               <span class="pill">CONCLUÍDO</span>
               <div class="dots"><div class="dot">✓</div></div>
-
             <?php elseif ($c['status']==='current'): ?>
               <span class="pill">EM ANDAMENTO</span>
               <div class="dots"><div class="dot">✓</div></div>
-
             <?php else: ?>
               <span class="pill">PENDENTE</span>
               <div class="dots"><div class="dot">•</div></div>
@@ -221,7 +202,6 @@ $corSit      = $temAtual ? 'style="color:#f59e0b"' : 'style="color:#16a34a"';
     <div class="footer">
       <a href="<?= htmlspecialchars($backUrl) ?>" class="btn-back">‹ Voltar</a>
     </div>
-
   </main>
 </body>
 </html>
