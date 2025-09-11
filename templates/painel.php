@@ -124,7 +124,8 @@ $SETOR_OPCOES = [
 
           <div class="toolbar">
             <button onclick="window.location.href='formulario_comum.php?id=<?= (int)$row['id'] ?>'">Formulario</button>
-
+            
+            <button type="submit">Encaminhar</button>
             <?php if ($row['setor_responsavel'] === $setor) { ?>
               <form method="post" action="encaminhar.php" style="display:inline;">
                 <input type="hidden" name="id_demanda" value="<?= (int)$row['id'] ?>">
@@ -145,7 +146,6 @@ $SETOR_OPCOES = [
                   </select>
                 </span>
 
-                <button type="submit">Encaminhar</button>
               </form>
 
             <?php } ?>
