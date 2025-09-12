@@ -38,7 +38,9 @@ $stmt = $connLocal->prepare("
   SELECT
     s.id, s.id_original,
     s.demanda, s.sei, s.codigo, s.setor, s.responsavel,
-    s.data_solicitacao, s.data_liberacao, s.tempo_medio, s.tempo_real,
+    s.data_solicitacao, s.hora_solicitacao,
+    s.data_liberacao,   s.hora_liberacao,
+    s.tempo_medio, s.tempo_real,
     s.data_registro, s.setor_responsavel,
     s.gecomp_tr, s.gecomp_etp, s.gecomp_cotacao, s.gecomp_obs
   FROM solicitacoes s
@@ -65,6 +67,10 @@ function dt($v){
     return ($v && $v !== '0000-00-00 00:00:00')
         ? htmlspecialchars(date('d/m/Y H:i:s', strtotime($v)))
         : '—';
+}
+
+function t($v){
+  return ($v && $v !== '00:00:00') ? htmlspecialchars(substr($v,0,5)) : '—';
 }
 
 $SETOR_OPCOES = [
@@ -116,18 +122,24 @@ $SETOR_OPCOES = [
              <span class="rot">Código:</span> <?= show($row['codigo']) ?> &nbsp; | &nbsp;
              <span class="rot">Setor:</span> <?= show($row['setor']) ?></p>
           <p><span class="rot">Responsável:</span> <?= show($row['responsavel']) ?></p>
-          <p><span class="rot">Data Solicitação:</span> <?= d($row['data_solicitacao']) ?> &nbsp; | &nbsp;
-             <span class="rot">Data Liberação:</span> <?= d($row['data_liberacao']) ?></p>
+          
+          <p>
+              <span class="rot">Data Solicitação:</span>
+              <?= d($row['data_solicitacao']) ?> <?= t($row['hora_solicitacao']) ?>
+              &nbsp; | &nbsp;
+              <span class="rot">Data Liberação:</span>
+              <?= d($row['data_liberacao']) ?> <?= t($row['hora_liberacao']) ?>
+            </p>
           <p><span class="rot">Tempo Médio:</span> <?= show($row['tempo_medio']) ?> &nbsp; | &nbsp;
              <span class="rot">Tempo Real (Data):</span> <?= show($row['tempo_real']) ?></p>
           <p><span class="rot">Registrado em:</span> <?= dt($row['data_registro']) ?></p>
 
           <div class="toolbar">
             <button onclick="window.location.href='formulario_comum.php?id=<?= (int)$row['id'] ?>'">Formulario</button>
-            
-            <button type="submit">Encaminhar</button>
-            <?php if ($row['setor_responsavel'] === $setor) { ?>
-              <form method="post" action="encaminhar.php" style="display:inline;">
+
+            <?php if ($row['setor_responsavel'] === $setor) { 
+              $fid = 'f-'.(int)$row['id']; ?>
+              <form id="<?= $fid ?>" method="post" action="encaminhar.php" style="display:inline;">
                 <input type="hidden" name="id_demanda" value="<?= (int)$row['id'] ?>">
                 <input type="hidden" name="setor_origem" value="<?= htmlspecialchars($setor) ?>">
                 <input type="hidden" name="access_dinamic" value="<?= htmlspecialchars($_GET['access_dinamic']) ?>">
@@ -146,8 +158,8 @@ $SETOR_OPCOES = [
                   </select>
                 </span>
 
+                <button type="submit">Encaminhar</button>
               </form>
-
             <?php } ?>
           </div>
 

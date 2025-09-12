@@ -45,9 +45,10 @@ try {
   // 2) Fecha a etapa ATUAL (se ainda não fechada)
   $upd = $conn->prepare("
     UPDATE solicitacoes
-       SET data_liberacao = NOW()
-     WHERE id = ?
-       AND data_liberacao IS NULL
+      SET data_liberacao = CURDATE(),
+          hora_liberacao = CURTIME()
+    WHERE id = ?
+      AND data_liberacao IS NULL
   ");
   $upd->bind_param("i", $id_demanda);
   $upd->execute();
@@ -77,28 +78,33 @@ try {
   $tempoReal  = isset($orig['tempo_real']) ? (int)$orig['tempo_real'] : null;
 
   // 4) Cria a NOVA ETAPA (em andamento)
+  // 4) Cria a NOVA ETAPA (em andamento) — com data + hora de solicitação
   $ins = $conn->prepare("
     INSERT INTO solicitacoes
       (id_usuario, demanda, sei, codigo, setor, setor_original, responsavel,
-       data_solicitacao, data_liberacao, data_liberacao_original,
-       tempo_medio, tempo_real, setor_responsavel, id_original)
+      data_solicitacao, hora_solicitacao,
+      data_liberacao, hora_liberacao, data_liberacao_original,
+      tempo_medio, tempo_real, setor_responsavel, id_original)
     VALUES
-      (?, ?, ?, ?, ?, ?, ?, NOW(), NULL, ?, ?, ?, ?, ?)
+      (?, ?, ?, ?, ?, ?, ?, CURDATE(), CURTIME(),
+      NULL, NULL, ?, ?, ?, ?, ?)
   ");
+
+  // tipos: i + 8s + i + s + i  => "issssssssisi"
   $ins->bind_param(
     "issssssssisi",
-    $orig['id_usuario'],
-    $orig['demanda'],
-    $orig['sei'],
-    $orig['codigo'],
-    $setor_destino,
-    $setorOriginal,
-    $orig['responsavel'],
-    $orig['data_liberacao_original'],
-    $tempoMedio,
-    $tempoReal,
-    $setor_destino,
-    $rootId
+    $orig['id_usuario'],       // i
+    $orig['demanda'],          // s
+    $orig['sei'],              // s
+    $orig['codigo'],           // s
+    $setor_destino,            // s
+    $setorOriginal,            // s
+    $orig['responsavel'],      // s
+    $orig['data_liberacao_original'], // s (pode ser NULL)
+    $tempoMedio,               // s
+    $tempoReal,                // i (pode ser NULL)
+    $setor_destino,            // s
+    $rootId                    // i
   );
   $ins->execute();
   $ins->close();

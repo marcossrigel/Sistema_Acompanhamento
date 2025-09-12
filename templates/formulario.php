@@ -50,6 +50,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $tempo_real_form  = $_POST['tempo_real'] ?? null;
   $enviado_para     = $_POST['enviado_para'] ?? '';
 
+  $hora_solicitacao = $_POST['hora_solicitacao'] ?? null;
+
+  // valida formato HH:MM:SS; se inválido, usa hora do servidor
+  if (!is_string($hora_solicitacao) || !preg_match('/^\d{2}:\d{2}:\d{2}$/', $hora_solicitacao)) {
+    $hora_solicitacao = date('H:i:s'); // fallback confiável
+  }
+
   $erros = [];
   if ($sei==='') $erros[]='SEI é obrigatório.';
   if ($codigo==='') $erros[]='Código é obrigatório.';
@@ -84,16 +91,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $sql = "INSERT INTO solicitacoes (
       id_usuario, demanda, sei, codigo, setor, setor_original, responsavel,
-      data_solicitacao, data_liberacao, data_liberacao_original,
+      data_solicitacao, hora_solicitacao,
+      data_liberacao, data_liberacao_original,
       tempo_medio, tempo_real, enviado_para, data_registro, setor_responsavel
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
 
     if ($stmt = $conn->prepare($sql)) {
       $idUsuarioPortal = (int)($_SESSION['id_portal'] ?? 0);
       $stmt->bind_param(
-        "issssssssssiss",
+        "isssssssssssiss",
         $idUsuarioPortal, $demanda, $sei, $codigo, $setor, $setor_original, $responsavel,
-        $data_solicitacao, $data_liberacao, $data_liberacao_original,
+        $data_solicitacao, $hora_solicitacao, $data_liberacao, $data_liberacao_original,
         $tempo_medio, $tempo_real, $enviado_para, $setor_responsavel
       );
 
@@ -186,6 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="campo-pequeno">
       <label class="label">Data da Solicitação</label>
       <input type="date" id="data_solicitacao_view" class="campo" readonly>
+      <input type="hidden" name="hora_solicitacao" id="hora_solicitacao">
     </div>
 
     <div class="campo-pequeno" id="grupo-liberacao" style="display:none;">
@@ -257,5 +266,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </div>
 </div>
 <?php endif; ?>
+
+<script>
+  // Formata HH:MM:SS
+  function hhmmssLocal() {
+    const d = new Date();
+    const p = n => String(n).padStart(2,'0');
+    return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  }
+
+  // Garante que a hora seja atual no momento do submit
+  document.addEventListener('DOMContentLoaded', () => {
+    const form = document.querySelector('form.formulario');
+    if (!form) return;
+    form.addEventListener('submit', () => {
+      const hid = document.getElementById('hora_solicitacao');
+      if (hid) hid.value = hhmmssLocal();
+    });
+  });
+</script>
+
 </body>
 </html>

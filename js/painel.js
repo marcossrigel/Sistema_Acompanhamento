@@ -149,3 +149,25 @@ document.querySelectorAll('.gecomp-obs').forEach(txt => {
   });
   txt.addEventListener('blur', () => autosaveGecomp(txt.dataset.id));
 });
+
+document.addEventListener('submit', function (e) {
+  const form = e.target;
+  if (!form.id || !form.id.startsWith('f-')) return; // só nos forms de encaminhar
+
+  const id = form.id.split('-')[1];
+
+  const tr  = document.querySelector(`input.gecomp-chk[data-id="${id}"][data-field="tr"]`);
+  const etp = document.querySelector(`input.gecomp-chk[data-id="${id}"][data-field="etp"]`);
+  const cot = document.querySelector(`input.gecomp-chk[data-id="${id}"][data-field="cotacao"]`);
+  const obs = document.querySelector(`#obs-${id}`);
+
+  const hidTr  = document.querySelector(`#hid-tr-${id}`);
+  const hidEtp = document.querySelector(`#hid-etp-${id}`);
+  const hidCot = document.querySelector(`#hid-cot-${id}`);
+  const hidObs = document.querySelector(`#hid-obs-${id}`);
+
+  if (hidTr)  hidTr.value  = tr  ? (tr.checked ? 1 : 0) : '';
+  if (hidEtp) hidEtp.value = etp ? (etp.checked ? 1 : 0) : '';
+  if (hidCot) hidCot.value = cot ? (cot.checked ? 1 : 0) : '';
+  if (hidObs) hidObs.value = obs ? obs.value.trim() : '';
+});

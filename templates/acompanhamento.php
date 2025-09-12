@@ -44,7 +44,6 @@ function label_setor(string $s): string {
 $id = (int)($_GET['id'] ?? 0);
 if ($id <= 0) { http_response_code(400); echo 'ID inválido.'; exit; }
 
-/* 1) pega a raiz da demanda e dados principais */
 $st = $conn->prepare("SELECT id, demanda, id_original, data_solicitacao FROM solicitacoes WHERE id=?");
 $st->bind_param("i", $id);
 $st->execute();
@@ -56,7 +55,6 @@ $demanda   = $base['demanda'];
 $rootId    = (int)($base['id_original'] ?: $base['id']);
 $dataIni   = $base['data_solicitacao'];
 
-/* 2) busca o “caminho” na tabela de encaminhamentos, e junta datas de recebimento/conclusão da tabela solicitacoes */
 $q = $conn->prepare("
   SELECT
     e.setor_origem,
@@ -78,10 +76,7 @@ $q->close();
 
 if (!$passos) { echo 'Sem histórico para esta demanda.'; exit; }
 
-/* 3) monta os cards */
 $cards = [];
-
-/* Demandante sempre primeiro */
 $cards[] = [
   'label'  => 'Demandante',
   'status' => 'done',
@@ -89,16 +84,14 @@ $cards[] = [
 ];
 
 $temAtual = false;
-$done = 1; // já contamos o Demandante
+$done = 1;
 
 foreach ($passos as $p) {
   $label = label_setor($p['setor_destino']);
 
-  // datas
   $dtReceb = $p['data_recebido'] ?: substr((string)$p['data_encaminhamento'], 0, 10);
   $dtConc  = $p['data_concluido'] ?: null;
 
-  // status visual pela própria tabela de encaminhamentos
   $status = (strcasecmp($p['st_enc'], 'Finalizado') === 0) ? 'done' : 'current';
 
   $small = ($status === 'done')
@@ -115,7 +108,6 @@ foreach ($passos as $p) {
   ];
 }
 
-/* 4) progresso e situação */
 $total = max(count($cards), 1);
 $progressPct = round(($done / $total) * 100);
 $situacao    = $temAtual ? 'EM ANDAMENTO' : 'CONCLUÍDO';
