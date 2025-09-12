@@ -12,7 +12,6 @@ $setor_destino = trim($_POST['setor_destino'] ?? '');
 $setor_origem  = trim($_POST['setor_origem']  ?? 'INDEFINIDO');
 if ($id_demanda <= 0 || $setor_destino === '') die('Parâmetros inválidos.');
 
-// ✅ CAPTURA os campos da GECOMP (se vierem do form)
 $tr      = isset($_POST['gecomp_tr'])      ? (int)$_POST['gecomp_tr']      : null;
 $etp     = isset($_POST['gecomp_etp'])     ? (int)$_POST['gecomp_etp']     : null;
 $cotacao = isset($_POST['gecomp_cotacao']) ? (int)$_POST['gecomp_cotacao'] : null;
@@ -28,10 +27,21 @@ if (!$orig) die('Solicitação não encontrada.');
 $setorOriginal = $orig['setor_original'] ?: $orig['setor'];
 $rootId        = (int)($orig['id_original'] ?: $id_demanda);
 
+// pegue o data_registro da RAIZ (não do registro atual)
+$rootDataRegistro = $orig['data_registro'];
+if ($rootId !== (int)$orig['id']) {
+  $qdr = $conn->prepare("SELECT data_registro FROM solicitacoes WHERE id = ? LIMIT 1");
+  $qdr->bind_param("i", $rootId);
+  $qdr->execute();
+  if ($tmp = $qdr->get_result()->fetch_assoc()) {
+    $rootDataRegistro = $tmp['data_registro'];
+  }
+  $qdr->close();
+}
+
 $conn->begin_transaction();
 
 try {
-  // 1) Finaliza encaminhamento em aberto da RAIZ (se houver)
   $fin = $conn->prepare("
     UPDATE encaminhamentos
        SET status = 'Finalizado'
@@ -42,19 +52,18 @@ try {
   $fin->execute();
   $fin->close();
 
-  // 2) Fecha a etapa ATUAL (se ainda não fechada)
   $upd = $conn->prepare("
-    UPDATE solicitacoes
-      SET data_liberacao = CURDATE(),
-          hora_liberacao = CURTIME()
-    WHERE id = ?
-      AND data_liberacao IS NULL
-  ");
-  $upd->bind_param("i", $id_demanda);
-  $upd->execute();
-  $upd->close();
+  UPDATE solicitacoes
+     SET data_liberacao = CURDATE(),
+         hora_liberacao = CURTIME(),
+         tempo_real     = GREATEST(DATEDIFF(CURDATE(), data_solicitacao), 0)
+   WHERE id = ?
+     AND data_liberacao IS NULL
+");
+$upd->bind_param("i", $id_demanda);
+$upd->execute();
+$upd->close();
 
-  // ✅ 2.1) (FALLBACK) Se a origem for GECOMP, persiste gecomp_* na ETAPA ENCERRADA
   if (strcasecmp(trim($setor_origem), 'GECOMP') === 0) {
   $updG = $conn->prepare("
     UPDATE solicitacoes
@@ -73,41 +82,40 @@ try {
   $updG->close();
 }
 
-  // 3) Replica tempos (garantindo tipos)
-  $tempoMedio = (string)($orig['tempo_medio'] ?? '00:00:00'); // HH:MM:SS
+  $tempoMedio = (string)($orig['tempo_medio'] ?? '00:00:00');
   $tempoReal  = isset($orig['tempo_real']) ? (int)$orig['tempo_real'] : null;
 
-  // 4) Cria a NOVA ETAPA (em andamento)
-  // 4) Cria a NOVA ETAPA (em andamento) — com data + hora de solicitação
   $ins = $conn->prepare("
-    INSERT INTO solicitacoes
-      (id_usuario, demanda, sei, codigo, setor, setor_original, responsavel,
-      data_solicitacao, hora_solicitacao,
-      data_liberacao, hora_liberacao, data_liberacao_original,
-      tempo_medio, tempo_real, setor_responsavel, id_original)
-    VALUES
-      (?, ?, ?, ?, ?, ?, ?, CURDATE(), CURTIME(),
-      NULL, NULL, ?, ?, ?, ?, ?)
-  ");
+  INSERT INTO solicitacoes
+    (id_usuario, demanda, sei, codigo, setor, setor_original, responsavel,
+     data_solicitacao, hora_solicitacao,
+     data_liberacao, hora_liberacao, data_liberacao_original,
+     tempo_medio, tempo_real, setor_responsavel, id_original, data_registro)
+  VALUES
+    (?, ?, ?, ?, ?, ?, ?, CURDATE(), CURTIME(),
+     NULL, NULL, ?, ?, ?, ?, ?, ?)
+");
 
-  // tipos: i + 8s + i + s + i  => "issssssssisi"
+  // Tipos (13 params): i + s*8 + i + s + i + s  => "issssssssisis"
   $ins->bind_param(
-    "issssssssisi",
-    $orig['id_usuario'],       // i
-    $orig['demanda'],          // s
-    $orig['sei'],              // s
-    $orig['codigo'],           // s
-    $setor_destino,            // s
-    $setorOriginal,            // s
-    $orig['responsavel'],      // s
+    "issssssssisis",
+    $orig['id_usuario'],            // i
+    $orig['demanda'],               // s
+    $orig['sei'],                   // s
+    $orig['codigo'],                // s
+    $setor_destino,                 // s
+    $setorOriginal,                 // s
+    $orig['responsavel'],           // s
     $orig['data_liberacao_original'], // s (pode ser NULL)
-    $tempoMedio,               // s
-    $tempoReal,                // i (pode ser NULL)
-    $setor_destino,            // s
-    $rootId                    // i
+    $tempoMedio,                    // s
+    $tempoReal,                     // i (pode ser NULL)
+    $setor_destino,                 // s
+    $rootId,                        // i
+    $rootDataRegistro               // s  <<< mantém a data/hora original
   );
   $ins->execute();
   $ins->close();
+
 
   // 5) Novo encaminhamento na RAIZ
   $enc = $conn->prepare("

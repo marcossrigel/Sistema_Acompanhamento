@@ -23,6 +23,18 @@ if ($setor === '') { http_response_code(401); exit('Setor do usuário não encon
 function e($v){ return htmlspecialchars($v ?? '', ENT_QUOTES, 'UTF-8'); }
 function d($v){ return ($v && $v!=='0000-00-00') ? date('d/m/Y', strtotime($v)) : '—'; }
 function dt($v){ return ($v && $v!=='0000-00-00 00:00:00') ? date('d/m/Y H:i:s', strtotime($v)) : '—'; }
+function t($v){ return ($v && $v!=='00:00:00') ? substr($v,0,5) : '—'; }          // HH:MM
+function dh($d,$h){                                                                // dd/mm/yyyy HH:MM
+  $dd = d($d); $hh = t($h);
+  if ($dd==='—' && $hh==='—') return '—';
+  if ($dd!=='—' && $hh!=='—') return htmlspecialchars($dd.' '.$hh);
+  return htmlspecialchars($dd!=='—' ? $dd : $hh);
+}
+function dias($n){
+  if ($n === null || $n === '') return '—';
+  $n = (int)$n;
+  return $n === 1 ? '1 dia' : ($n.' dias');
+}
 
 /* === ALTERAÇÃO: incluir campos da GECOMP no SELECT === */
 $sql = "
@@ -32,14 +44,17 @@ SELECT
   s.sei,
   s.codigo,
   s.setor,
+  s.setor_original,
   s.responsavel,
   s.data_solicitacao,
+  s.hora_solicitacao,
   s.data_liberacao,
+  s.hora_liberacao,
   s.data_registro,
+  COALESCE(s.tempo_real, GREATEST(DATEDIFF(s.data_liberacao, s.data_solicitacao),0)) AS tempo_real_dias,
   COALESCE(s.id_original, s.id) AS root_id,
   e.setor_destino AS prox_setor,
-  e.data_encaminhamento AS quando_encaminhou,
-  s.gecomp_tr, s.gecomp_etp, s.gecomp_cotacao, s.gecomp_obs   -- << aqui
+  s.gecomp_tr, s.gecomp_etp, s.gecomp_cotacao, s.gecomp_obs
 FROM solicitacoes s
 LEFT JOIN (
   SELECT x.id_demanda, x.setor_origem, x.setor_destino, x.data_encaminhamento
@@ -101,19 +116,21 @@ $rs = $st->get_result();
           <div class="panel" id="panel-<?= (int)$row['id'] ?>">
             <p>
               <span class="rot">SEI:</span> <?= e($row['sei']) ?> &nbsp; | &nbsp;
-              <span class="rot">Código:</span> <?= e($row['codigo']) ?>
+              <span class="rot">Código:</span> <?= e($row['codigo']) ?> &nbsp; | &nbsp;
+              <span class="rot">Demandante (origem):</span> <?= e($row['setor_original']) ?>
             </p>
             <p>
-              <span class="rot">Recebido em:</span> <?= e(d($row['data_solicitacao'])) ?> &nbsp; | &nbsp;
-              <span class="rot">Concluído em:</span> <?= e(d($row['data_liberacao'])) ?>
+              <span class="rot">Recebido em:</span> <?= dh($row['data_solicitacao'], $row['hora_solicitacao']) ?>
+              &nbsp; | &nbsp;
+              <span class="rot">Concluído em:</span> <?= dh($row['data_liberacao'], $row['hora_liberacao']) ?>
+              <p>
+                <span class="rot">Tempo Real (Data):</span> <?= dias($row['tempo_real_dias']) ?>
+              </p>
             </p>
 
             <?php if (!empty($row['prox_setor'])): ?>
               <p>
                 <span class="rot">Encaminhada para:</span> <?= e($row['prox_setor']) ?>
-                <?php if (!empty($row['quando_encaminhou'])): ?>
-                  &nbsp; • &nbsp; <?= e(dt($row['quando_encaminhou'])) ?>
-                <?php endif; ?>
               </p>
             <?php endif; ?>
 

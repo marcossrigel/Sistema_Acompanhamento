@@ -73,6 +73,12 @@ function t($v){
   return ($v && $v !== '00:00:00') ? htmlspecialchars(substr($v,0,5)) : '—';
 }
 
+function dias($n){
+  if ($n === null || $n === '' ) return '—';
+  $n = (int)$n;
+  return $n === 1 ? '1 dia' : ($n.' dias');
+}
+
 $SETOR_OPCOES = [
   'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS',
   'GECOMP',
@@ -131,7 +137,7 @@ $SETOR_OPCOES = [
               <?= d($row['data_liberacao']) ?> <?= t($row['hora_liberacao']) ?>
             </p>
           <p><span class="rot">Tempo Médio:</span> <?= show($row['tempo_medio']) ?> &nbsp; | &nbsp;
-             <span class="rot">Tempo Real (Data):</span> <?= show($row['tempo_real']) ?></p>
+            <span class="rot">Tempo Real (Data):</span> <?= dias($row['tempo_real']) ?></p>
           <p><span class="rot">Registrado em:</span> <?= dt($row['data_registro']) ?></p>
 
           <div class="toolbar">
@@ -149,6 +155,7 @@ $SETOR_OPCOES = [
                 <input type="hidden" name="gecomp_cotacao" id="hid-cot-<?= (int)$row['id'] ?>">
                 <input type="hidden" name="gecomp_obs"     id="hid-obs-<?= (int)$row['id'] ?>">
 
+                <button type="submit">Encaminhar</button>
                 <span class="select-wrap">
                   <select name="setor_destino" required>
                     <option value="" disabled selected>Escolher próximo setor</option>
@@ -158,7 +165,6 @@ $SETOR_OPCOES = [
                   </select>
                 </span>
 
-                <button type="submit">Encaminhar</button>
               </form>
             <?php } ?>
           </div>
