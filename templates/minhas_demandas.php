@@ -16,7 +16,7 @@ function d($v){ return ($v && $v!=='0000-00-00') ? date('d/m/Y', strtotime($v)) 
 
 $sql = "
   SELECT s.id, s.demanda, s.sei, s.codigo, s.setor, s.setor_original, s.responsavel,
-         s.data_solicitacao, s.data_liberacao, s.tempo_medio, s.tempo_real,
+         s.data_solicitacao, s.data_liberacao,
          s.enviado_para, s.setor_responsavel, s.data_registro
   FROM solicitacoes s
   WHERE s.id_usuario = ?
@@ -63,8 +63,6 @@ $rs = $st->get_result();
             <?php $setorDemandante = $row['setor_original'] ?: $row['setor']; ?>
             <p><span class="rot">Enviado para:</span> <?= e($row['enviado_para']) ?> &nbsp; | &nbsp;
               <span class="rot">Setor Demandante:</span> <?= e($setorDemandante) ?></p>
-            <p><span class="rot">Tempo Médio:</span> <?= e($row['tempo_medio']) ?> &nbsp; | &nbsp;
-               <span class="rot">Tempo Real (dias):</span> <?= e($row['tempo_real'] ?? '—') ?></p>
 
             <div class="toolbar">
               <a class="botao-minimalista"

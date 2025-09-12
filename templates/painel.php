@@ -136,8 +136,8 @@ $SETOR_OPCOES = [
               <span class="rot">Data Liberação:</span>
               <?= d($row['data_liberacao']) ?> <?= t($row['hora_liberacao']) ?>
             </p>
-          <p><span class="rot">Tempo Médio:</span> <?= show($row['tempo_medio']) ?> &nbsp; | &nbsp;
-            <span class="rot">Tempo Real (Data):</span> <?= dias($row['tempo_real']) ?></p>
+          
+            
           <p><span class="rot">Registrado em:</span> <?= dt($row['data_registro']) ?></p>
 
           <div class="toolbar">
