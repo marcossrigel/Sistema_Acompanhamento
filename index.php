@@ -1,4 +1,68 @@
-<?php require_once __DIR__ . '../templates/config.php'; ?>
+<?php
+require_once __DIR__ . '/templates/config.php'; 
+
+function getTokenRow(mysqli $db, string $token): ?array {
+    $stmt = $db->prepare("SELECT g_id, u_rede, data_hora FROM token_sessao WHERE token = ? LIMIT 1");
+    $stmt->bind_param("s", $token);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    return $res->fetch_assoc() ?: null;
+}
+function getCehabUser(mysqli $db, int $g_id): ?array {
+    $stmt = $db->prepare("SELECT g_id, u_rede, u_nome_completo AS nome, u_email FROM users WHERE g_id = ? LIMIT 1");
+    $stmt->bind_param("i", $g_id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    return $res->fetch_assoc() ?: null;
+}
+function getLocalUser(mysqli $db, int $g_id): ?array {
+    $stmt = $db->prepare("SELECT id, id_usuario_cehab_online, nome, setor, tipo 
+                          FROM usuarios WHERE id_usuario_cehab_online = ? LIMIT 1");
+    $stmt->bind_param("i", $g_id);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    return $res->fetch_assoc() ?: null;
+}
+
+if (isset($_GET['access_dinamic'])) {
+    $token = $_GET['access_dinamic'];
+
+    $rowToken = getTokenRow($conexao2, $token);
+    if (!$rowToken) {
+        http_response_code(403);
+        die('Token inválido.');
+    }
+
+    $g_id = (int)$rowToken['g_id'];
+    $cehabUser = getCehabUser($conexao2, $g_id);
+    $localUser = getLocalUser($conexao, $g_id);
+
+    if (!$cehabUser || !$localUser) {
+        http_response_code(403);
+        die('Usuário sem permissão neste sistema.');
+    }
+
+    $_SESSION['auth'] = true;
+    $_SESSION['user'] = [
+        'g_id'   => $g_id,
+        'login'  => $rowToken['u_rede'],
+        'nome'   => $localUser['nome'] ?: ($cehabUser['nome'] ?? $rowToken['u_rede']),
+        'setor'  => $localUser['setor'],
+        'tipo'   => $localUser['tipo'],
+        'token'  => $token,
+        'since'  => date('Y-m-d H:i:s'),
+    ];
+
+    $cleanUrl = strtok($_SERVER['REQUEST_URI'], '?');
+    header('Location: ' . $cleanUrl);
+    exit;
+}
+
+if (empty($_SESSION['auth'])) {
+    http_response_code(401);
+    die('Acesso negado. Use o link com ?access_dinamic=TOKEN válido.');
+}
+?>
 
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -39,6 +103,16 @@
         .step-pending .step-line {
             background-color: #d1d5db; /* gray-300 */
         }
+        /* Skeleton cards */
+        .skel {
+            border-radius: .75rem; border: 1px solid #e5e7eb; padding: 1.25rem;
+            background: linear-gradient(100deg, #f3f4f6 40%, #e5e7eb 50%, #f3f4f6 60%);
+            background-size: 200% 100%; animation: shimmer 1.2s infinite;
+            min-height: 140px;
+        }
+        .skel-line { height: 12px; border-radius: 9999px; background: rgba(0,0,0,0.08); margin-top: .5rem; }
+            @keyframes shimmer { 0%{background-position: 200% 0} 100%{background-position: -200% 0} }
+
         .step-current .step-line {
              background-color: #d1d5db; /* gray-300 */
         }
@@ -105,10 +179,6 @@
 
             <div id="processList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- Process cards will be inserted here -->
-                <div id="loading" class="text-center col-span-full">
-                    <i class="fas fa-spinner fa-spin text-4xl text-blue-500"></i>
-                    <p class="mt-2 text-gray-600">Carregando processos...</p>
-                </div>
             </div>
         </div>
     </main>
@@ -248,8 +318,15 @@
         </div>
     </div>
 
+    
+    <script>
+        const __firebase_config = <?= json_encode(json_encode($firebaseConfig), JSON_UNESCAPED_SLASHES) ?>;
+        const __app_id = <?= json_encode($appId, JSON_UNESCAPED_SLASHES) ?>;
+        const __initial_auth_token = <?= json_encode($customToken, JSON_UNESCAPED_SLASHES) ?>;
+    </script>
 
     <script type="module">
+
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getFirestore, collection, onSnapshot, doc, addDoc, updateDoc, serverTimestamp, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, setPersistence, inMemoryPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -257,6 +334,32 @@
         // --- CONFIG & INITIALIZATION ---
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "YOUR_API_KEY", authDomain: "YOUR_AUTH_DOMAIN", projectId: "YOUR_PROJECT_ID" };
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-cehab-app';
+
+        const CACHE_KEY = `processes-cache-${appId}`;
+        const showSkeleton = (n = 6) => {
+        const html = Array.from({length:n}).map(() => `
+            <div class="skel">
+            <div class="skel-line" style="width:60%;height:16px"></div>
+            <div class="skel-line" style="width:40%"></div>
+            <div class="skel-line" style="width:90%"></div>
+            <div class="skel-line" style="width:75%"></div>
+            </div>`).join('');
+        processList.innerHTML = html;
+        };
+        const hideSkeleton = () => {/* nada a fazer, só re-renderizamos a lista */};
+
+        const loadFromCache = () => {
+        try {
+            const raw = sessionStorage.getItem(CACHE_KEY);
+            if (!raw) return false;
+            processesData = JSON.parse(raw) || [];
+            applyFiltersAndRender();
+            return true;
+        } catch { return false; }
+        };
+        const saveToCache = () => {
+        try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(processesData)); } catch {}
+        };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -373,7 +476,6 @@
         const internalActionModal = document.getElementById('internalActionModal');
         const processForm = document.getElementById('processForm');
         const processList = document.getElementById('processList');
-        const loadingIndicator = document.getElementById('loading');
         const filterProcessNumber = document.getElementById('filterProcessNumber');
         const filterRequestingSector = document.getElementById('filterRequestingSector');
         const filterDescription = document.getElementById('filterDescription');
@@ -576,18 +678,12 @@
 
         // --- RENDER FUNCTIONS ---
         const renderProcesses = (processes) => {
-            loadingIndicator.classList.add('hidden');
-            
-            const isFiltering = filterProcessNumber.value || filterRequestingSector.value || filterDescription.value || filterStatus.value;
-
-            if (!processes.length) {
-                if (isFiltering) {
-                    processList.innerHTML = `<p class="col-span-full text-center text-gray-500">Nenhum processo encontrado com os filtros aplicados.</p>`;
-                } else {
-                     processList.innerHTML = `<p class="col-span-full text-center text-gray-500">Nenhum processo encontrado. Crie um novo para começar.</p>`;
-                }
-                return;
-            }
+        if (!processes.length) {
+            processList.innerHTML = `<p class="col-span-full text-center text-gray-500">
+            Nenhum processo encontrado. Crie um novo para começar.
+            </p>`;
+            return;
+        }
 
             processList.innerHTML = ''; 
             processes.sort((a,b) => b.createdAt?.toDate() - a.createdAt?.toDate());
@@ -755,29 +851,22 @@
         };
         
         const listenToProcesses = () => {
-             if (unsubscribe) unsubscribe(); 
-             const q = query(collection(db, `artifacts/${appId}/public/data/processes`));
-             unsubscribe = onSnapshot(q, (snapshot) => {
-                processesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        if (unsubscribe) unsubscribe();
+        const q = query(collection(db, `artifacts/${appId}/public/data/processes`));
+        unsubscribe = onSnapshot(q, (snapshot) => {
+            processesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            saveToCache();
+            applyFiltersAndRender();
 
-                // Adiciona dados fictícios para teste se a base de dados estiver vazia
-                if (processesData.length === 0) {
-                    addMockDataForTesting();
-                }
-
-                applyFiltersAndRender();
-                if (currentProcessId && !detailsModal.classList.contains('hidden')) {
-                    const updatedProcess = processesData.find(p => p.id === currentProcessId);
-                    if (updatedProcess) {
-                         populateDetailsModal(updatedProcess);
-                    } else {
-                        closeDetailsModal();
-                    }
-                }
-            }, (error) => {
-                console.error("Error fetching processes:", error);
-                processList.innerHTML = `<p class="col-span-full text-center text-red-500">Erro ao carregar processos.</p>`;
-            });
+            // Atualiza modal aberto (se houver)
+            if (currentProcessId && !detailsModal.classList.contains('hidden')) {
+            const updated = processesData.find(p => p.id === currentProcessId);
+            if (updated) populateDetailsModal(updated); else closeDetailsModal();
+            }
+        }, (error) => {
+            console.error("Error fetching processes:", error);
+            processList.innerHTML = `<p class="col-span-full text-center text-red-500">Erro ao carregar processos.</p>`;
+        });
         };
 
         const saveProcess = async (data) => {
@@ -797,6 +886,12 @@
                         description: data.description,
                         status: initialStep.id, 
                         createdAt: serverTimestamp(),
+                        processes.sort((a, b) => {
+                        const tb = a.createdAt?.toDate?.().getTime?.() ?? 0;
+                        const ta = b.createdAt?.toDate?.().getTime?.() ?? 0;
+                        return ta - tb;
+                        });
+
                         history: [{
                             stage: initialStep.id,
                             enteredAt: new Date(),
@@ -858,12 +953,6 @@
             const process = processesData.find(p => p.id === processId);
             if (!process || !actionText.trim()) return;
 
-            // Não permite salvar ação interna em dados mockados
-            if (process.id.startsWith('mock')) {
-                alert('Não é possível adicionar ações internas a um processo de teste.');
-                return;
-            }
-
             const updatedHistory = process.history.map(h => {
                 if (h.stage === process.status) {
                     const internalActions = h.internalActions || [];
@@ -883,103 +972,6 @@
             } catch (error) {
                 console.error("Error saving internal action:", error);
             }
-        };
-        
-        // --- MOCK DATA FUNCTION ---
-        const addMockDataForTesting = () => {
-            console.log("Base de dados vazia. Adicionando dados fictícios para teste.");
-            const now = new Date();
-            const mockProcesses = [
-                {
-                    id: 'mock1',
-                    processNumber: '2025/001-FIN',
-                    requestingSector: 'Diretoria Financeira',
-                    description: 'Contratação de serviço de consultoria para análise de balanço anual.',
-                    status: 'SUJUR_CONTRATO',
-                    createdAt: { toDate: () => new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) }, // 20 days ago
-                    history: [
-                        { stage: 'DAF_AUTORIZACAO', enteredAt: { toDate: () => new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000) }, exitedAt: { toDate: () => new Date(now.getTime() - 19 * 24 * 60 * 60 * 1000) }, action: 'Autorizado', duration: 86400000, internalActions: [] },
-                        { stage: 'SUPLAN_ANALISE', enteredAt: { toDate: () => new Date(now.getTime() - 19 * 24 * 60 * 60 * 1000) }, exitedAt: { toDate: () => new Date(now.getTime() - 17 * 24 * 60 * 60 * 1000) }, action: 'Análise concluída', duration: 172800000, internalActions: [] },
-                        { stage: 'GOP_DDO', enteredAt: { toDate: () => new Date(now.getTime() - 17 * 24 * 60 * 60 * 1000) }, exitedAt: { toDate: () => new Date(now.getTime() - 16 * 24 * 60 * 60 * 1000) }, action: 'DDO Emitida', duration: 86400000, internalActions: [] },
-                        { stage: 'HOMOLOGACAO_EXEC', enteredAt: { toDate: () => new Date(now.getTime() - 16 * 24 * 60 * 60 * 1000) }, exitedAt: { toDate: () => new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000) }, action: 'Homologado', duration: 86400000, internalActions: [] },
-                        { stage: 'GOP_PF', enteredAt: { toDate: () => new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000) }, exitedAt: { toDate: () => new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000) }, action: 'PF Liberada', duration: 86400000, internalActions: [] },
-                        { stage: 'SUFIN_CIENCIA', enteredAt: { toDate: () => new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000) }, exitedAt: { toDate: () => new Date(now.getTime() - 13 * 24 * 60 * 60 * 1000) }, action: 'Ciência dada', duration: 86400000, internalActions: [] },
-                        { stage: 'GEFIN_EMPENHO', enteredAt: { toDate: () => new Date(now.getTime() - 13 * 24 * 60 * 60 * 1000) }, exitedAt: { toDate: () => new Date(now.getTime() - 12 * 24 * 60 * 60 * 1000) }, action: 'Empenho emitido', duration: 86400000, internalActions: [] },
-                        { stage: 'SUJUR_CONTRATO', enteredAt: { toDate: () => new Date(now.getTime() - 12 * 24 * 60 * 60 * 1000) }, exitedAt: null, action: null, duration: null, internalActions: [] },
-                    ]
-                },
-                {
-                    id: 'mock2',
-                    processNumber: '2025/002-RH',
-                    requestingSector: 'Recursos Humanos',
-                    description: 'Abertura de processo seletivo para vaga de analista de sistemas.',
-                    status: 'GOP_DDO',
-                    createdAt: { toDate: () => new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) }, // 5 days ago
-                    history: [
-                        { stage: 'DAF_AUTORIZACAO', enteredAt: { toDate: () => new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000) }, exitedAt: { toDate: () => new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000) }, action: 'Autorizado', duration: 86400000, internalActions: [] },
-                        { stage: 'SUPLAN_ANALISE', enteredAt: { toDate: () => new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000) }, exitedAt: { toDate: () => new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000) }, action: 'Análise concluída', duration: 172800000, internalActions: [] },
-                        { stage: 'GOP_DDO', enteredAt: { toDate: () => new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000) }, exitedAt: null, action: null, duration: null, internalActions: [] },
-                    ]
-                },
-                {
-                    id: 'mock3',
-                    processNumber: '2025/003-INFRA',
-                    requestingSector: 'Gerência de Infraestrutura',
-                    description: 'Aquisição de 10 novos computadores para o setor de planejamento.',
-                    status: 'GEFIN_LE',
-                    createdAt: { toDate: () => new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000) }, // 35 days ago
-                    history: [
-                        { stage: 'DAF_AUTORIZACAO', enteredAt: { toDate: () => new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000) }, exitedAt: { toDate: () => new Date(now.getTime() - 34 * 24 * 60 * 60 * 1000) }, action: 'Autorizado', duration: 86400000, internalActions: [] },
-                        { stage: 'SUPLAN_ANALISE', enteredAt: { toDate: () => new Date(now.getTime() - 34 * 24 * 60 * 60 * 1000) }, exitedAt: { toDate: () => new Date(now.getTime() - 33 * 24 * 60 * 60 * 1000) }, action: 'Análise concluída', duration: 86400000, internalActions: [] },
-                        { stage: 'GOP_DDO', enteredAt: { toDate: () => new Date(now.getTime() - 33 * 24 * 60 * 60 * 1000) }, exitedAt: { toDate: () => new Date(now.getTime() - 32 * 24 * 60 * 60 * 1000) }, action: 'DDO Emitida', duration: 86400000, internalActions: [] },
-                        { stage: 'HOMOLOGACAO_EXEC', enteredAt: { toDate: () => new Date(now.getTime() - 32 * 24 * 60 * 60 * 1000) }, exitedAt: { toDate: () => new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000) }, action: 'Homologado', duration: 86400000, internalActions: [] },
-                        { stage: 'GOP_PF', enteredAt: { toDate: () => new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000) }, exitedAt: { toDate: () => new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) }, action: 'PF Liberada', duration: 86400000, internalActions: [] },
-                        { stage: 'SUFIN_CIENCIA', enteredAt: { toDate: () => new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) }, exitedAt: { toDate: () => new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000) }, action: 'Ciência dada', duration: 86400000, internalActions: [] },
-                        { stage: 'GEFIN_EMPENHO', enteredAt: { toDate: () => new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000) }, exitedAt: { toDate: () => new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000) }, action: 'Empenho emitido', duration: 86400000, internalActions: [] },
-                        { stage: 'SUJUR_CONTRATO', enteredAt: { toDate: () => new Date(now.getTime() - 28 * 24 * 60 * 60 * 1000) }, exitedAt: { toDate: () => new Date(now.getTime() - 25 * 24 * 60 * 60 * 1000) }, action: 'Contrato formalizado', duration: 259200000, internalActions: [] },
-                        { stage: 'OS_EXEC', enteredAt: { toDate: () => new Date(now.getTime() - 25 * 24 * 60 * 60 * 1000) }, exitedAt: { toDate: () => new Date(now.getTime() - 24 * 24 * 60 * 60 * 1000) }, action: 'OS Emitida', duration: 86400000, internalActions: [] },
-                        { stage: 'GOP_PAGAMENTO', enteredAt: { toDate: () => new Date(now.getTime() - 24 * 24 * 60 * 60 * 1000) }, exitedAt: { toDate: () => new Date(now.getTime() - 23 * 24 * 60 * 60 * 1000) }, action: 'Liberado para pagamento', duration: 86400000, internalActions: [] },
-                        { stage: 'GEFIN_LE', enteredAt: { toDate: () => new Date(now.getTime() - 23 * 24 * 60 * 60 * 1000) }, exitedAt: null, action: null, duration: null, internalActions: [] },
-                    ]
-                },
-                {
-                    id: 'mock4',
-                    processNumber: '2025/004-COM',
-                    requestingSector: 'Comunicação Social',
-                    description: 'Criação de campanha de divulgação interna sobre novas políticas de segurança.',
-                    status: 'DAF_AUTORIZACAO',
-                    createdAt: { toDate: () => now }, // Today
-                    history: [
-                        { stage: 'DAF_AUTORIZACAO', enteredAt: { toDate: () => now }, exitedAt: null, action: null, duration: null, internalActions: [] }
-                    ]
-                },
-                {
-                    id: 'mock5',
-                    processNumber: '2025/005-PLAN',
-                    requestingSector: 'Superintendência de Planejamento',
-                    description: 'Revisão e atualização do Plano Diretor de Tecnologia da Informação (PDTI).',
-                    status: 'FINALIZADO_CONCLUIDO',
-                    createdAt: { toDate: () => new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000) }, // 60 days ago
-                    history: [
-                        { stage: 'DAF_AUTORIZACAO', enteredAt: { toDate: () => new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000)}, exitedAt: { toDate: () => new Date(now.getTime() - 59 * 24 * 60 * 60 * 1000)}, action: 'Autorizado', duration: 86400000, internalActions: [] },
-                        { stage: 'SUPLAN_ANALISE', enteredAt: { toDate: () => new Date(now.getTime() - 59 * 24 * 60 * 60 * 1000)}, exitedAt: { toDate: () => new Date(now.getTime() - 58 * 24 * 60 * 60 * 1000)}, action: 'Análise concluída', duration: 86400000, internalActions: [] },
-                        { stage: 'GOP_DDO', enteredAt: { toDate: () => new Date(now.getTime() - 58 * 24 * 60 * 60 * 1000)}, exitedAt: { toDate: () => new Date(now.getTime() - 57 * 24 * 60 * 60 * 1000)}, action: 'DDO Emitida', duration: 86400000, internalActions: [] },
-                        { stage: 'HOMOLOGACAO_EXEC', enteredAt: { toDate: () => new Date(now.getTime() - 57 * 24 * 60 * 60 * 1000)}, exitedAt: { toDate: () => new Date(now.getTime() - 56 * 24 * 60 * 60 * 1000)}, action: 'Homologado', duration: 86400000, internalActions: [] },
-                        { stage: 'GOP_PF', enteredAt: { toDate: () => new Date(now.getTime() - 56 * 24 * 60 * 60 * 1000)}, exitedAt: { toDate: () => new Date(now.getTime() - 55 * 24 * 60 * 60 * 1000)}, action: 'PF Liberada', duration: 86400000, internalActions: [] },
-                        { stage: 'SUFIN_CIENCIA', enteredAt: { toDate: () => new Date(now.getTime() - 55 * 24 * 60 * 60 * 1000)}, exitedAt: { toDate: () => new Date(now.getTime() - 54 * 24 * 60 * 60 * 1000)}, action: 'Ciência dada', duration: 86400000, internalActions: [] },
-                        { stage: 'GEFIN_EMPENHO', enteredAt: { toDate: () => new Date(now.getTime() - 54 * 24 * 60 * 60 * 1000)}, exitedAt: { toDate: () => new Date(now.getTime() - 53 * 24 * 60 * 60 * 1000)}, action: 'Empenho emitido', duration: 86400000, internalActions: [] },
-                        { stage: 'SUJUR_CONTRATO', enteredAt: { toDate: () => new Date(now.getTime() - 53 * 24 * 60 * 60 * 1000)}, exitedAt: { toDate: () => new Date(now.getTime() - 52 * 24 * 60 * 60 * 1000)}, action: 'Contrato formalizado', duration: 86400000, internalActions: [] },
-                        { stage: 'OS_EXEC', enteredAt: { toDate: () => new Date(now.getTime() - 52 * 24 * 60 * 60 * 1000)}, exitedAt: { toDate: () => new Date(now.getTime() - 51 * 24 * 60 * 60 * 1000)}, action: 'OS Emitida', duration: 86400000, internalActions: [] },
-                        { stage: 'GOP_PAGAMENTO', enteredAt: { toDate: () => new Date(now.getTime() - 51 * 24 * 60 * 60 * 1000)}, exitedAt: { toDate: () => new Date(now.getTime() - 50 * 24 * 60 * 60 * 1000)}, action: 'Liberado para pagamento', duration: 86400000, internalActions: [] },
-                        { stage: 'GEFIN_LE', enteredAt: { toDate: () => new Date(now.getTime() - 50 * 24 * 60 * 60 * 1000)}, exitedAt: { toDate: () => new Date(now.getTime() - 49 * 24 * 60 * 60 * 1000)}, action: 'Liquidação realizada', duration: 86400000, internalActions: [] },
-                        { stage: 'GEFIN_PD', enteredAt: { toDate: () => new Date(now.getTime() - 49 * 24 * 60 * 60 * 1000)}, exitedAt: { toDate: () => new Date(now.getTime() - 48 * 24 * 60 * 60 * 1000)}, action: 'PD emitida', duration: 86400000, internalActions: [] },
-                        { stage: 'GEFIN_OB', enteredAt: { toDate: () => new Date(now.getTime() - 48 * 24 * 60 * 60 * 1000)}, exitedAt: { toDate: () => new Date(now.getTime() - 47 * 24 * 60 * 60 * 1000)}, action: 'OB emitida', duration: 86400000, internalActions: [] },
-                        { stage: 'GEFIN_RE', enteredAt: { toDate: () => new Date(now.getTime() - 47 * 24 * 60 * 60 * 1000)}, exitedAt: { toDate: () => new Date(now.getTime() - 46 * 24 * 60 * 60 * 1000)}, action: 'Remessa enviada', duration: 86400000, internalActions: [] },
-                        { stage: 'FINALIZADO_CONCLUIDO', enteredAt: { toDate: () => new Date(now.getTime() - 46 * 24 * 60 * 60 * 1000)}, exitedAt: null, action: 'Processo concluído no sistema', duration: null, internalActions: [] },
-                    ]
-                },
-            ];
-            processesData.push(...mockProcesses);
         };
 
         // --- MODAL CONTROLLERS ---
@@ -1243,6 +1235,9 @@
         // --- INITIAL LOAD ---
         authenticateUser().then(() => {
             populateStatusFilter();
+            // tenta mostrar do cache instantaneamente
+            const hadCache = loadFromCache();
+            if (!hadCache) showSkeleton(); // mostra skeletons até o snapshot chegar
             listenToProcesses();
         });
 
