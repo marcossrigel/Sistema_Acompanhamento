@@ -228,6 +228,7 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
             <i class="fas fa-file-alt mr-2"></i> Gerar Relatório
           </button>
         </div>
+        
       </div>
 
       <!-- CARDS -->
