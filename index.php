@@ -47,7 +47,7 @@ if (isset($_GET['logout'])) {
   // decide para onde ir
   $go = $_GET['go'] ?? '';
   if ($go === 'getic') {
-    header('Location: https://www.getic.pe.gov.br/?p=home');
+    header('Location: https://www.getic.pe.gov.br/?p=index');
   } else {
     header('Location: ./');
   }
@@ -133,7 +133,7 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
   <!-- HEADER -->
 <header class="bg-white shadow-md">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-    <a href="home.php" class="flex items-center group">
+    <a href="index.php" class="flex items-center group">
       <i class="fas fa-sitemap text-3xl text-blue-600 mr-3"></i>
       <h1 class="text-2xl font-bold text-gray-800 group-hover:text-blue-700 transition">
         CEHAB - Acompanhamento de Processos
@@ -184,8 +184,13 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700">Setor Demandante</label>
-          <input id="filterRequestingSector" type="text" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Pesquisar...">
+          <input id="requestingSector"
+                type="text"
+                value="<?= $setor ?>"
+                readonly
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700 cursor-not-allowed sm:text-sm">
         </div>
+
         <div>
           <label class="block text-sm font-medium text-gray-700">Descrição</label>
           <input id="filterDescription" type="text" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Pesquisar...">
@@ -208,10 +213,7 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
 
       <!-- CARDS -->
       <div id="processList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div id="loading" class="text-center col-span-full">
-          <i class="fas fa-spinner fa-spin text-4xl text-blue-500"></i>
-          <p class="mt-2 text-gray-600">Carregando processos...</p>
-        </div>
+
       </div>
     </div>
   </main>
@@ -261,7 +263,6 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
     const closeBtn = document.getElementById('closeModalBtn');
     const form = document.getElementById('processForm');
     const list = document.getElementById('processList');
-    const loading = document.getElementById('loading');
 
     const fNum = document.getElementById('filterProcessNumber');
     const fSet = document.getElementById('filterRequestingSector');
@@ -281,35 +282,8 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
         DEPARTMENTS.map(d => `<option value="${d}">${d}</option>`).join('');
     }
 
-    // --- MOCK INICIAL (se estiver vazio) ---
-    function ensureMock(){
-      const data = readStore();
-      if(data.length) return;
-      const now = Date.now();
-      const mock = [
-        {
-          id: crypto.randomUUID(),
-          processNumber: '2025/004-COM',
-          requestingSector: 'Comunicação Social',
-          description: 'Criação de campanha de divulgação interna sobre novas políticas de segurança.',
-          department: 'Diretoria Administrativa e Financeira (DAF)',
-          createdAt: now - 24*60*60*1000*1
-        },
-        {
-          id: crypto.randomUUID(),
-          processNumber: '2025/003-INFRA',
-          requestingSector: 'Gerência de Infraestrutura',
-          description: 'Aquisição de 10 novos computadores para o setor de planejamento.',
-          department: 'Superintendência de Apoio Jurídico (SUJUR)',
-          createdAt: now - 24*60*60*1000*60
-        }
-      ];
-      writeStore(mock);
-    }
-
     // --- RENDER ---
     function render(){
-      loading.classList.add('hidden');
 
       const termNum = (fNum.value||'').toLowerCase();
       const termSet = (fSet.value||'').toLowerCase();
@@ -356,27 +330,68 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
     document.getElementById('processModal').addEventListener('click', (e)=>{ if(e.target.id==='processModal') closeModal(); });
     closeBtn.addEventListener('click', closeModal);
 
-    form.addEventListener('submit', (e)=>{
-      e.preventDefault();
-      const processNumber   = document.getElementById('processNumber').value.trim();
-      const requestingSector= document.getElementById('requestingSector').value.trim();
-      const description     = document.getElementById('description').value.trim();
+    form.addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-      const novo = {
-        id: crypto.randomUUID(),
-        processNumber,
-        requestingSector,
-        description,
-        department: DEFAULT_DEPARTMENT,     // badge inicial como no print
-        createdAt: Date.now()
-      };
+    const processNumber    = document.getElementById('processNumber').value.trim();
+    const requestingSector = document.getElementById('requestingSector').value.trim(); // já vem do PHP
+    const description      = document.getElementById('description').value.trim();
 
-      const data = readStore();
-      data.push(novo);
-      writeStore(data);
+    if (!processNumber || !description) {
+      alert('Preencha os campos obrigatórios.');
+      return;
+    }
+
+    // Data/hora da MÁQUINA do usuário no formato "YYYY-MM-DD HH:MM:SS"
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const dataLocal = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} `
+                    + `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+    try {
+      const resp = await fetch('templates/salvar_processo.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // garante envio do cookie de sessão (por padrão já vem em same-origin, mas deixo explícito)
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          numero_processo: processNumber,
+          descricao: description,
+          data_registro_client: dataLocal
+        })
+      });
+      const json = await resp.json();
+      if (!resp.ok || !json.ok) {
+        throw new Error(json.error || 'Erro ao salvar processo.');
+      }
+
+      // sucesso
+      alert('Processo salvo com sucesso!');
       closeModal();
-      render();
-    });
+
+      // Se quiser ainda mostrar na lista da tela sem recarregar do banco:
+      // você pode adicionar um card "local" só para feedback visual
+      // (opcional; remova se não quiser usar lista local)
+      /*
+      const card = document.createElement('div');
+      card.className = 'bg-white p-5 rounded-lg border border-gray-200';
+      card.innerHTML = `
+        <div class="flex justify-between items-start mb-2">
+          <h3 class="text-lg font-bold text-gray-800 truncate" title="${processNumber}">${processNumber}</h3>
+          <span class="text-xs font-semibold px-2 py-1 rounded-full bg-blue-100 text-blue-800"><?= htmlspecialchars($setor, ENT_QUOTES, 'UTF-8') ?></span>
+        </div>
+        <p class="text-sm text-gray-600 mb-1"><strong>Setor:</strong> ${requestingSector}</p>
+        <p class="text-sm text-gray-500">${description}</p>
+        <div class="mt-4 pt-4 border-t text-right">
+          <span class="text-xs text-gray-400">Criado em: ${new Date(now).toLocaleDateString('pt-BR')}</span>
+        </div>`;
+      list.prepend(card);
+      */
+    } catch (err) {
+      console.error(err);
+      alert('Falha ao salvar o processo. Tente novamente.');
+    }
+  });
 
     [fNum, fSet, fDesc].forEach(inp => inp.addEventListener('input', render));
     fStatus.addEventListener('change', render);
@@ -386,7 +401,6 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
     });
 
     reportBtn.addEventListener('click', ()=>{
-      // Gera um relatório simples imprimível com os filtros atuais
       const data = Array.from(list.querySelectorAll('.bg-white.border')).map(card=>{
         const num = card.querySelector('h3')?.textContent.trim() || '';
         const dep = card.querySelector('span')?.textContent.trim() || '';
@@ -440,8 +454,11 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
 
     // --- BOOT ---
     populateStatusFilter();
-    ensureMock();
+    try { 
+      localStorage.removeItem(LS_KEY); 
+    } catch (e) {}
     render();
   </script>
+
 </body>
 </html>

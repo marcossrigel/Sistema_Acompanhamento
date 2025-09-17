@@ -81,7 +81,7 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
   <!-- HEADER (mesmo da home) -->
   <header class="bg-white shadow-md">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-      <a href="home.php" class="flex items-center group">
+      <a href="index.php" class="flex items-center group">
         <i class="fas fa-sitemap text-3xl text-blue-600 mr-3"></i>
         <h1 class="text-2xl font-bold text-gray-800 group-hover:text-blue-700 transition">
           CEHAB - Acompanhamento de Processos
