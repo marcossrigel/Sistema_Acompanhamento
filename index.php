@@ -137,6 +137,15 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
       0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,.4)}
       70%{box-shadow:0 0 0 10px rgba(37,99,235,0)}
     }
+    .ping-ativo {
+      animation: ping 1s infinite;
+    }
+
+    @keyframes ping {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.2); opacity: 0.6; }
+      100% { transform: scale(1); opacity: 1; }
+    }
   </style>
 </head>
 <body class="antialiased">
@@ -298,6 +307,20 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
           </div>
         </div>
       </div>
+    </div>
+    <button id="abrirAcaoInterna" class="w-full bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-bold py-2 px-4 rounded-lg mt-4 transition duration-300 flex items-center justify-center">
+      <i class="fas fa-plus mr-2"></i> Adicionar Ação Interna
+    </button>
+  </div>
+</div>
+
+<div id="acaoInternaModal" class="fixed inset-0 z-50 hidden modal-backdrop flex items-center justify-center bg-black bg-opacity-30">
+  <div class="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
+    <h3 class="text-xl font-semibold text-gray-800 mb-4">Registrar Ação Interna</h3>
+    <textarea id="descricaoAcao" rows="4" class="w-full p-3 border border-gray-300 rounded-md resize-none" placeholder="Ex: Solicitar orçamento para SEPLAG."></textarea>
+    <div class="flex justify-end gap-3 mt-4">
+      <button id="cancelarAcaoBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
+      <button id="salvarAcaoBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Salvar Ação</button>
     </div>
   </div>
 </div>
@@ -570,6 +593,35 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
   document.getElementById('closeDetails').addEventListener('click', () => {
     document.getElementById('fluxoModal').classList.add('hidden');
   });
+
+  document.getElementById('salvarAcaoBtn').addEventListener('click', async () => {
+    const texto = document.getElementById('descricaoAcao').value.trim();
+    if (!texto) return alert('Descreva a ação.');
+
+    const resp = await fetch('templates/salvar_acao_interna.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `texto=${encodeURIComponent(texto)}`
+    });
+
+    const data = await resp.json();
+    if (data.success) {
+      alert('Ação interna registrada com sucesso!');
+      document.getElementById('acaoInternaModal').classList.add('hidden');
+      document.getElementById('descricaoAcao').value = '';
+    } else {
+      alert('Erro ao salvar: ' + (data.error || 'Erro desconhecido'));
+    }
+  });
+
+  document.getElementById('abrirAcaoInterna').addEventListener('click', () => {
+    document.getElementById('acaoInternaModal').classList.remove('hidden');
+  });
+
+  document.getElementById('cancelarAcaoBtn').addEventListener('click', () => {
+    document.getElementById('acaoInternaModal').classList.add('hidden');
+  });
+
   </script>
 
 </body>
