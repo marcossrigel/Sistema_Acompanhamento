@@ -126,7 +126,6 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
   <style>
     body{font-family: 'Inter', sans-serif;background:#f0f2f5}
     .modal-backdrop{background:rgba(0,0,0,.5)}
-        /* ---- DETALHES / FLUXO ---- */
     .step{transition:all .3s ease}
     .step-completed .step-circle{background:#16a34a;border-color:#16a34a}
     .step-completed .step-line{background:#16a34a}
@@ -325,20 +324,20 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
   </div>
 </div>
 
-  <script>
-    const DEPARTMENTS = [
-      'Diretoria Administrativa e Financeira (DAF)',
-      'Superintendência e Planejamento e Orçamento (SUPLAN)',
-      'Gerência de Planejamento e Orçamento (GOP)',
-      'Superintendência Financeira (SUFIN)',
-      'Gerência Financeira (GEFIN)',
-      'Superintendência de Apoio Jurídico (SUJUR)',
-      'Setor Demandante'
-    ];
-    const DEFAULT_DEPARTMENT = DEPARTMENTS[0];
+<script>
+  const DEPARTMENTS = [
+    'Diretoria Administrativa e Financeira (DAF)',
+    'Superintendência e Planejamento e Orçamento (SUPLAN)',
+    'Gerência de Planejamento e Orçamento (GOP)',
+    'Superintendência Financeira (SUFIN)',
+    'Gerência Financeira (GEFIN)',
+    'Superintendência de Apoio Jurídico (SUJUR)',
+    'Setor Demandante'
+  ];
+  const DEFAULT_DEPARTMENT = DEPARTMENTS[0];
 
     // --- ELEMENTOS ---
-    const modalNew   = document.getElementById('processModal');
+  const modalNew   = document.getElementById('processModal');
   const openBtn    = document.getElementById('newProcessBtn');
   const closeBtn   = document.getElementById('closeModalBtn');
   const form       = document.getElementById('processForm');
@@ -361,9 +360,6 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
   const closeDet1     = document.getElementById('closeDetailsBtn');
   const closeDet2     = document.getElementById('closeDetailsBtn2');
 
-  // =========================
-  // ESTADO EM MEMÓRIA
-  // =========================
   let PROCESSOS = []; // será preenchido pelo listar_processos.php
 
   // =========================
