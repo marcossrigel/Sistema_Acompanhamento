@@ -98,7 +98,7 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
           <i class="fa-regular fa-share-from-square mr-2"></i> Encaminhados
         </a>
         <!-- na página encaminhado.php você pode ocultar o botão de novo processo, se quiser -->
-        <a href="home.php"
+        <a href="index.php"
            class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-sm transition duration-300">
           Voltar
         </a>

@@ -36,13 +36,21 @@ function getLocalUser(mysqli $dbLocal, int $g_id): ?array {
 }
 
 if (isset($_GET['logout'])) {
+  // limpa a sessão
   $_SESSION = [];
   if (ini_get("session.use_cookies")) {
     $params = session_get_cookie_params();
     setcookie(session_name(), '', time()-42000, $params["path"], $params["domain"], $params["secure"], $params["httponly"]);
   }
   session_destroy();
-  header('Location: ./');
+
+  // decide para onde ir
+  $go = $_GET['go'] ?? '';
+  if ($go === 'getic') {
+    header('Location: https://www.getic.pe.gov.br/?p=home');
+  } else {
+    header('Location: ./');
+  }
   exit;
 }
 
@@ -146,6 +154,12 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
         class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 flex items-center">
         <i class="fas fa-plus mr-2"></i> Novo Processo
       </button>
+
+      <a href="?logout=1&go=getic"
+        class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-300 font-bold py-2 px-4 rounded-lg shadow-sm transition duration-300 flex items-center">
+        <i class="fa-solid fa-right-from-bracket mr-2"></i> Sair
+      </a>
+
     </div>
   </div>
 </header>
@@ -230,7 +244,6 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
   </div>
 
   <script>
-    // --- CONSTANTES / "DEPARTAMENTOS" PARA O BADGE E FILTRO ---
     const DEPARTMENTS = [
       'Diretoria Administrativa e Financeira (DAF)',
       'Superintendência e Planejamento e Orçamento (SUPLAN)',
