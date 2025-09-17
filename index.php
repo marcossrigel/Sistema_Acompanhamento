@@ -47,7 +47,7 @@ if (isset($_GET['logout'])) {
   // decide para onde ir
   $go = $_GET['go'] ?? '';
   if ($go === 'getic') {
-    header('Location: https://www.getic.pe.gov.br/?p=index');
+    header('Location: https://www.getic.pe.gov.br/?p=home');
   } else {
     header('Location: ./');
   }
@@ -126,6 +126,17 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
   <style>
     body{font-family: 'Inter', sans-serif;background:#f0f2f5}
     .modal-backdrop{background:rgba(0,0,0,.5)}
+        /* ---- DETALHES / FLUXO ---- */
+    .step{transition:all .3s ease}
+    .step-completed .step-circle{background:#16a34a;border-color:#16a34a}
+    .step-completed .step-line{background:#16a34a}
+    .step-current .step-circle{background:#2563eb;border-color:#2563eb;animation:pulse 2s infinite}
+    .step-pending .step-circle{background:#fff;border-color:#d1d5db}
+    .step-pending .step-line{background:#d1d5db}
+    @keyframes pulse{
+      0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,.4)}
+      70%{box-shadow:0 0 0 10px rgba(37,99,235,0)}
+    }
   </style>
 </head>
 <body class="antialiased">
@@ -245,6 +256,52 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
     </div>
   </div>
 
+<!-- MODAL DETALHES DO PROCESSO -->
+<div id="fluxoModal" class="fixed inset-0 z-50 hidden modal-backdrop flex items-center justify-center">
+  <div class="bg-white rounded-lg shadow-2xl m-4 max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <!-- header -->
+    <div class="p-6 border-b flex justify-between items-start">
+      <div>
+        <h3 class="text-2xl font-semibold text-gray-800">Detalhes do Processo</h3>
+        <p id="detNum" class="text-sm text-gray-500"></p>
+      </div>
+      <button id="closeDetails" class="text-gray-400 hover:text-gray-600">
+        <i class="fas fa-times text-2xl"></i>
+      </button>
+    </div>
+
+    <!-- body -->
+    <div class="p-6 overflow-y-auto flex-1">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-8">
+        <!-- fluxo -->
+        <div class="md:col-span-3">
+          <h4 class="text-lg font-semibold mb-4 text-gray-700">Histórico e Fluxo do Processo</h4>
+          <div id="fluxoEtapasContainer" class="space-y-0"></div> <!-- id correto -->
+        </div>
+
+
+        <!-- info & ações -->
+        <div class="md:col-span-2">
+          <div class="bg-gray-50 p-4 rounded-lg mb-6">
+            <h4 class="text-lg font-semibold mb-3 text-gray-700">Informações Gerais</h4>
+            <p class="text-sm"><strong>Setor Demandante:</strong> <span id="detSetor"></span></p>
+            <p class="text-sm"><strong>Descrição:</strong> <span id="detDesc"></span></p>
+            <p class="text-sm"><strong>Criado em:</strong> <span id="detCriado"></span></p>
+          </div>
+
+          <div>
+            <h4 class="text-lg font-semibold mb-3 text-gray-700">Ações</h4>
+            <p id="detStatusText" class="mb-4 text-gray-600"></p>
+            <button id="detAvancar" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-300 flex items-center justify-center text-lg">
+              <span id="detAvancarTxt">Avançar</span> <i class="fas fa-arrow-right ml-2"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
   <script>
     const DEPARTMENTS = [
       'Diretoria Administrativa e Financeira (DAF)',
@@ -258,101 +315,148 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
     const DEFAULT_DEPARTMENT = DEPARTMENTS[0];
 
     // --- ELEMENTOS ---
-    const modal = document.getElementById('processModal');
-    const openBtn = document.getElementById('newProcessBtn');
-    const closeBtn = document.getElementById('closeModalBtn');
-    const form = document.getElementById('processForm');
-    const list = document.getElementById('processList');
+    const modalNew   = document.getElementById('processModal');
+  const openBtn    = document.getElementById('newProcessBtn');
+  const closeBtn   = document.getElementById('closeModalBtn');
+  const form       = document.getElementById('processForm');
+  const list       = document.getElementById('processList');
 
-    const fNum = document.getElementById('filterProcessNumber');
-    const fSet = document.getElementById('filterRequestingSector');
-    const fDesc = document.getElementById('filterDescription');
-    const fStatus = document.getElementById('filterStatus');
-    const clearBtn = document.getElementById('clearFiltersBtn');
-    const reportBtn = document.getElementById('generateReportBtn');
+  // filtros (atenção: o campo de setor na faixa de filtros tem id="requestingSector")
+  const fNum   = document.getElementById('filterProcessNumber');
+  const fSet   = document.getElementById('requestingSector');    // readOnly com o setor do usuário
+  const fDesc  = document.getElementById('filterDescription');
+  const fStat  = document.getElementById('filterStatus');         // ainda não usamos status do BD
+  const fClear = document.getElementById('clearFiltersBtn');
+  const fReport= document.getElementById('generateReportBtn');
 
-    // --- STORAGE HELPERS ---
-    const LS_KEY = 'cehab_processes_v1';
-    const readStore = () => JSON.parse(localStorage.getItem(LS_KEY) || '[]');
-    const writeStore = data => localStorage.setItem(LS_KEY, JSON.stringify(data));
+  // modal de detalhes
+  const detailsModal  = document.getElementById('detailsModal');
+  const detNumero     = document.getElementById('det-numero');
+  const detSetor      = document.getElementById('det-setor');
+  const detDescricao  = document.getElementById('det-descricao');
+  const detData       = document.getElementById('det-data');
+  const closeDet1     = document.getElementById('closeDetailsBtn');
+  const closeDet2     = document.getElementById('closeDetailsBtn2');
 
-    // --- INICIALIZA FILTRO DE STATUS ---
-    function populateStatusFilter(){
-      fStatus.innerHTML = '<option value="">Todos os Status</option>' +
-        DEPARTMENTS.map(d => `<option value="${d}">${d}</option>`).join('');
+  // =========================
+  // ESTADO EM MEMÓRIA
+  // =========================
+  let PROCESSOS = []; // será preenchido pelo listar_processos.php
+
+  // =========================
+  // HELPERS
+  // =========================
+  function openModal(){ modalNew.classList.remove('hidden'); }
+  function closeModal(){ modalNew.classList.add('hidden'); form.reset(); }
+
+  function openDetails(p){
+    detNumero.textContent   = p.numero_processo || '—';
+    detSetor.textContent    = p.setor_demandante || '—';
+    detDescricao.textContent= p.descricao || '—';
+    detData.textContent     = formatDateBR(p.data_registro);
+    document.getElementById('fluxoModal').classList.remove('hidden');
+    gerarFluxoDoProcesso("Análise e Autorização");
+  }
+  function closeDetails(){
+    detailsModal.classList.add('hidden');
+  }
+
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function formatDateBR(iso){
+    if (!iso) return '—';
+    const d = new Date(iso.replace(' ', 'T'));
+    if (isNaN(d)) return '—';
+    return d.toLocaleDateString('pt-BR');
+  }
+
+  // =========================
+  // BUSCA NO BACKEND
+  // =========================
+  async function fetchProcessos(){
+    try{
+      const resp = await fetch('templates/listar_processos.php', { credentials: 'same-origin' });
+      const json = await resp.json();
+      if(!resp.ok || !json.ok) throw new Error(json.error || 'Erro ao listar processos.');
+      PROCESSOS = json.data || [];
+      render();
+    }catch(err){
+      console.error(err);
+      list.innerHTML = '<p class="col-span-full text-center text-red-500">Falha ao carregar processos.</p>';
+    }
+  }
+
+  // =========================
+  // RENDERIZAÇÃO DOS CARDS
+  // =========================
+  function render(){
+    // termos dos filtros
+    const termNum  = (fNum.value  || '').toLowerCase();
+    const termSet  = (fSet.value  || '').toLowerCase();
+    const termDesc = (fDesc.value || '').toLowerCase();
+    // const statSel  = fStat.value; // reservado p/ futuro
+
+    let data = PROCESSOS.slice();
+
+    if(termNum)  data = data.filter(p => (p.numero_processo  || '').toLowerCase().includes(termNum));
+    if(termSet)  data = data.filter(p => (p.setor_demandante || '').toLowerCase().includes(termSet));
+    if(termDesc) data = data.filter(p => (p.descricao        || '').toLowerCase().includes(termDesc));
+
+    // ordena por id desc (mais novo primeiro)
+    data.sort((a,b) => (b.id || 0) - (a.id || 0));
+
+    if(!data.length){
+      list.innerHTML = `<p class="col-span-full text-center text-gray-500">
+        Nenhum processo encontrado${(termNum||termSet||termDesc)?' com os filtros aplicados.':'. Crie um novo para começar.'}
+      </p>`;
+      return;
     }
 
-    // --- RENDER ---
-    function render(){
+    list.innerHTML = '';
+    data.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'bg-white p-5 rounded-lg border border-gray-200 hover:shadow-xl hover:border-blue-500 transition-all duration-300 cursor-pointer';
+      card.innerHTML = `
+        <div class="flex justify-between items-start mb-2">
+          <h3 class="text-lg font-bold text-gray-800 truncate" title="${p.numero_processo}">${p.numero_processo}</h3>
+          <span class="text-xs font-semibold px-2 py-1 rounded-full bg-blue-100 text-blue-800">${p.setor_demandante || '—'}</span>
+        </div>
+        <p class="text-sm text-gray-600 mb-1"><strong>Setor:</strong> ${p.setor_demandante || '—'}</p>
+        <p class="text-sm text-gray-500">${p.descricao || ''}</p>
+        <div class="mt-4 pt-4 border-t text-right">
+          <span class="text-xs text-gray-400">Criado em: ${formatDateBR(p.data_registro)}</span>
+        </div>
+      `;
+      card.addEventListener('click', () => openDetails(p));
+      list.appendChild(card);
+    });
+  }
 
-      const termNum = (fNum.value||'').toLowerCase();
-      const termSet = (fSet.value||'').toLowerCase();
-      const termDesc = (fDesc.value||'').toLowerCase();
-      const dep = fStatus.value;
+  // =========================
+  // EVENTOS – NOVO PROCESSO
+  // =========================
+  openBtn.addEventListener('click', openModal);
+  document.getElementById('processModal').addEventListener('click', (e)=>{ if(e.target.id==='processModal') closeModal(); });
+  closeBtn.addEventListener('click', closeModal);
 
-      let data = readStore().slice().sort((a,b)=>b.createdAt - a.createdAt);
-
-      if(termNum)  data = data.filter(p => (p.processNumber||'').toLowerCase().includes(termNum));
-      if(termSet)  data = data.filter(p => (p.requestingSector||'').toLowerCase().includes(termSet));
-      if(termDesc) data = data.filter(p => (p.description||'').toLowerCase().includes(termDesc));
-      if(dep)      data = data.filter(p => p.department === dep);
-
-      if(!data.length){
-        list.innerHTML = `<p class="col-span-full text-center text-gray-500">Nenhum processo encontrado${(termNum||termSet||termDesc||dep)?' com os filtros aplicados.':'. Crie um novo para começar.'}</p>`;
-        return;
-      }
-
-      list.innerHTML = '';
-      data.forEach(p=>{
-        const card = document.createElement('div');
-        card.className = 'bg-white p-5 rounded-lg border border-gray-200 hover:shadow-xl hover:border-blue-500 transition-all duration-300';
-        card.innerHTML = `
-          <div class="flex justify-between items-start mb-2">
-            <h3 class="text-lg font-bold text-gray-800 truncate" title="${p.processNumber}">${p.processNumber}</h3>
-            <span class="text-xs font-semibold px-2 py-1 rounded-full bg-blue-100 text-blue-800">${p.department}</span>
-          </div>
-          <p class="text-sm text-gray-600 mb-1"><strong>Setor:</strong> ${p.requestingSector}</p>
-          <p class="text-sm text-gray-500">${p.description}</p>
-          <div class="mt-4 pt-4 border-t text-right">
-            <span class="text-xs text-gray-400">Criado em: ${new Date(p.createdAt).toLocaleDateString('pt-BR')}</span>
-          </div>
-        `;
-        list.appendChild(card);
-      });
-    }
-
-    // --- MODAL CONTROLES ---
-    function openModal(){ modal.classList.remove('hidden'); }
-    function closeModal(){ modal.classList.add('hidden'); form.reset(); }
-
-    // --- EVENTOS ---
-    openBtn.addEventListener('click', openModal);
-    document.getElementById('processModal').addEventListener('click', (e)=>{ if(e.target.id==='processModal') closeModal(); });
-    closeBtn.addEventListener('click', closeModal);
-
-    form.addEventListener('submit', async (e) => {
+  form.addEventListener('submit', async (e)=>{
     e.preventDefault();
 
-    const processNumber    = document.getElementById('processNumber').value.trim();
-    const requestingSector = document.getElementById('requestingSector').value.trim(); // já vem do PHP
-    const description      = document.getElementById('description').value.trim();
+    const processNumber = document.getElementById('processNumber').value.trim();
+    const description   = document.getElementById('description').value.trim();
 
-    if (!processNumber || !description) {
+    if(!processNumber || !description){
       alert('Preencha os campos obrigatórios.');
       return;
     }
 
-    // Data/hora da MÁQUINA do usuário no formato "YYYY-MM-DD HH:MM:SS"
+    // data/hora da MÁQUINA do usuário (YYYY-MM-DD HH:MM:SS)
     const now = new Date();
-    const pad = n => String(n).padStart(2, '0');
-    const dataLocal = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} `
-                    + `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const dataLocal = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
-    try {
+    try{
       const resp = await fetch('templates/salvar_processo.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // garante envio do cookie de sessão (por padrão já vem em same-origin, mas deixo explícito)
         credentials: 'same-origin',
         body: JSON.stringify({
           numero_processo: processNumber,
@@ -361,103 +465,111 @@ $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
         })
       });
       const json = await resp.json();
-      if (!resp.ok || !json.ok) {
-        throw new Error(json.error || 'Erro ao salvar processo.');
-      }
+      if(!resp.ok || !json.ok) throw new Error(json.error || 'Erro ao salvar processo.');
 
-      // sucesso
       alert('Processo salvo com sucesso!');
       closeModal();
-
-      // Se quiser ainda mostrar na lista da tela sem recarregar do banco:
-      // você pode adicionar um card "local" só para feedback visual
-      // (opcional; remova se não quiser usar lista local)
-      /*
-      const card = document.createElement('div');
-      card.className = 'bg-white p-5 rounded-lg border border-gray-200';
-      card.innerHTML = `
-        <div class="flex justify-between items-start mb-2">
-          <h3 class="text-lg font-bold text-gray-800 truncate" title="${processNumber}">${processNumber}</h3>
-          <span class="text-xs font-semibold px-2 py-1 rounded-full bg-blue-100 text-blue-800"><?= htmlspecialchars($setor, ENT_QUOTES, 'UTF-8') ?></span>
-        </div>
-        <p class="text-sm text-gray-600 mb-1"><strong>Setor:</strong> ${requestingSector}</p>
-        <p class="text-sm text-gray-500">${description}</p>
-        <div class="mt-4 pt-4 border-t text-right">
-          <span class="text-xs text-gray-400">Criado em: ${new Date(now).toLocaleDateString('pt-BR')}</span>
-        </div>`;
-      list.prepend(card);
-      */
-    } catch (err) {
+      await fetchProcessos(); // recarrega a grade com o novo registro
+    }catch(err){
       console.error(err);
       alert('Falha ao salvar o processo. Tente novamente.');
     }
   });
 
-    [fNum, fSet, fDesc].forEach(inp => inp.addEventListener('input', render));
-    fStatus.addEventListener('change', render);
-    clearBtn.addEventListener('click', ()=>{
-      fNum.value=''; fSet.value=''; fDesc.value=''; fStatus.value='';
-      render();
-    });
+  // =========================
+  // EVENTOS – DETALHES
+  // =========================
+  if (closeDet1) closeDet1.addEventListener('click', closeDetails);
+  if (closeDet2) closeDet2.addEventListener('click', closeDetails);
+  if (detailsModal) detailsModal.addEventListener('click', (e)=>{ if(e.target.id==='detailsModal') closeDetails(); });
 
-    reportBtn.addEventListener('click', ()=>{
-      const data = Array.from(list.querySelectorAll('.bg-white.border')).map(card=>{
-        const num = card.querySelector('h3')?.textContent.trim() || '';
-        const dep = card.querySelector('span')?.textContent.trim() || '';
-        const set = card.querySelector('p strong')?.parentElement?.textContent.replace('Setor:','').trim() || '';
-        const desc= card.querySelectorAll('p')[1]?.textContent.trim() || '';
-        const cri = card.querySelector('.text-right span')?.textContent.replace('Criado em:','').trim() || '';
-        return {num, set, desc, dep, cri};
-      });
+  // =========================
+  // EVENTOS – FILTROS
+  // =========================
+  fNum.addEventListener('input', render);
+  fSet.addEventListener('input', render);     // é readOnly, mas mantemos por consistência
+  fDesc.addEventListener('input', render);
+  fStat.addEventListener('change', render);
 
-      if(!data.length){ alert('Nenhum processo para gerar o relatório.'); return; }
-
-      const rows = data.map(d=>`
-        <tr>
-          <td>${d.num}</td><td>${d.set}</td><td>${d.desc}</td><td>${d.dep}</td><td>${d.cri}</td>
-        </tr>`).join('');
-
-      const filtersHTML = `
-        <ul style="list-style:none;padding:0">
-          ${fNum.value?`<li><strong>Número:</strong> ${fNum.value}</li>`:''}
-          ${fSet.value?`<li><strong>Setor:</strong> ${fSet.value}</li>`:''}
-          ${fDesc.value?`<li><strong>Descrição:</strong> ${fDesc.value}</li>`:''}
-          ${fStatus.value?`<li><strong>Status:</strong> ${fStatus.value}</li>`:''}
-          ${(!fNum.value && !fSet.value && !fDesc.value && !fStatus.value)?'<li>Nenhum filtro aplicado.</li>':''}
-        </ul>`;
-
-      const html = `
-        <!DOCTYPE html><html lang="pt-BR"><head>
-          <meta charset="UTF-8"><title>Relatório de Processos - CEHAB</title>
-          <style>
-            body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;margin:2em;color:#333}
-            h1{color:#0056b3} .hdr{border-bottom:2px solid #0056b3;padding-bottom:1em;margin-bottom:1em}
-            .filters{background:#f0f2f5;border:1px solid #e0e0e0;border-left:5px solid #0056b3;padding:1em;margin:2em 0}
-            table{width:100%;border-collapse:collapse;margin-top:1em}
-            th,td{border:1px solid #ddd;padding:10px;text-align:left} th{background:#f0f2f5}
-            tr:nth-child(even){background:#fafafa}
-            @media print {.no-print{display:none}}
-          </style></head><body>
-          <div class="hdr">
-            <h1>Relatório de Processos - CEHAB</h1>
-            <p>Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
-          </div>
-          <div class="filters"><h3>Filtros Aplicados</h3>${filtersHTML}</div>
-          <h2>${data.length} Processo(s) Encontrado(s)</h2>
-          <table><thead>
-            <tr><th>Número</th><th>Setor Demandante</th><th>Descrição</th><th>Status Atual</th><th>Criado em</th></tr>
-          </thead><tbody>${rows}</tbody></table>
-          <button class="no-print" onclick="window.print()">Imprimir</button>
-        </body></html>`;
-      const w = window.open('', '_blank'); w.document.write(html); w.document.close();
-    });
-
-    // --- BOOT ---
-    populateStatusFilter();
-    try { 
-      localStorage.removeItem(LS_KEY); 
-    } catch (e) {}
+  fClear.addEventListener('click', ()=>{
+    fNum.value  = '';
+    // mantém o setor do usuário no filtro:
+    // (se quiser zerar, troque para string vazia)
+    // fSet.value = '';
+    fDesc.value = '';
+    fStat.value = '';
     render();
+  });
+
+  // =========================
+  // INICIALIZAÇÃO
+  // =========================
+  // se você tiver opções reais de "status", popule aqui:
+  function populateStatusFilter(){
+    fStat.innerHTML = '<option value="">Todos os Status</option>';
+  }
+
+  function gerarFluxoDoProcesso(statusAtual) {
+    const etapas = [
+      { setor: "Diretoria Administrativa e Financeira (DAF)",         etapa: "Análise e Autorização", subtitulo: "Aguardando análise e autorização da diretoria." },
+      { setor: "Superintendência e Planejamento e Orçamento (SUPLAN)", etapa: "Análise de Planejamento e Orçamento", subtitulo: "Analisando o impacto e alinhamento estratégico." },
+      { setor: "Gerência de Planejamento e Orçamento (GOP)",           etapa: "Emissão de Dotação Orçamentária (DDO)", subtitulo: "Verificando disponibilidade e emitindo a DDO." },
+      { setor: "Setor Demandante",                                     etapa: "Homologação", subtitulo: "Aguardando validação e homologação do setor demandante." },
+      { setor: "Gerência de Planejamento e Orçamento (GOP)",           etapa: "Liberação de Programação Financeira (PF)", subtitulo: "Verificando cota e liberando a PF." },
+      { setor: "Superintendência Financeira (SUFIN)",                  etapa: "Ciência e Encaminhamento", subtitulo: "Dando ciência e encaminhando para a GEFIN." },
+      { setor: "Gerência Financeira (GEFIN)",                          etapa: "Emissão do Empenho", subtitulo: "Preparando e emitindo a nota de empenho." },
+      { setor: "Superintendência de Apoio Jurídico (SUJUR)",           etapa: "Formalização do Contrato", subtitulo: "Analisando e formalizando o contrato." },
+      { setor: "Setor Demandante",                                     etapa: "Emissão da Ordem de Serviço (OS)", subtitulo: "Preparando e emitindo a OS." },
+      { setor: "Gerência de Planejamento e Orçamento (GOP)",           etapa: "Liberação para Pagamento", subtitulo: "Conferindo e liberando o processo para pagamento." },
+      { setor: "Gerência Financeira (GEFIN)",                          etapa: "Liquidação (LE)", subtitulo: "Realizando a liquidação do empenho." },
+      { setor: "Gerência Financeira (GEFIN)",                          etapa: "Previsão de Desembolso (PD)", subtitulo: "Emitindo a previsão de desembolso." },
+      { setor: "Gerência Financeira (GEFIN)",                          etapa: "Ordem Bancária (OB)", subtitulo: "Emitindo a ordem bancária." },
+      { setor: "Gerência Financeira (GEFIN)",                          etapa: "Remessa (RE)", subtitulo: "Enviando a remessa ao banco." },
+    ];
+
+    let html = '';
+    etapas.forEach((item, i) => {
+      const numeroEtapa = i + 1;
+      const ativo = (item.etapa === statusAtual);
+
+      html += `
+        <div style="margin-bottom: 1.5em;">
+          <div style="display: flex; align-items: center; gap: 0.5em;">
+            <div style="
+              width: 24px; height: 24px;
+              border-radius: 50%;
+              background: ${ativo ? '#2563eb' : '#e5e7eb'};
+              color: ${ativo ? '#fff' : '#6b7280'};
+              text-align: center; line-height: 24px;
+              font-weight: bold;">${numeroEtapa}</div>
+            <div>
+              <strong>${item.setor}</strong><br>
+              <span style="color:#111827">${item.etapa}</span><br>
+              <small style="color:#6b7280">${item.subtitulo}</small>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    document.getElementById('fluxoEtapasContainer').innerHTML = html;
+  }
+
+  function openDetails(p){
+    document.getElementById('detNum').textContent     = p.numero_processo || '—';
+    document.getElementById('detSetor').textContent   = p.setor_demandante || '—';
+    document.getElementById('detDesc').textContent    = p.descricao || '—';
+    document.getElementById('detCriado').textContent  = formatDateBR(p.data_registro);
+    gerarFluxoDoProcesso("Análise e Autorização");
+    document.getElementById('fluxoModal').classList.remove('hidden'); // ✅ novo modal!
+  }
+
+  populateStatusFilter();
+  fetchProcessos();
+
+  document.getElementById('closeDetails').addEventListener('click', () => {
+    document.getElementById('fluxoModal').classList.add('hidden');
+  });
   </script>
 
 </body>
