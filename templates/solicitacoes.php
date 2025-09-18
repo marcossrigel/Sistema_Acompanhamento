@@ -1,0 +1,93 @@
+<?php
+if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
+date_default_timezone_set('America/Recife');
+require_once __DIR__.'/config.php';
+
+$SETORES = [
+  'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS',
+  'GECOMP','DDO','CPL','DAF - HOMOLOGACAO','GEFIN NE INICIAL',
+  'PARECER JUR','REMESSA','GOP PF (SEFAZ)','GEFIN NE DEFINITIVO',
+  'LIQ','PD (SEFAZ)','OB'
+];
+
+$g_id   = (int)($_GET['g_id']   ?? $_POST['g_id']   ?? 0);
+$u_rede = trim($_GET['u_rede']  ?? $_POST['u_rede'] ?? '');
+$nome   = trim($_GET['nome']    ?? $_POST['nome']   ?? '');
+$email  = trim($_GET['email']   ?? $_POST['email']  ?? '');
+
+// se POST: salva cadastro local
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  $nomePost  = trim($_POST['nome'] ?? '');
+  $setorPost = trim($_POST['setor'] ?? '');
+
+  if ($g_id <= 0 || $nomePost === '' || !in_array($setorPost, $SETORES, true)) {
+    http_response_code(422);
+    $erro = 'Preencha corretamente os campos (nome e setor).';
+  } else {
+    $sql = "INSERT INTO usuarios (id_usuario_cehab_online, nome, setor, tipo)
+            VALUES (?,?,?, 'comum')";
+    $st  = $connLocal->prepare($sql);
+    $st->bind_param('iss', $g_id, $nomePost, $setorPost);
+    if ($st->execute()) {
+      // cria sessão mínima e vai pra home
+      $_SESSION['auth_ok'] = true;
+      $_SESSION['g_id']    = $g_id;
+      $_SESSION['u_rede']  = $u_rede;
+      $_SESSION['nome']    = $nomePost;
+      $_SESSION['email']   = $email;
+      $_SESSION['setor']   = $setorPost;
+      $_SESSION['id_usuario_local'] = $connLocal->insert_id;
+      header('Location: home.php');
+      exit;
+    } else {
+      $erro = 'Falha ao salvar cadastro local.';
+    }
+  }
+}
+?>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Solicitações - Primeiro acesso</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-[#f0f2f5]" style="font-family:Inter,system-ui">
+  <div class="max-w-xl mx-auto mt-16 bg-white rounded-lg shadow p-6">
+    <h1 class="text-2xl font-bold text-gray-800 mb-1">Bem-vindo(a)!</h1>
+    <p class="text-gray-600 mb-6">Complete os dados abaixo para finalizar seu cadastro.</p>
+
+    <?php if (!empty($erro)): ?>
+      <div class="mb-4 rounded bg-red-50 text-red-700 px-4 py-2 border border-red-200"><?= htmlspecialchars($erro, ENT_QUOTES, 'UTF-8') ?></div>
+    <?php endif; ?>
+
+    <form method="post" class="space-y-4">
+      <input type="hidden" name="g_id" value="<?= htmlspecialchars($g_id) ?>">
+      <input type="hidden" name="u_rede" value="<?= htmlspecialchars($u_rede) ?>">
+      <input type="hidden" name="email" value="<?= htmlspecialchars($email) ?>">
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Nome completo</label>
+        <input name="nome" type="text" value="<?= htmlspecialchars($nome) ?>"
+               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Setor</label>
+        <select name="setor" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+          <option value="" disabled selected>Selecione…</option>
+          <?php foreach ($SETORES as $s): ?>
+            <option value="<?= htmlspecialchars($s) ?>"><?= htmlspecialchars($s) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <a href="./" class="px-4 py-2 rounded-lg border text-gray-700 hover:bg-gray-50">Cancelar</a>
+        <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700">Salvar e continuar</button>
+      </div>
+    </form>
+  </div>
+</body>
+</html>
