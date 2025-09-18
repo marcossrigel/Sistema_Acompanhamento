@@ -152,26 +152,49 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
   </div>
 </div>
 
-<!-- MODAL DETALHES -->
+<!-- MODAL DETALHES (com fluxo) -->
 <div id="detailsModal" class="fixed inset-0 z-50 hidden bg-black/40 items-center justify-center">
-  <div class="bg-white rounded-lg shadow-2xl w-full max-w-xl m-4">
+  <div class="bg-white rounded-lg shadow-2xl w-full max-w-4xl m-4">
     <div class="p-5 border-b flex justify-between items-center">
       <h3 class="text-xl font-semibold">Detalhes do Processo</h3>
       <button id="closeDetails" class="text-gray-500 hover:text-gray-700">
         <i class="fa-solid fa-xmark text-xl"></i>
       </button>
     </div>
-    <div class="p-5 space-y-2 text-sm">
-      <p><strong>Número:</strong> <span id="d_num"></span></p>
-      <p><strong>Setor demandante:</strong> <span id="d_setor"></span></p>
-      <p><strong>Enviar para:</strong> <span id="d_dest"></span></p>
-      <p><strong>Tipos:</strong> <span id="d_tipos"></span></p>
-      <p class="hidden" id="d_outros_row"><strong>Outros:</strong> <span id="d_outros"></span></p>
-      <p><strong>Descrição:</strong> <span id="d_desc"></span></p>
-      <p><strong>Criado em:</strong> <span id="d_dt"></span></p>
-    </div>
-    <div class="p-5 border-t text-right">
-      <button id="okDetails" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold">OK</button>
+
+    <div class="p-5">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Coluna esquerda: Fluxo -->
+        <div class="lg:col-span-2">
+          <h4 class="text-base font-semibold text-gray-800 mb-3">Histórico e Fluxo do Processo</h4>
+          <ol id="flowList" class="space-y-3"></ol>
+        </div>
+
+        <!-- Coluna direita: Informações Gerais -->
+        <aside class="lg:col-span-1">
+          <div class="bg-gray-50 border rounded-lg p-4">
+            <h5 class="font-semibold text-gray-800 mb-3">Informações Gerais</h5>
+            <div class="space-y-2 text-sm">
+              <p><span class="text-gray-500">Número:</span> <span id="d_num" class="font-medium"></span></p>
+              <p><span class="text-gray-500">Setor Demandante:</span> <span id="d_setor" class="font-medium"></span></p>
+              <p><span class="text-gray-500">Enviar para:</span> <span id="d_dest" class="font-medium"></span></p>
+              <p><span class="text-gray-500">Tipos:</span> <span id="d_tipos" class="font-medium"></span></p>
+              <p id="d_outros_row" class="hidden">
+                <span class="text-gray-500">Outros:</span> <span id="d_outros" class="font-medium"></span>
+              </p>
+              <p><span class="text-gray-500">Descrição:</span> <span id="d_desc" class="font-medium"></span></p>
+              <p><span class="text-gray-500">Criado em:</span> <span id="d_dt" class="font-medium"></span></p>
+            </div>
+          </div>
+
+          <div class="mt-4 text-right">
+            <button id="okDetails"
+              class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold">
+              OK
+            </button>
+          </div>
+        </aside>
+      </div>
     </div>
   </div>
 </div>
@@ -339,15 +362,24 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
     document.getElementById('d_num').textContent   = p.numero_processo||'—';
     document.getElementById('d_setor').textContent = p.setor_demandante||'—';
     document.getElementById('d_dest').textContent  = p.enviar_para||'—';
+
     const tipos = parseTipos(p.tipos_processo_json);
     document.getElementById('d_tipos').textContent = tipos||'—';
+
     const hasOutros = (p.tipo_outros||'').trim() !== '';
     document.getElementById('d_outros_row').classList.toggle('hidden', !hasOutros);
     document.getElementById('d_outros').textContent = p.tipo_outros||'';
+
     document.getElementById('d_desc').textContent  = p.descricao||'';
     document.getElementById('d_dt').textContent    = brDate(p.data_registro);
-    md.classList.remove('hidden'); md.classList.add('flex');
+
+    // <<< NOVO: desenha o fluxo
+    buildFlow(p);
+
+    document.getElementById('detailsModal').classList.remove('hidden');
+    document.getElementById('detailsModal').classList.add('flex');
   }
+
   function closeDetails(){ md.classList.add('hidden'); md.classList.remove('flex'); }
   document.getElementById('closeDetails').addEventListener('click', closeDetails);
   document.getElementById('okDetails').addEventListener('click', closeDetails);
@@ -355,6 +387,53 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
 
   // dispara o load da home
   loadMyProcesses();
+  const MY_SETOR = <?= json_encode($_SESSION['setor'] ?? '') ?>;
+
+// desenha um “passo” do fluxo
+function makeStep(idx, title, subtitle, active=false) {
+  const bullet =
+    active
+      ? `<span class="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white font-bold mr-3">${idx}</span>`
+      : `<span class="flex h-7 w-7 items-center justify-center rounded-full border border-gray-300 text-gray-500 font-bold mr-3">${idx}</span>`;
+
+  const wrap = document.createElement('li');
+  wrap.className = `flex items-start p-3 rounded-lg border ${
+    active ? 'border-blue-200 bg-blue-50/60' : 'border-gray-200 bg-white'
+  }`;
+
+  wrap.innerHTML = `
+    ${bullet}
+    <div class="min-w-0">
+      <div class="font-semibold ${active ? 'text-blue-800' : 'text-gray-800'}">${title}</div>
+      ${subtitle ? `<div class="text-xs ${active ? 'text-blue-700' : 'text-gray-500'}">${subtitle}</div>` : ''}
+    </div>
+  `;
+  return wrap;
+}
+
+// monta o fluxo simples: 1) Demandante → 2) Destino
+function buildFlow(p) {
+  const flow = document.getElementById('flowList');
+  flow.innerHTML = '';
+
+  // qual passo está “ativo”?
+  // - se o setor logado aparecer em algum ponto do fluxo, esse é o atual;
+  // - senão, marcamos o “enviar_para” como atual (ex.: quem criou quer ver onde está).
+  const current =
+    (MY_SETOR && [p.setor_demandante, p.enviar_para].includes(MY_SETOR))
+      ? MY_SETOR
+      : (p.enviar_para || '');
+
+  const steps = [
+    { t: p.setor_demandante || '—', sub: 'Setor demandante' },
+    { t: p.enviar_para      || '—', sub: 'Destino atual'   },
+  ];
+
+  steps.forEach((s, i) => {
+    const active = (s.t === current);
+    flow.appendChild(makeStep(i+1, s.t, s.sub, active));
+  });
+}
   </script>
 
 </body>

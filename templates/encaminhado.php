@@ -139,7 +139,6 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
     }
   }
 
-  // modal detalhes (mesmos IDs do da home, inclua o bloco HTML do modal neste arquivo)
   const md = document.getElementById('detailsModal');
   function openDetails(p){
     document.getElementById('d_num').textContent   = p.numero_processo||'—';
@@ -160,6 +159,49 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
   md.addEventListener('click', e=>{ if(e.target===md) closeDetails(); });
 
   loadIncoming();
+
+  const MY_SETOR = <?= json_encode($_SESSION['setor'] ?? '') ?>;
+
+// desenha um “passo” do fluxo
+function makeStep(idx, title, subtitle, active=false) {
+  const bullet =
+    active
+      ? `<span class="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white font-bold mr-3">${idx}</span>`
+      : `<span class="flex h-7 w-7 items-center justify-center rounded-full border border-gray-300 text-gray-500 font-bold mr-3">${idx}</span>`;
+
+  const wrap = document.createElement('li');
+  wrap.className = `flex items-start p-3 rounded-lg border ${
+    active ? 'border-blue-200 bg-blue-50/60' : 'border-gray-200 bg-white'
+  }`;
+
+  wrap.innerHTML = `
+    ${bullet}
+    <div class="min-w-0">
+      <div class="font-semibold ${active ? 'text-blue-800' : 'text-gray-800'}">${title}</div>
+      ${subtitle ? `<div class="text-xs ${active ? 'text-blue-700' : 'text-gray-500'}">${subtitle}</div>` : ''}
+    </div>
+  `;
+  return wrap;
+}
+
+function buildFlow(p) {
+  const flow = document.getElementById('flowList');
+  flow.innerHTML = '';
+  const current =
+    (MY_SETOR && [p.setor_demandante, p.enviar_para].includes(MY_SETOR))
+      ? MY_SETOR
+      : (p.enviar_para || '');
+
+  const steps = [
+    { t: p.setor_demandante || '—', sub: 'Setor demandante' },
+    { t: p.enviar_para      || '—', sub: 'Destino atual'   },
+  ];
+
+  steps.forEach((s, i) => {
+    const active = (s.t === current);
+    flow.appendChild(makeStep(i+1, s.t, s.sub, active));
+  });
+}
 </script>
 
 </body>
