@@ -65,10 +65,32 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
       <!-- Placeholder da lista -->
       <div id="encList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
 
-        Em breve: listagem de processos encaminhados…
-      </div>
-    </div>
   </main>
+
+<!-- MODAL DETALHES (mesmo do home) -->
+<div id="detailsModal" class="fixed inset-0 z-50 hidden bg-black/40 items-center justify-center">
+  <div class="bg-white rounded-lg shadow-2xl w-full max-w-xl m-4">
+    <div class="p-5 border-b flex justify-between items-center">
+      <h3 class="text-xl font-semibold">Detalhes do Processo</h3>
+      <button id="closeDetails" class="text-gray-500 hover:text-gray-700">
+        <i class="fa-solid fa-xmark text-xl"></i>
+      </button>
+    </div>
+    <div class="p-5 space-y-2 text-sm">
+      <p><strong>Número:</strong> <span id="d_num"></span></p>
+      <p><strong>Setor demandante:</strong> <span id="d_setor"></span></p>
+      <p><strong>Enviar para:</strong> <span id="d_dest"></span></p>
+      <p><strong>Tipos:</strong> <span id="d_tipos"></span></p>
+      <p class="hidden" id="d_outros_row"><strong>Outros:</strong> <span id="d_outros"></span></p>
+      <p><strong>Descrição:</strong> <span id="d_desc"></span></p>
+      <p><strong>Criado em:</strong> <span id="d_dt"></span></p>
+    </div>
+    <div class="p-5 border-t text-right">
+      <button id="okDetails" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold">OK</button>
+    </div>
+  </div>
+</div>
+
 
 <script>
   const brDate = iso => {
@@ -85,7 +107,7 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
     const wrap = document.getElementById('encList');
     wrap.innerHTML = '<div class="col-span-full text-gray-400 border border-dashed rounded-lg p-8 text-center">Carregando…</div>';
     try{
-      const r = await fetch('templates/listar_encaminhados.php',{credentials:'same-origin'});
+      const r = await fetch('listar_encaminhados.php', { credentials:'same-origin' })
       const j = await r.json();
       if(!r.ok || !j.ok) throw new Error(j.error||'erro');
       const data = j.data||[];
@@ -140,9 +162,5 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
   loadIncoming();
 </script>
 
-
 </body>
-
-
-
 </html>

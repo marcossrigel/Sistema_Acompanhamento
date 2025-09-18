@@ -66,8 +66,6 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
       <h2 class="text-xl font-semibold text-gray-700 mb-4">Processos em Andamento</h2>
 
       <div id="processList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
-        Nenhum processo encontrado.
-      </div>
     </div>
   </main>
 
@@ -303,7 +301,7 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
     const wrap = document.getElementById('processList');
     wrap.innerHTML = '<div class="col-span-full text-gray-400 border border-dashed rounded-lg p-8 text-center">Carregando…</div>';
     try {
-      const r = await fetch('templates/listar_processos.php', {credentials:'same-origin'});
+      const r = await fetch('listar_processos.php', { credentials:'same-origin' })
       const j = await r.json();
       if(!r.ok || !j.ok) throw new Error(j.error||'erro');
       const data = j.data||[];
