@@ -146,29 +146,23 @@ async function loadIncoming(){
     <div class="col-span-full text-gray-400 border border-dashed rounded-lg p-8 text-center">
       Carregando…
     </div>`;
-  try{
-    // fluxo
-    const r = await fetch(`listar_fluxo.php?id=${processoId}`, { credentials:'same-origin' });
 
-    // encaminhar
-    const r = await fetch('encaminhar_processo.php', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json' },
-      credentials:'same-origin',
-      body: JSON.stringify({ id: currentProcess.id, novo_setor: novo })
-    });
+  try {
+    const r = await fetch('listar_encaminhados.php', { credentials: 'same-origin' });
     const j = await r.json();
-    if(!r.ok || !j.ok) throw new Error(j.error||'Falha ao listar');
+    if (!r.ok || !j.ok) throw new Error(j.error || 'Falha ao listar');
+
     const data = j.data || [];
-    if (!data.length){
+    if (!data.length) {
       wrap.innerHTML = `
         <div class="col-span-full text-gray-400 border border-dashed rounded-lg p-8 text-center">
-          Nenhum processo encaminhado para seu setor.
+          Nenhum processo encaminhado para o seu setor no momento.
         </div>`;
       return;
     }
+
     wrap.innerHTML = '';
-    data.forEach(p=>{
+    data.forEach(p => {
       const card = document.createElement('div');
       card.className = 'bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer';
       card.innerHTML = `
@@ -177,16 +171,17 @@ async function loadIncoming(){
             <div class="text-sm text-gray-500">Nº</div>
             <div class="font-semibold text-gray-800">${p.numero_processo || '—'}</div>
           </div>
-          <span class="text-xs px-2 py-1 rounded-full bg-emerald-50 text-emerald-700"
-                title="Setor de origem">${p.setor_demandante || '—'}</span>
+          <span class="text-xs px-2 py-1 rounded-full bg-emerald-50 text-emerald-700" title="Setor de origem">
+            ${p.setor_demandante || '—'}
+          </span>
         </div>
         <div class="mt-3 text-sm text-gray-600 line-clamp-2">${p.descricao || ''}</div>
         <div class="mt-3 text-right text-xs text-gray-400">${brDate(p.data_registro)}</div>
       `;
-      card.addEventListener('click', ()=>openDetails(p));
+      card.addEventListener('click', () => openDetails(p));
       wrap.appendChild(card);
     });
-  }catch(e){
+  } catch (e) {
     console.error(e);
     wrap.innerHTML = `
       <div class="col-span-full text-red-500 border border-red-200 rounded-lg p-8 text-center">

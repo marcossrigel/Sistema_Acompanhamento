@@ -21,13 +21,13 @@ if (empty($_SESSION['auth_ok']) || empty($_SESSION['setor'])) {
 $setor = $_SESSION['setor'];
 
 try {
-  $sql = "SELECT id, id_usuario_cehab_online, numero_processo, setor_demandante,
-                 enviar_para, tipos_processo_json, tipo_outros, descricao, data_registro
+  $sql = "SELECT id, numero_processo, setor_demandante, enviar_para, tipos_processo_json,
+                tipo_outros, descricao, data_registro
           FROM novo_processo
-          WHERE enviar_para = ?
+          WHERE TRIM(UPPER(enviar_para)) = TRIM(UPPER(?))
           ORDER BY id DESC";
   $st = $connLocal->prepare($sql);
-  $st->bind_param('s', $setor);
+  $st->bind_param('s', $_SESSION['setor']);
   $st->execute();
   $res = $st->get_result();
   $rows = [];
