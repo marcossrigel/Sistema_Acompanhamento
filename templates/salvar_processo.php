@@ -3,7 +3,6 @@ if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 date_default_timezone_set('America/Recife');
 header('Content-Type: application/json; charset=utf-8');
 
-/* carrega config */
 $cfgPath = __DIR__ . '/config.php';
 if (!file_exists($cfgPath)) { $cfgPath = __DIR__ . '/../config.php'; }
 if (!file_exists($cfgPath)) {
@@ -13,7 +12,6 @@ if (!file_exists($cfgPath)) {
 }
 require_once $cfgPath;
 
-/* exige login */
 if (empty($_SESSION['auth_ok']) || empty($_SESSION['g_id'])) {
   http_response_code(401);
   echo json_encode(['ok'=>false,'error'=>'Não autenticado.']);
@@ -23,7 +21,6 @@ if (empty($_SESSION['auth_ok']) || empty($_SESSION['g_id'])) {
 $gId   = (int)($_SESSION['g_id'] ?? 0);
 $setor = trim($_SESSION['setor'] ?? '');
 
-/* whitelist de setores */
 $SETORES_DEST = [
   'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS',
   'GECOMP','DDO','CPL','DAF - HOMOLOGACAO','PARECER JUR',
@@ -32,8 +29,7 @@ $SETORES_DEST = [
 ];
 
 try {
-  $raw  = file_get_contents('php://input');
-  $data = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+  $data = json_decode(file_get_contents('php://input'), true, 512, JSON_THROW_ON_ERROR);
 
   $numero    = trim($data['numero_processo'] ?? '');
   $enviar    = trim($data['enviar_para'] ?? '');
@@ -65,31 +61,33 @@ try {
   }
   $tiposJson = json_encode($tipos, JSON_UNESCAPED_UNICODE);
 
-  /* INSERT conforme sua tabela novo_processo */
+  // INSERT no processo
   $sql = "INSERT INTO novo_processo
             (id_usuario_cehab_online, numero_processo, setor_demandante,
              enviar_para, tipos_processo_json, tipo_outros, descricao)
           VALUES (?,?,?,?,?,?,?)";
-
   $stmt = $connLocal->prepare($sql);
   if (!$stmt) { throw new RuntimeException('Falha ao preparar statement.'); }
-
   $tipoOutrosOrNull = ($outrosTxt !== '') ? $outrosTxt : null;
-  $stmt->bind_param(
-    "issssss",
-    $gId,
-    $numero,
-    $setor,          // vem da sessão, não do cliente
-    $enviar,
-    $tiposJson,
-    $tipoOutrosOrNull,
-    $desc
+  $stmt->bind_param("issssss", $gId, $numero, $setor, $enviar, $tiposJson, $tipoOutrosOrNull, $desc);
+  if (!$stmt->execute()) { throw new RuntimeException('Falha ao inserir no banco.'); }
+
+  $proc_id = (int)$connLocal->insert_id;
+
+  // Fluxo inicial (AGORA SIM, depois do insert)
+  $fx1 = $connLocal->prepare(
+    "INSERT INTO processo_fluxo (processo_id, ordem, setor, status) VALUES (?, 1, ?, 'concluido')"
   );
+  $fx1->bind_param("is", $proc_id, $setor);
+  $fx1->execute();
 
-  $ok = $stmt->execute();
-  if (!$ok) { throw new RuntimeException('Falha ao inserir no banco.'); }
+  $fx2 = $connLocal->prepare(
+    "INSERT INTO processo_fluxo (processo_id, ordem, setor, status) VALUES (?, 2, ?, 'atual')"
+  );
+  $fx2->bind_param("is", $proc_id, $enviar);
+  $fx2->execute();
 
-  echo json_encode(['ok'=>true, 'id'=>$connLocal->insert_id]);
+  echo json_encode(['ok'=>true, 'id'=>$proc_id]);
 
 } catch (Throwable $e) {
   http_response_code(500);

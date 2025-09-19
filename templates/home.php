@@ -390,22 +390,28 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
   const MY_SETOR = <?= json_encode($_SESSION['setor'] ?? '') ?>;
 
 // desenha um “passo” do fluxo
-function makeStep(idx, title, subtitle, active=false) {
-  const bullet =
-    active
-      ? `<span class="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white font-bold mr-3">${idx}</span>`
-      : `<span class="flex h-7 w-7 items-center justify-center rounded-full border border-gray-300 text-gray-500 font-bold mr-3">${idx}</span>`;
+function makeStep(idx, title, subtitle, status='pending') {
+  let bullet = '';
+  let classes = '';
+
+  if(status==='done'){
+    bullet = `<span class="flex h-7 w-7 items-center justify-center rounded-full bg-green-600 text-white font-bold mr-3"><i class="fa-solid fa-check"></i></span>`;
+    classes = 'border-green-200 bg-green-50/60 text-green-800';
+  } else if(status==='active'){
+    bullet = `<span class="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white font-bold mr-3">${idx}</span>`;
+    classes = 'border-blue-200 bg-blue-50/60 text-blue-800';
+  } else {
+    bullet = `<span class="flex h-7 w-7 items-center justify-center rounded-full border border-gray-300 text-gray-500 font-bold mr-3">${idx}</span>`;
+    classes = 'border-gray-200 bg-white text-gray-800';
+  }
 
   const wrap = document.createElement('li');
-  wrap.className = `flex items-start p-3 rounded-lg border ${
-    active ? 'border-blue-200 bg-blue-50/60' : 'border-gray-200 bg-white'
-  }`;
-
+  wrap.className = `flex items-start p-3 rounded-lg border ${classes}`;
   wrap.innerHTML = `
     ${bullet}
     <div class="min-w-0">
-      <div class="font-semibold ${active ? 'text-blue-800' : 'text-gray-800'}">${title}</div>
-      ${subtitle ? `<div class="text-xs ${active ? 'text-blue-700' : 'text-gray-500'}">${subtitle}</div>` : ''}
+      <div class="font-semibold">${title}</div>
+      ${subtitle ? `<div class="text-xs">${subtitle}</div>` : ''}
     </div>
   `;
   return wrap;
@@ -416,23 +422,11 @@ function buildFlow(p) {
   const flow = document.getElementById('flowList');
   flow.innerHTML = '';
 
-  // qual passo está “ativo”?
-  // - se o setor logado aparecer em algum ponto do fluxo, esse é o atual;
-  // - senão, marcamos o “enviar_para” como atual (ex.: quem criou quer ver onde está).
-  const current =
-    (MY_SETOR && [p.setor_demandante, p.enviar_para].includes(MY_SETOR))
-      ? MY_SETOR
-      : (p.enviar_para || '');
+  // passo 1 concluído
+  flow.appendChild(makeStep(1, p.setor_demandante || '—', 'Setor demandante', 'done'));
 
-  const steps = [
-    { t: p.setor_demandante || '—', sub: 'Setor demandante' },
-    { t: p.enviar_para      || '—', sub: 'Destino atual'   },
-  ];
-
-  steps.forEach((s, i) => {
-    const active = (s.t === current);
-    flow.appendChild(makeStep(i+1, s.t, s.sub, active));
-  });
+  // passo 2 ativo
+  flow.appendChild(makeStep(2, p.enviar_para || '—', 'Destino atual', 'active'));
 }
   </script>
 
