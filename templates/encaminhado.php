@@ -268,7 +268,7 @@ async function renderFlow(processoId){
   const wrap = document.getElementById('flowList');
   wrap.innerHTML = '<div class="text-gray-400">Carregando fluxo…</div>';
   try{
-    const r = await fetch(`templates/listar_fluxo.php?id=${processoId}`, { credentials:'same-origin' });
+    const r = await fetch(`listar_fluxo.php?id=${processoId}`, { credentials:'same-origin' });
     const j = await r.json();
     if (!r.ok || !j.ok) throw new Error(j.error || 'Falha ao listar fluxo');
     const data = j.data || [];
@@ -289,11 +289,14 @@ if (sendBtn){
     if (!novo){ alert('Selecione o próximo setor.'); return; }
 
     try{
-      const r = await fetch('templates/encaminhar_processo.php', {
+      const r = await fetch('encaminhar_processo.php', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         credentials: 'same-origin',
-        body: JSON.stringify({ id: currentProcess.id, novo_setor: novo })
+        body: new URLSearchParams({
+          processo_id: currentProcess.id,   // ID do processo (novo_processo.id)
+          proximo_setor: novo               // exatamente o nome que o PHP espera
+        })
       });
       const j = await r.json();
       if (!r.ok || !j.ok) throw new Error(j.error || 'Falha ao encaminhar');
