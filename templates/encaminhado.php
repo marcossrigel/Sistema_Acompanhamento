@@ -313,13 +313,14 @@ cancelarFinalizar.addEventListener('click', () => {
 
 confirmarFinalizar.addEventListener('click', async () => {
   const acao = document.getElementById('acaoFinalizadora').value.trim();
-  const proxSetor = document.getElementById('nextSector').value; // usa o select já existente
+  const proxSetor = document.getElementById('nextSector').value;
   if (!acao || !proxSetor) { alert("Preencha a ação e selecione o setor."); return; }
 
   try {
     const resp = await fetch('encaminhar_processo.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin', // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
       body: JSON.stringify({
         id_processo: currentProcess.id,
         setor_origem: MY_SETOR,
@@ -327,11 +328,23 @@ confirmarFinalizar.addEventListener('click', async () => {
         acao_finalizadora: acao
       })
     });
-    const j = await resp.json();
-    if (!resp.ok || !j.ok) throw new Error(j.error || 'Erro ao encaminhar.');
-    location.reload(); // atualiza a tela
+
+    const raw = await resp.text();  // lê como texto para diagnosticar
+    let j;
+    try { j = JSON.parse(raw); }
+    catch { throw new Error('Resposta não-JSON do servidor: ' + raw); }
+
+    if (!resp.ok || !j.ok) throw new Error(j.error || 'Falha ao encaminhar');
+
+    // atualizar UI
+    await renderFlow(currentProcess.id);
+    await loadIncoming();
+    document.getElementById('finalizarModal').classList.add('hidden');
+    document.getElementById('finalizarModal').classList.remove('flex');
+
   } catch (e) {
-    alert("Erro: " + e.message);
+    alert('Erro: ' + (e.message || e));
+    console.error(e);
   }
 });
 

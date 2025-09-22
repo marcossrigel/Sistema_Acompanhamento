@@ -167,7 +167,7 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
         <!-- Coluna esquerda: Fluxo -->
         <div class="lg:col-span-2">
           <h4 class="text-base font-semibold text-gray-800 mb-3">Histórico e Fluxo do Processo</h4>
-          <ol id="flowList" class="space-y-3"></ol>
+          <div id="flowList" class="space-y-3"></div>
         </div>
 
         <!-- Coluna direita: Informações Gerais -->
@@ -206,7 +206,7 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
     GID:       <?= json_encode($_SESSION['g_id']  ?? '') ?>
   };
 </script>
-<script src="../js/home.js"></script>
+<script src="../js/home.js?v=3"></script>
 
 </body>
 </html>
