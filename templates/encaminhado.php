@@ -108,7 +108,7 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
               <option>GOP PF (SEFAZ)</option><option>GEFIN NE DEFINITIVO</option><option>LIQ</option>
               <option>PD (SEFAZ)</option><option>OB</option>
             </select>
-            <button id="sendNextBtn" class="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-md">
+            <button id="btnEncaminhar" class="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-md">
               Encaminhar
             </button>
           </div>
@@ -121,6 +121,22 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
     </div>
   </div>
 </div>
+
+<!-- Modal Finalizar Etapa -->
+<div id="finalizarModal" class="fixed inset-0 hidden bg-black bg-opacity-40 items-center justify-center z-50">
+  <div class="bg-white rounded-lg p-6 w-full max-w-md shadow-lg">
+    <h2 class="text-lg font-semibold mb-4">Finalizar Etapa</h2>
+    <label class="block text-sm text-gray-600 mb-1">Descreva a ação finalizadora:</label>
+    <textarea id="acaoFinalizadora" class="w-full border rounded p-2 mb-4" rows="3"
+      placeholder="Ex: GECOMP analisou e encaminhou para GEFIN NE INICIAL"></textarea>
+    
+    <div class="flex justify-end gap-2">
+      <button id="cancelarFinalizar" class="px-4 py-2 rounded bg-gray-200">Cancelar</button>
+      <button id="confirmarFinalizar" class="px-4 py-2 rounded bg-blue-600 text-white">Confirmar e Avançar</button>
+    </div>
+  </div>
+</div>
+
 
 
 <script>
@@ -236,9 +252,9 @@ document.getElementById('detailsModal').addEventListener('click', (e)=>{
 });
 
 /* ========= fluxo dinâmico ========= */
-function flowItem({ordem, setor, status}) {
+function flowItem({ordem, setor, status, acao_finalizadora}) {
   const isDone = status === 'concluido';
-  const isNow  = status === 'atual';
+  const isNow  = status === 'ativo' || status === 'atual';
 
   const boxCls = isDone
     ? 'bg-emerald-50 border-emerald-200'
@@ -260,6 +276,7 @@ function flowItem({ordem, setor, status}) {
       <div class="flex-1">
         <div class="font-semibold">${setor || '—'}</div>
         ${sub ? `<div class="text-xs text-gray-500">${sub}</div>` : ''}
+        ${isDone && acao_finalizadora ? `<div class="text-xs text-gray-600">Ação: ${acao_finalizadora}</div>` : ''}
       </div>
     </div>`;
 }
@@ -279,41 +296,44 @@ async function renderFlow(processoId){
   }
 }
 
-/* ========= encaminhar para próximo setor ========= */
-const sendBtn = document.getElementById('sendNextBtn');
-if (sendBtn){
-  sendBtn.addEventListener('click', async ()=>{
-    if (!currentProcess) return;
-    const sel = document.getElementById('nextSector');
-    const novo = sel && sel.value ? sel.value.trim() : '';
-    if (!novo){ alert('Selecione o próximo setor.'); return; }
+const btnEncaminhar = document.getElementById('btnEncaminhar'); 
+const finalizarModal = document.getElementById('finalizarModal');
+const cancelarFinalizar = document.getElementById('cancelarFinalizar');
+const confirmarFinalizar = document.getElementById('confirmarFinalizar');
 
-    try{
-      const r = await fetch('encaminhar_processo.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        credentials: 'same-origin',
-        body: new URLSearchParams({
-          processo_id: currentProcess.id,   // ID do processo (novo_processo.id)
-          proximo_setor: novo               // exatamente o nome que o PHP espera
-        })
-      });
-      const j = await r.json();
-      if (!r.ok || !j.ok) throw new Error(j.error || 'Falha ao encaminhar');
+btnEncaminhar.addEventListener('click', () => {
+  finalizarModal.classList.remove('hidden');
+  finalizarModal.classList.add('flex');
+});
 
-      // atualiza “enviar_para” localmente p/ refletir nas infos gerais
-      currentProcess.enviar_para = novo;
+cancelarFinalizar.addEventListener('click', () => {
+  finalizarModal.classList.add('hidden');
+  finalizarModal.classList.remove('flex');
+});
 
-      // re-render fluxo e lista
-      await renderFlow(currentProcess.id);
-      await loadIncoming();
+confirmarFinalizar.addEventListener('click', async () => {
+  const acao = document.getElementById('acaoFinalizadora').value.trim();
+  const proxSetor = document.getElementById('nextSector').value; // usa o select já existente
+  if (!acao || !proxSetor) { alert("Preencha a ação e selecione o setor."); return; }
 
-    }catch(e){
-      alert(e.message || 'Erro ao encaminhar.');
-      console.error(e);
-    }
-  });
-}
+  try {
+    const resp = await fetch('encaminhar_processo.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id_processo: currentProcess.id,
+        setor_origem: MY_SETOR,
+        setor_destino: proxSetor,
+        acao_finalizadora: acao
+      })
+    });
+    const j = await resp.json();
+    if (!resp.ok || !j.ok) throw new Error(j.error || 'Erro ao encaminhar.');
+    location.reload(); // atualiza a tela
+  } catch (e) {
+    alert("Erro: " + e.message);
+  }
+});
 
 /* ========= começo ========= */
 loadIncoming();

@@ -4,23 +4,14 @@ header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/config.php';
 
-/**
- * Suporta:
- * - ?id= (pode ser id do processo OU id do fluxo)
- * - ?proc_id= (explicitamente id do processo)
- */
 $param = (int)($_GET['proc_id'] ?? $_GET['id'] ?? 0);
 if ($param <= 0) { echo json_encode(['ok'=>false,'error'=>'id inválido']); exit; }
 
-/* 1) Descobrir o processo_id com segurança
-   - Primeiro tentamos como se $param já fosse processo_id
-   - Se não houver linhas, tentamos tratar como fluxo_id e achar o processo_id correspondente
-*/
 $processoId = $param;
 
 /** tenta histórico direto (assumindo que $param é processo_id) */
 $stmt = $connLocal->prepare("
-  SELECT id, processo_id, ordem, setor, status, data_registro
+  SELECT id, processo_id, ordem, setor, status, data_registro, acao_finalizadora
   FROM processo_fluxo
   WHERE processo_id = ?
   ORDER BY ordem ASC, id ASC
@@ -31,7 +22,7 @@ $res = $stmt->get_result();
 $rows = $res->fetch_all(MYSQLI_ASSOC);
 
 if (!$rows || count($rows) === 0) {
-  /** talvez $param seja um fluxo_id; descobrir processo_id por ele */
+  // talvez $param seja um fluxo_id
   $q = $connLocal->prepare("SELECT processo_id FROM processo_fluxo WHERE id = ? LIMIT 1");
   $q->bind_param("i", $param);
   $q->execute();
@@ -40,9 +31,8 @@ if (!$rows || count($rows) === 0) {
   if ($pf && !empty($pf['processo_id'])) {
     $processoId = (int)$pf['processo_id'];
 
-    // busca de novo, agora com o processo_id correto
     $stmt2 = $connLocal->prepare("
-      SELECT id, processo_id, ordem, setor, status, data_registro
+      SELECT id, processo_id, ordem, setor, status, data_registro, acao_finalizadora
       FROM processo_fluxo
       WHERE processo_id = ?
       ORDER BY ordem ASC, id ASC
@@ -77,7 +67,7 @@ if (!$base) {
 
 $fake = [
   ['ordem'=>1,'setor'=>$base['setor_demandante'],'status'=>'concluido','data_registro'=>$base['data_registro']],
-  ['ordem'=>2,'setor'=>$base['enviar_para'],     'status'=>'atual',     'data_registro'=>$base['data_registro']],
+  ['ordem'=>2,'setor'=>$base['enviar_para'],     'status'=>'atual','data_registro'=>$base['data_registro']],
 ];
 
 echo json_encode(['ok'=>true,'data'=>$fake,'processo_id'=>$processoId]);

@@ -2,7 +2,6 @@
 if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 date_default_timezone_set('America/Recife');
 
-/** tenta templates/config.php; se não existir, usa config.php na raiz */
 $cfgPath = __DIR__ . '/templates/config.php';
 if (!file_exists($cfgPath)) { $cfgPath = __DIR__ . '/config.php'; }
 if (!file_exists($cfgPath)) {
@@ -11,7 +10,6 @@ if (!file_exists($cfgPath)) {
 }
 require_once $cfgPath;
 
-/* ---------- helpers ---------- */
 function getTokenRow(mysqli $dbRemote, string $token): ?array {
   $sql = "SELECT g_id, u_rede, data_hora FROM token_sessao WHERE token = ? LIMIT 1";
   $st  = $dbRemote->prepare($sql);
