@@ -1,3 +1,7 @@
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#39;'}[m])
+);
+
 // ====== SETORES DESTINO ======
 const SECTORS_DEST = [
   'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS',
@@ -172,7 +176,7 @@ async function loadMyProcesses(){
 // ====== DETALHES + FLUXO (igual encaminhado.php) ======
 let currentProcess = null;
 
-function flowItem({ordem, setor, status, acao_finalizadora}) {
+function flowItem({ordem, setor, status, acao_finalizadora, acoes = []}) {
   const isDone = status === 'concluido';
   const isNow  = status === 'ativo' || status === 'atual';
 
@@ -190,13 +194,19 @@ function flowItem({ordem, setor, status, acao_finalizadora}) {
 
   const sub = isDone ? 'Concluído' : (isNow ? 'Destino atual' : '');
 
+  // lista compacta: últimas 3 ações, só o texto, coladas
+  const acoesHtml = (acoes.slice(-3)).map(a => `
+    <div class="text-xs text-gray-700 leading-tight">• ${esc(a.texto)}</div>
+  `).join('');
+
   return `
     <div class="flex items-start gap-3 p-4 rounded-lg border ${boxCls}">
       ${badge}
       <div class="flex-1">
-        <div class="font-semibold">${setor || '—'}</div>
+        <div class="font-semibold">${esc(setor || '—')}</div>
         ${sub ? `<div class="text-xs text-gray-500">${sub}</div>` : ''}
-        ${isDone && acao_finalizadora ? `<div class="text-xs text-gray-600">Ação: ${acao_finalizadora}</div>` : ''}
+        ${isDone && acao_finalizadora ? `<div class="text-xs text-gray-600">Ação: ${esc(acao_finalizadora)}</div>` : ''}
+        ${acoesHtml ? `<div class="mt-2 space-y-1">${acoesHtml}</div>` : ''}
       </div>
     </div>`;
 }
@@ -204,12 +214,45 @@ function flowItem({ordem, setor, status, acao_finalizadora}) {
 async function renderFlow(processoId){
   const wrap = document.getElementById('flowList');
   wrap.innerHTML = '<div class="text-gray-400">Carregando fluxo…</div>';
+
   try{
-    const r = await fetch(`listar_fluxo.php?id=${encodeURIComponent(processoId)}`, { credentials:'same-origin' });
-    const j = await r.json();
-    if (!r.ok || !j.ok) throw new Error(j.error || 'Falha ao listar fluxo');
-    const data = j.data || [];
-    wrap.innerHTML = data.map(flowItem).join('');
+    const [rf, ra] = await Promise.all([
+      fetch(`listar_fluxo.php?id=${encodeURIComponent(processoId)}`, { credentials:'same-origin' }),
+      fetch(`listar_acoes_internas.php?id=${encodeURIComponent(processoId)}`, { credentials:'same-origin' })
+    ]);
+
+    const jf = await rf.json();
+    const ja = await ra.json();
+    if (!rf.ok || !jf.ok) throw new Error(jf.error || 'Falha ao listar fluxo');
+    if (!ra.ok || !ja.ok) throw new Error(ja.error || 'Falha ao listar ações internas');
+
+    const fluxo = jf.data || [];
+    const todasAcoes = ja.data || [];
+
+    // agrupa ações por setor (lowercase)
+    const mapAcoes = todasAcoes.reduce((acc, a) => {
+      const k = String(a.setor || '').toLowerCase();
+      (acc[k] ||= []).push(a);
+      return acc;
+    }, {});
+
+    wrap.innerHTML = fluxo.map(f => {
+      const key = String(f.setor || '').toLowerCase();
+
+      // mostra lista pequena só NO SETOR ATUAL para quem criou o processo
+      const acoesParaEtapa = (f.status === 'ativo' || f.status === 'atual')
+        ? (mapAcoes[key] || [])
+        : [];
+
+      return flowItem({
+        ordem: f.ordem,
+        setor: f.setor,
+        status: f.status,
+        acao_finalizadora: f.acao_finalizadora,
+        acoes: acoesParaEtapa
+      });
+    }).join('');
+
   }catch(e){
     console.error(e);
     wrap.innerHTML = '<div class="text-red-500">Erro ao carregar fluxo.</div>';
