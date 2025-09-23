@@ -1,40 +1,44 @@
 <?php
+// templates/listar_encaminhados.php
+declare(strict_types=1);
 if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
-date_default_timezone_set('America/Recife');
 header('Content-Type: application/json; charset=utf-8');
+ini_set('display_errors','0'); ini_set('log_errors','1');
+while (ob_get_level() > 0) { ob_end_clean(); }
 
-$cfgPath = __DIR__ . '/config.php';
-if (!file_exists($cfgPath)) { $cfgPath = __DIR__ . '/../config.php'; }
-if (!file_exists($cfgPath)) {
-  http_response_code(500);
-  echo json_encode(['ok'=>false,'error'=>'Config não encontrada']);
-  exit;
-}
-require_once $cfgPath;
+require __DIR__.'/config.php';
 
-if (empty($_SESSION['auth_ok']) || empty($_SESSION['setor'])) {
-  http_response_code(401);
-  echo json_encode(['ok'=>false,'error'=>'Não autenticado']);
-  exit;
-}
+$reply = function(int $http, array $obj){ http_response_code($http); echo json_encode($obj,JSON_UNESCAPED_UNICODE); exit; };
+if (empty($_SESSION['auth_ok']) || empty($_SESSION['g_id'])) { $reply(401, ['ok'=>false,'error'=>'Não autenticado.']); }
 
-$setor = $_SESSION['setor'];
+$meuSetor = trim((string)($_SESSION['setor'] ?? ''));
+if ($meuSetor === '') { $reply(400, ['ok'=>false,'error'=>'Setor não encontrado na sessão.']); }
 
 try {
-  $sql = "SELECT id, numero_processo, setor_demandante, enviar_para, tipos_processo_json,
-                tipo_outros, descricao, data_registro
-          FROM novo_processo
-          WHERE TRIM(UPPER(enviar_para)) = TRIM(UPPER(?))
-          ORDER BY id DESC";
+  // traz processos cujo destino atual é meu setor OU que já tiveram etapa concluída pelo meu setor
+  $sql = "
+    SELECT np.id, np.numero_processo, np.setor_demandante, np.enviar_para,
+           np.tipos_processo_json, np.tipo_outros, np.descricao, np.data_registro
+    FROM novo_processo np
+    WHERE LOWER(np.enviar_para) = LOWER(?)
+       OR EXISTS (
+            SELECT 1
+              FROM processo_fluxo pf
+             WHERE pf.processo_id = np.id
+               AND LOWER(pf.setor) = LOWER(?)
+               AND pf.status = 'concluido'
+          )
+    ORDER BY np.data_registro DESC
+    LIMIT 300
+  ";
   $st = $connLocal->prepare($sql);
-  $st->bind_param('s', $_SESSION['setor']);
+  $st->bind_param('ss', $meuSetor, $meuSetor);
   $st->execute();
-  $res = $st->get_result();
-  $rows = [];
-  while ($r = $res->fetch_assoc()) { $rows[] = $r; }
-
-  echo json_encode(['ok'=>true,'data'=>$rows]);
+  $res  = $st->get_result();
+  $data = [];
+  while ($r = $res->fetch_assoc()) { $data[] = $r; }
+  $st->close();
+  $reply(200, ['ok'=>true, 'data'=>$data]);
 } catch (Throwable $e) {
-  http_response_code(500);
-  echo json_encode(['ok'=>false,'error'=>$e->getMessage()]);
+  $reply(500, ['ok'=>false,'error'=>$e->getMessage()]);
 }

@@ -98,7 +98,7 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
           </dl>
 
           <!-- Encaminhar (opcional: já tinha no seu modal) -->
-          <div class="mt-5 border-t pt-4">
+          <div id="encBlock" class="mt-5 border-t pt-4">
             <label class="block text-sm font-medium text-gray-700 mb-1">Encaminhar para</label>
             <select id="nextSector" class="w-full border rounded-md px-3 py-2">
               <option value="" selected disabled>Selecione o próximo setor...</option>
@@ -320,6 +320,13 @@ async function loadIncoming(){
 let currentProcess = null;
 
 function openDetails(p){
+  const canAct = String(p.enviar_para||'').toLowerCase() === String(MY_SETOR||'').toLowerCase();
+
+  const encBlock = document.getElementById('encBlock');
+  const btnAcoesEl = document.getElementById('btnAcoes');
+  if (encBlock)  encBlock.classList.toggle('hidden', !canAct);
+  if (btnAcoesEl) btnAcoesEl.classList.toggle('hidden', !canAct);
+
   currentProcess = p;
 
   // informações gerais
