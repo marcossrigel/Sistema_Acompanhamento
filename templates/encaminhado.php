@@ -112,6 +112,32 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
               Encaminhar
             </button>
           </div>
+
+          <!-- Modal Ações Internas -->
+          <div id="acoesModal" class="fixed inset-0 hidden bg-black/40 items-center justify-center z-[60]">
+            <div class="bg-white rounded-lg p-6 w-full max-w-xl shadow-2xl">
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold">Ações Internas do Setor</h2>
+                <button id="fecharAcoes" class="text-gray-500 hover:text-gray-700"><i class="fa-solid fa-xmark text-xl"></i></button>
+              </div>
+
+              <ul id="acoesList" class="space-y-3 max-h-64 overflow-auto mb-4">
+                <!-- itens renderizados via JS -->
+              </ul>
+
+              <label class="block text-sm text-gray-600 mb-1">Nova ação (visível a todos):</label>
+              <textarea id="acaoTexto" class="w-full border rounded p-2" rows="3"
+                placeholder="Ex.: Tive um problema com tal emenda"></textarea>
+
+              <div class="flex justify-end gap-2 mt-3">
+                <button id="cancelarAcoes" class="px-4 py-2 rounded bg-gray-200">Cancelar</button>
+                <button id="salvarAcao" class="px-4 py-2 rounded bg-blue-600 text-white">Salvar ação</button>
+              </div>
+            </div>
+          </div>
+          <button id="btnAcoes" class="mt-2 w-full border bg-white hover:bg-gray-50 text-gray-700 font-semibold px-4 py-2 rounded-md">
+            Ações internas
+          </button>
         </div>
       </aside>
     </div>
@@ -137,11 +163,95 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
   </div>
 </div>
 
-
-
 <script>
+
+/* ======== AÇÕES INTERNAS ======== */
+const acoesModal   = document.getElementById('acoesModal');
+const btnAcoes     = document.getElementById('btnAcoes');
+const fecharAcoes  = document.getElementById('fecharAcoes');
+const cancelarAcoes= document.getElementById('cancelarAcoes');
+const salvarAcao   = document.getElementById('salvarAcao');
+const acoesList    = document.getElementById('acoesList');
+const acaoTexto    = document.getElementById('acaoTexto');
+
+function renderAcoesItem(a){
+  const li = document.createElement('li');
+  li.className = "p-3 border rounded-lg bg-gray-50";
+  li.innerHTML = `
+    <div class="text-sm text-gray-800 whitespace-pre-wrap break-words">${a.texto}</div>
+    <div class="mt-1 text-xs text-gray-500">
+      <span class="font-medium">${a.setor}</span>
+      ${a.usuario ? ` • ${a.usuario}` : ''} • ${brDate(a.data_registro)}
+    </div>`;
+  return li;
+}
+
+async function loadAcoes(){
+  if (!currentProcess) return;
+  acoesList.innerHTML = `<li class="text-center text-gray-400 p-3">Carregando…</li>`;
+  try{
+    const r = await fetch(`listar_acoes_internas.php?id=${encodeURIComponent(currentProcess.id)}`, { credentials:'same-origin' });
+    const j = await r.json();
+    if (!r.ok || !j.ok) throw new Error(j.error||'erro');
+    const data = j.data || [];
+    if (!data.length) {
+      acoesList.innerHTML = `<li class="text-center text-gray-400 p-3">Nenhuma ação interna ainda.</li>`;
+      return;
+    }
+    acoesList.innerHTML = "";
+    data.forEach(a => acoesList.appendChild(renderAcoesItem(a)));
+  }catch(e){
+    console.error(e);
+    acoesList.innerHTML = `<li class="text-center text-red-500 p-3">Falha ao carregar.</li>`;
+  }
+}
+
+function openAcoes(){
+  acaoTexto.value = '';
+  acoesModal.classList.remove('hidden');
+  acoesModal.classList.add('flex');
+  loadAcoes();
+}
+function closeAcoes(){
+  acoesModal.classList.add('hidden');
+  acoesModal.classList.remove('flex');
+}
+
+btnAcoes?.addEventListener('click', openAcoes);
+fecharAcoes?.addEventListener('click', closeAcoes);
+cancelarAcoes?.addEventListener('click', closeAcoes);
+acoesModal?.addEventListener('click', (e)=>{ if (e.target===acoesModal) closeAcoes(); });
+
+salvarAcao?.addEventListener('click', async ()=>{
+  const txt = (acaoTexto.value||'').trim();
+  if (!txt) { alert('Descreva a ação.'); return; }
+  try{
+    const r = await fetch('salvar_acao_interna.php', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      credentials:'same-origin',
+      body: JSON.stringify({ processo_id: currentProcess.id, texto: txt })
+    });
+    const raw = await r.text();
+    let j; try { j = JSON.parse(raw); } catch { throw new Error('Resposta não-JSON: '+raw); }
+    if (!r.ok || !j.ok) throw new Error(j.error||'Falha ao salvar');
+
+    acaoTexto.value = '';
+    await loadAcoes();       // recarrega a lista
+    await renderFlow(currentProcess.id);
+  }catch(e){
+    alert('Erro: ' + (e.message||e));
+    console.error(e);
+  }
+});
+
+
 /* ========= helpers ========= */
 const MY_SETOR = <?= json_encode($_SESSION['setor'] ?? '') ?>;
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#39;'}[m])
+);
 
 const brDate = iso => {
   if (!iso) return '—';
@@ -251,8 +361,7 @@ document.getElementById('detailsModal').addEventListener('click', (e)=>{
   if (e.target.id === 'detailsModal') closeDetails();
 });
 
-/* ========= fluxo dinâmico ========= */
-function flowItem({ordem, setor, status, acao_finalizadora}) {
+function flowItem({ordem, setor, status, acao_finalizadora, acoes}) {
   const isDone = status === 'concluido';
   const isNow  = status === 'ativo' || status === 'atual';
 
@@ -270,26 +379,70 @@ function flowItem({ordem, setor, status, acao_finalizadora}) {
 
   const sub = isDone ? 'Concluído' : (isNow ? 'Destino atual' : '');
 
-  return `
-    <div class="flex items-start gap-3 p-4 rounded-lg border ${boxCls}">
-      ${badge}
-      <div class="flex-1">
-        <div class="font-semibold">${setor || '—'}</div>
-        ${sub ? `<div class="text-xs text-gray-500">${sub}</div>` : ''}
-        ${isDone && acao_finalizadora ? `<div class="text-xs text-gray-600">Ação: ${acao_finalizadora}</div>` : ''}
-      </div>
-    </div>`;
+  // ==== ações internas (lista sob o setor) ====
+// ==== ações internas (alinhadas com o título do setor) ====
+const acoesHtml = (acoes || []).length
+  ? `
+    <div class="mt-1 flex flex-col gap-1">
+      ${(acoes || []).map(a => `
+        <div class="text-xs leading-tight text-gray-700 whitespace-pre-wrap break-words">
+          <span class="text-gray-500">ação interna - </span>${esc(a.texto)}
+        </div>
+      `).join('')}
+    </div>`
+  : '';
+
+return `
+  <div class="flex items-start gap-3 p-4 rounded-lg border ${boxCls}">
+    ${badge}
+    <div class="flex-1">
+      <div class="font-semibold">${esc(setor || '—')}</div>
+      ${sub ? `<div class="text-xs text-gray-500">${sub}</div>` : ''}
+      ${isDone && acao_finalizadora ? `<div class="text-xs text-gray-600">Ação: ${esc(acao_finalizadora)}</div>` : ''}
+      ${acoesHtml}
+    </div>
+  </div>`;
 }
 
 async function renderFlow(processoId){
   const wrap = document.getElementById('flowList');
   wrap.innerHTML = '<div class="text-gray-400">Carregando fluxo…</div>';
+
   try{
-    const r = await fetch(`listar_fluxo.php?id=${processoId}`, { credentials:'same-origin' });
-    const j = await r.json();
-    if (!r.ok || !j.ok) throw new Error(j.error || 'Falha ao listar fluxo');
-    const data = j.data || [];
-    wrap.innerHTML = data.map(flowItem).join('');
+    // busca em paralelo
+    const [rf, ra] = await Promise.all([
+      fetch(`listar_fluxo.php?id=${encodeURIComponent(processoId)}`, { credentials:'same-origin' }),
+      fetch(`listar_acoes_internas.php?id=${encodeURIComponent(processoId)}`, { credentials:'same-origin' })
+    ]);
+
+    const jf = await rf.json();
+    const ja = await ra.json();
+
+    if (!rf.ok || !jf.ok) throw new Error(jf.error || 'Falha ao listar fluxo');
+    if (!ra.ok || !ja.ok) throw new Error(ja.error || 'Falha ao listar ações internas');
+
+    const fluxo = jf.data || [];
+    const acoes = ja.data || [];
+
+    // agrupa ações por setor (case-insensitive)
+    const mapAcoes = acoes.reduce((acc, a) => {
+      const k = String(a.setor || '').toLowerCase();
+      (acc[k] ||= []).push(a);
+      return acc;
+    }, {});
+
+    // injeta as ações correspondentes em cada etapa do fluxo
+    wrap.innerHTML = fluxo.map(f => {
+      const key = String(f.setor || '').toLowerCase();
+      return flowItem({
+        ordem: f.ordem,
+        setor: f.setor,
+        status: f.status,
+        acao_finalizadora: f.acao_finalizadora,
+        acoes: mapAcoes[key] || []   // << aqui entram as ações do setor
+      });
+    }).join('');
+
   }catch(e){
     console.error(e);
     wrap.innerHTML = '<div class="text-red-500">Erro ao carregar fluxo.</div>';
