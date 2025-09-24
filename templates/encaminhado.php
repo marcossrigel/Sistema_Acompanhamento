@@ -400,13 +400,16 @@ function flowItem({ordem, setor, status, acao_finalizadora, acoes}) {
 
   // === Ações internas como UL compacta, com bullet colado no texto (list-inside)
   const acoesHtml = (acoes || []).length
-  ? (() => {
-      const items = (acoes || []).map(a =>
-        `<li class="text-xs leading-snug text-gray-700 break-words">${esc(a.texto)}</li>`
-      ).join('');
-      return `<ul class="mt-2 list-disc list-inside space-y-1">${items}</ul>`;
-    })()
-  : '';
+    ? (() => {
+        const items = (acoes || []).map(a => {
+          const when = a.data_registro
+            ? ` <span class="text-gray-500">• ${brDate(a.data_registro)}</span>`
+            : '';
+          return `<li class="text-xs leading-snug text-gray-700 break-words">${esc(a.texto)}${when}</li>`;
+        }).join('');
+        return `<ul class="mt-2 list-disc list-inside space-y-1">${items}</ul>`;
+      })()
+    : '';
 
   return `
     <div class="flex items-start gap-3 p-4 rounded-lg border ${boxCls}">

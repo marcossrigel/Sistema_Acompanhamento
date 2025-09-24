@@ -240,9 +240,7 @@ async function renderFlow(processoId){
       const key = String(f.setor || '').toLowerCase();
 
       // mostra lista pequena só NO SETOR ATUAL para quem criou o processo
-      const acoesParaEtapa = (f.status === 'ativo' || f.status === 'atual')
-        ? (mapAcoes[key] || [])
-        : [];
+      const acoesParaEtapa = (mapAcoes[key] || []);
 
       return flowItem({
         ordem: f.ordem,
