@@ -22,6 +22,8 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <style>
     body{font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial,'Noto Sans';background:#f0f2f5}
+    #detailsModal #flowList ul { padding-left: 0; }
+    #detailsModal #flowList li { text-indent: 0; }
   </style>
 </head>
 <body class="antialiased">
@@ -84,62 +86,69 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
       </div>
 
       <!-- Informações gerais -->
-      <aside class="lg:col-span-1">
-        <div class="bg-gray-50 border rounded-lg p-4">
-          <h4 class="font-semibold text-gray-800 mb-3">Informações Gerais</h4>
-          <dl class="text-sm space-y-3">
-            <div><dt class="text-gray-500">Número:</dt><dd id="d_num" class="font-medium">—</dd></div>
-            <div><dt class="text-gray-500">Setor Demandante:</dt><dd id="d_setor" class="font-medium">—</dd></div>
-            <div><dt class="text-gray-500">Enviar para:</dt><dd id="d_dest" class="font-medium">—</dd></div>
-            <div><dt class="text-gray-500">Tipos:</dt><dd id="d_tipos" class="font-medium">—</dd></div>
-            <div id="d_outros_row" class="hidden"><dt class="text-gray-500">Outros:</dt><dd id="d_outros" class="font-medium">—</dd></div>
-            <div><dt class="text-gray-500">Descrição:</dt><dd id="d_desc" class="font-medium break-words">—</dd></div>
-            <div><dt class="text-gray-500">Criado em:</dt><dd id="d_dt" class="font-medium">—</dd></div>
-          </dl>
+      <!-- Informações gerais -->
+<aside class="lg:col-span-1">
+  <div class="bg-gray-50 border rounded-lg p-4">
+    <h4 class="font-semibold text-gray-800 mb-3">Informações Gerais</h4>
 
-          <!-- Encaminhar (opcional: já tinha no seu modal) -->
-          <div id="encBlock" class="mt-5 border-t pt-4">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Encaminhar para</label>
-            <select id="nextSector" class="w-full border rounded-md px-3 py-2">
-              <option value="" selected disabled>Selecione o próximo setor...</option>
-              <option>GECOMP</option><option>DDO</option><option>CPL</option>
-              <option>DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS</option>
-              <option>PARECER JUR</option><option>GEFIN NE INICIAL</option><option>REMESSA</option>
-              <option>GOP PF (SEFAZ)</option><option>GEFIN NE DEFINITIVO</option><option>LIQ</option>
-              <option>PD (SEFAZ)</option><option>OB</option>
-            </select>
-            <button id="btnEncaminhar" class="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-md">
-              Encaminhar
-            </button>
-          </div>
+    <!-- labels e valores em linha, igual ao home.php -->
+    <div class="space-y-2 text-sm">
+      <p><span class="text-gray-500">Número:</span> <span id="d_num" class="font-medium">—</span></p>
+      <p><span class="text-gray-500">Setor Demandante:</span> <span id="d_setor" class="font-medium">—</span></p>
+      <p><span class="text-gray-500">Tipos:</span> <span id="d_tipos" class="font-medium">—</span></p>
+      <p id="d_outros_row" class="hidden">
+        <span class="text-gray-500">Outros:</span> <span id="d_outros" class="font-medium">—</span>
+      </p>
+      <p><span class="text-gray-500">Descrição:</span> <span id="d_desc" class="font-medium break-words">—</span></p>
+      <p><span class="text-gray-500">Criado em:</span> <span id="d_dt" class="font-medium">—</span></p>
+    </div>
+  </div>
 
-          <!-- Modal Ações Internas -->
-          <div id="acoesModal" class="fixed inset-0 hidden bg-black/40 items-center justify-center z-[60]">
-            <div class="bg-white rounded-lg p-6 w-full max-w-xl shadow-2xl">
-              <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold">Ações Internas do Setor</h2>
-                <button id="fecharAcoes" class="text-gray-500 hover:text-gray-700"><i class="fa-solid fa-xmark text-xl"></i></button>
-              </div>
+  <!-- “Enviar para” separado (não faz parte do box de Informações Gerais) -->
+  <div class="mt-3 text-sm">
+    <p>
+      <span class="text-gray-500">Enviar para:</span>
+      <span id="d_dest" class="font-medium">—</span>
+    </p>
+  </div>
 
-              <ul id="acoesList" class="space-y-3 max-h-64 overflow-auto mb-4">
-                <!-- itens renderizados via JS -->
-              </ul>
+  <!-- Encaminhar (já existente) -->
+    <div id="encBlock" class="mt-4 border-t pt-4">
+      <label class="block text-sm font-medium text-gray-700 mb-1">Encaminhar para</label>
+      <select id="nextSector" class="w-full border rounded-md px-3 py-2">
+        <option value="" selected disabled>Selecione o próximo setor...</option>
+        <option>GECOMP</option><option>DDO</option><option>CPL</option>
+        <option>DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS</option>
+        <option>PARECER JUR</option><option>GEFIN NE INICIAL</option><option>REMESSA</option>
+        <option>GOP PF (SEFAZ)</option><option>GEFIN NE DEFINITIVO</option><option>LIQ</option>
+        <option>PD (SEFAZ)</option><option>OB</option>
+      </select>
+      <button id="btnEncaminhar" class="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-md">
+        Encaminhar
+      </button>
+    </div>
 
-              <label class="block text-sm text-gray-600 mb-1">Nova ação (visível a todos):</label>
-              <textarea id="acaoTexto" class="w-full border rounded p-2" rows="3"
-                placeholder="Ex.: Tive um problema com tal emenda"></textarea>
-
-              <div class="flex justify-end gap-2 mt-3">
-                <button id="cancelarAcoes" class="px-4 py-2 rounded bg-gray-200">Cancelar</button>
-                <button id="salvarAcao" class="px-4 py-2 rounded bg-blue-600 text-white">Salvar ação</button>
-              </div>
-            </div>
-          </div>
-          <button id="btnAcoes" class="mt-2 w-full border bg-white hover:bg-gray-50 text-gray-700 font-semibold px-4 py-2 rounded-md">
-            Ações internas
-          </button>
+    <!-- Modal Ações Internas (inalterado) -->
+    <div id="acoesModal" class="fixed inset-0 hidden bg-black/40 items-center justify-center z-[60]">
+      <div class="bg-white rounded-lg p-6 w-full max-w-xl shadow-2xl">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold">Ações Internas do Setor</h2>
+          <button id="fecharAcoes" class="text-gray-500 hover:text-gray-700"><i class="fa-solid fa-xmark text-xl"></i></button>
         </div>
-      </aside>
+        <ul id="acoesList" class="space-y-3 max-h-64 overflow-auto mb-4"></ul>
+        <label class="block text-sm text-gray-600 mb-1">Nova ação (visível a todos):</label>
+        <textarea id="acaoTexto" class="w-full border rounded p-2" rows="3" placeholder="Ex.: Tive um problema com tal emenda"></textarea>
+        <div class="flex justify-end gap-2 mt-3">
+          <button id="cancelarAcoes" class="px-4 py-2 rounded bg-gray-200">Cancelar</button>
+          <button id="salvarAcao" class="px-4 py-2 rounded bg-blue-600 text-white">Salvar ação</button>
+        </div>
+      </div>
+    </div>
+    <button id="btnAcoes" class="mt-2 w-full border bg-white hover:bg-gray-50 text-gray-700 font-semibold px-4 py-2 rounded-md">
+      Ações internas
+    </button>
+  </aside>
+
     </div>
 
     <div class="p-5 border-t text-right">
@@ -386,29 +395,26 @@ function flowItem({ordem, setor, status, acao_finalizadora, acoes}) {
 
   const sub = isDone ? 'Concluído' : (isNow ? 'Destino atual' : '');
 
-  // ==== ações internas (lista sob o setor) ====
-// ==== ações internas (alinhadas com o título do setor) ====
-const acoesHtml = (acoes || []).length
-  ? `
-    <div class="mt-1 flex flex-col gap-1">
-      ${(acoes || []).map(a => `
-        <div class="text-xs leading-tight text-gray-700 whitespace-pre-wrap break-words">
-          <span class="text-gray-500">ação interna - </span>${esc(a.texto)}
-        </div>
-      `).join('')}
-    </div>`
+  // === Ações internas como UL compacta, com bullet colado no texto (list-inside)
+  const acoesHtml = (acoes || []).length
+  ? (() => {
+      const items = (acoes || []).map(a =>
+        `<li class="text-xs leading-snug text-gray-700 break-words">${esc(a.texto)}</li>`
+      ).join('');
+      return `<ul class="mt-2 list-disc list-inside space-y-1">${items}</ul>`;
+    })()
   : '';
 
-return `
-  <div class="flex items-start gap-3 p-4 rounded-lg border ${boxCls}">
-    ${badge}
-    <div class="flex-1">
-      <div class="font-semibold">${esc(setor || '—')}</div>
-      ${sub ? `<div class="text-xs text-gray-500">${sub}</div>` : ''}
-      ${isDone && acao_finalizadora ? `<div class="text-xs text-gray-600">Ação: ${esc(acao_finalizadora)}</div>` : ''}
-      ${acoesHtml}
-    </div>
-  </div>`;
+  return `
+    <div class="flex items-start gap-3 p-4 rounded-lg border ${boxCls}">
+      ${badge}
+      <div class="flex-1">
+        <div class="font-semibold">${esc(setor || '—')}</div>
+        ${sub ? `<div class="text-xs text-gray-500">${sub}</div>` : ''}
+        ${isDone && acao_finalizadora ? `<div class="text-xs text-gray-600">Ação: ${esc(acao_finalizadora)}</div>` : ''}
+        ${acoesHtml}
+      </div>
+    </div>`;
 }
 
 async function renderFlow(processoId){
