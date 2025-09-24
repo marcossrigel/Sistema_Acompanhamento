@@ -287,7 +287,10 @@ async function loadIncoming(){
     const j = await r.json();
     if (!r.ok || !j.ok) throw new Error(j.error || 'Falha ao listar');
 
-    const data = j.data || [];
+    const isMine = (s) => String(s || '').toLowerCase() === String(MY_SETOR || '').toLowerCase();
+
+    const data = (j.data || []).filter(p => isMine(p.enviar_para) && !isMine(p.setor_demandante));
+
     if (!data.length) {
       wrap.innerHTML = `
         <div class="col-span-full text-gray-400 border border-dashed rounded-lg p-8 text-center">
