@@ -10,12 +10,17 @@ $SETORES = [
   'LIQ','PD (SEFAZ)','OB'
 ];
 
+$GETIC_URL = 'https://www.getic.pe.gov.br/';
+
 $g_id   = (int)($_GET['g_id']   ?? $_POST['g_id']   ?? 0);
 $u_rede = trim($_GET['u_rede']  ?? $_POST['u_rede'] ?? '');
 $nome   = trim($_GET['nome']    ?? $_POST['nome']   ?? '');
 $email  = trim($_GET['email']   ?? $_POST['email']  ?? '');
 
-// se POST: salva cadastro local
+$erro = '';
+$ok   = false;
+
+// se POST: salva uma SOLICITAÇÃO
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $nomePost  = trim($_POST['nome'] ?? '');
   $setorPost = trim($_POST['setor'] ?? '');
@@ -24,23 +29,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     http_response_code(422);
     $erro = 'Preencha corretamente os campos (nome e setor).';
   } else {
-    $sql = "INSERT INTO usuarios (id_usuario_cehab_online, nome, setor, tipo)
-            VALUES (?,?,?, 'comum')";
+    // INSERT na tabela solicitacoes
+    $sql = "INSERT INTO solicitacoes
+              (id_usuario_cehab_online, nome, setor, status)
+            VALUES (?, ?, ?, 'ABERTA')";
     $st  = $connLocal->prepare($sql);
-    $st->bind_param('iss', $g_id, $nomePost, $setorPost);
-    if ($st->execute()) {
-      // cria sessão mínima e vai pra home
-      $_SESSION['auth_ok'] = true;
-      $_SESSION['g_id']    = $g_id;
-      $_SESSION['u_rede']  = $u_rede;
-      $_SESSION['nome']    = $nomePost;
-      $_SESSION['email']   = $email;
-      $_SESSION['setor']   = $setorPost;
-      $_SESSION['id_usuario_local'] = $connLocal->insert_id;
-      header('Location: home.php');
-      exit;
+    if ($st === false) {
+      $erro = 'Falha ao preparar inserção.';
     } else {
-      $erro = 'Falha ao salvar cadastro local.';
+      $st->bind_param('iss', $g_id, $nomePost, $setorPost);
+      if ($st->execute()) {
+        $ok = true; // exibe modal de sucesso
+      } else {
+        $erro = 'Falha ao salvar a solicitação.';
+      }
+      $st->close();
     }
   }
 }
@@ -56,10 +59,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body class="bg-[#f0f2f5]" style="font-family:Inter,system-ui">
   <div class="max-w-xl mx-auto mt-16 bg-white rounded-lg shadow p-6">
     <h1 class="text-2xl font-bold text-gray-800 mb-1">Bem-vindo(a)!</h1>
-    <p class="text-gray-600 mb-6">Complete os dados abaixo para finalizar seu cadastro.</p>
+    <p class="text-gray-600 mb-6">Complete os dados abaixo para enviar sua solicitação de acesso.</p>
 
     <?php if (!empty($erro)): ?>
-      <div class="mb-4 rounded bg-red-50 text-red-700 px-4 py-2 border border-red-200"><?= htmlspecialchars($erro, ENT_QUOTES, 'UTF-8') ?></div>
+      <div class="mb-4 rounded bg-red-50 text-red-700 px-4 py-2 border border-red-200">
+        <?= htmlspecialchars($erro, ENT_QUOTES, 'UTF-8') ?>
+      </div>
     <?php endif; ?>
 
     <form method="post" class="space-y-4">
@@ -70,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <div>
         <label class="block text-sm font-medium text-gray-700">Nome completo</label>
         <input name="nome" type="text" value="<?= htmlspecialchars($nome) ?>"
-               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
       </div>
 
       <div>
@@ -84,10 +89,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </div>
 
       <div class="flex justify-end gap-2 pt-2">
-        <a href="./" class="px-4 py-2 rounded-lg border text-gray-700 hover:bg-gray-50">Cancelar</a>
-        <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700">Salvar e continuar</button>
+        <a href="<?= $GETIC_URL ?>" class="px-4 py-2 rounded-lg border text-gray-700 hover:bg-gray-50">Cancelar</a>
+        <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700">
+          Salvar e continuar
+        </button>
       </div>
     </form>
   </div>
+
+  <!-- Modal de Sucesso -->
+  <div id="successModal" class="fixed inset-0 z-50 <?= $ok ? 'flex' : 'hidden' ?> bg-black/40 items-center justify-center">
+    <div class="bg-white rounded-lg shadow-2xl w-full max-w-sm m-4 overflow-hidden">
+      <div class="p-6 text-center">
+        <h3 class="text-xl font-semibold text-gray-800 mb-2">Solicitação enviada com sucesso!</h3>
+        <p class="text-gray-600 mb-5">Aguarde liberação.</p>
+        <button id="successOkBtn"
+          class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg">
+          OK
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const okBtn = document.getElementById('successOkBtn');
+      if (okBtn) {
+        okBtn.addEventListener('click', function () {
+          window.location.href = <?= json_encode($GETIC_URL) ?>;
+        });
+      }
+    })();
+  </script>
 </body>
 </html>
