@@ -4,11 +4,31 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
 
 // ====== SETORES DESTINO ======
 const SECTORS_DEST = [
-  'DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS',
-  'GECOMP','DDO','CPL','DAF - HOMOLOGACAO','PARECER JUR',
-  'GEFIN NE INICIAL','REMESSA','GOP PF (SEFAZ)','GEFIN NE DEFINITIVO',
-  'LIQ','PD (SEFAZ)','OB'
+  'DAF - Diretoria de Administração e Finanças',
+  'DOHDU - Diretoria de Obras',
+  'CELOE I - Comissão de Licitação I',
+  'CELOE II - Comissão de Licitação II',
+  'CELOSE - Comissão de Licitação',
+  'GCOMP - Gerência de Compras',
+  'GOP - Gerência de Orçamento e Planejamento',
+  'GFIN - Gerência Financeira',
+  'GCONT - Gerência de Contabilidade',
+  'DP - Diretoria da Presidência',
+  'GAD - Gerência Administrativa',
+  'GAC - Gerência de Acompanhamento de Contratos',
+  'CGAB - Chefia de Gabinete',
+  'DOE - Diretoria de Obras Estratégicas',
+  'DSU - Diretoria de Obras de Saúde',
+  'DSG - Diretoria de Obras de Segurança',
+  'DED - Diretoria de Obras de Educação',
+  'SPO - Superintendência de Projetos de Obras',
+  'SUAJ - Superintendência de Apoio Jurídico',
+  'SUFIN - Superintendência Financeira',
+  'GAJ - Gerência de Apoio Jurídico',
+  'SUPLAN - Superintendência de Planejamento',
+  'DPH - Diretoria de Projetos Habitacionais'
 ];
+
 
 // ====== ELEMENTOS DO MODAL "NOVO PROCESSO" ======
 const openBtn  = document.getElementById('newProcessBtn');

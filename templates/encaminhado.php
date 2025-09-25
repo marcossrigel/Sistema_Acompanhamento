@@ -11,6 +11,7 @@ if (empty($_SESSION['auth_ok']) || empty($_SESSION['g_id'])) {
 $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
 $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
 ?>
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -115,14 +116,34 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
   <!-- Encaminhar (já existente) -->
     <div id="encBlock" class="mt-4 border-t pt-4">
       <label class="block text-sm font-medium text-gray-700 mb-1">Encaminhar para</label>
+      
       <select id="nextSector" class="w-full border rounded-md px-3 py-2">
-        <option value="" selected disabled>Selecione o próximo setor...</option>
-        <option>GECOMP</option><option>DDO</option><option>CPL</option>
-        <option>DAF - DIRETORIA DE ADMINISTRAÇÃO E FINANÇAS</option>
-        <option>PARECER JUR</option><option>GEFIN NE INICIAL</option><option>REMESSA</option>
-        <option>GOP PF (SEFAZ)</option><option>GEFIN NE DEFINITIVO</option><option>LIQ</option>
-        <option>PD (SEFAZ)</option><option>OB</option>
+        <option value="" selected disabled>Selecione o próximo setor.</option>
+        <option>DAF - Diretoria de Administração e Finanças</option>
+        <option>DOHDU - Diretoria de Obras</option>
+        <option>CELOE I - Comissão de Licitação I</option>
+        <option>CELOE II - Comissão de Licitação II</option>
+        <option>CELOSE - Comissão de Licitação</option>
+        <option>GCOMP - Gerência de Compras</option>
+        <option>GOP - Gerência de Orçamento e Planejamento</option>
+        <option>GFIN - Gerência Financeira</option>
+        <option>GCONT - Gerência de Contabilidade</option>
+        <option>DP - Diretoria da Presidência</option>
+        <option>GAD - Gerência Administrativa</option>
+        <option>GAC - Gerência de Acompanhamento de Contratos</option>
+        <option>CGAB - Chefia de Gabinete</option>
+        <option>DOE - Diretoria de Obras Estratégicas</option>
+        <option>DSU - Diretoria de Obras de Saúde</option>
+        <option>DSG - Diretoria de Obras de Segurança</option>
+        <option>DED - Diretoria de Obras de Educação</option>
+        <option>SPO - Superintendência de Projetos de Obras</option>
+        <option>SUAJ - Superintendência de Apoio Jurídico</option>
+        <option>SUFIN - Superintendência Financeira</option>
+        <option>GAJ - Gerência de Apoio Jurídico</option>
+        <option>SUPLAN - Superintendência de Planejamento</option>
+        <option>DPH - Diretoria de Projetos Habitacionais</option>
       </select>
+
       <button id="btnEncaminhar" class="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-md">
         Encaminhar
       </button>
@@ -269,6 +290,11 @@ const brDate = iso => {
                   : d.toLocaleDateString('pt-BR') + ' ' +
                     d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
 };
+const brDay = iso => {
+  if (!iso) return '—';
+  const d = new Date(String(iso).replace(' ', 'T'));
+  return isNaN(d) ? '—' : d.toLocaleDateString('pt-BR');
+};
 const parseTipos = j => {
   try { const a = JSON.parse(j||'[]'); return Array.isArray(a) ? a.join(', ') : ''; }
   catch { return ''; }
@@ -287,9 +313,7 @@ async function loadIncoming(){
     const j = await r.json();
     if (!r.ok || !j.ok) throw new Error(j.error || 'Falha ao listar');
 
-    const isMine = (s) => String(s || '').toLowerCase() === String(MY_SETOR || '').toLowerCase();
-
-    const data = (j.data || []).filter(p => isMine(p.enviar_para) && !isMine(p.setor_demandante));
+    const data = (j.data || []);
 
     if (!data.length) {
       wrap.innerHTML = `
@@ -380,7 +404,7 @@ document.getElementById('detailsModal').addEventListener('click', (e)=>{
   if (e.target.id === 'detailsModal') closeDetails();
 });
 
-function flowItem({ordem, setor, status, acao_finalizadora, acoes}) {
+function flowItem({ordem, setor, status, acao_finalizadora, acoes, entrada, saida}) {
   const isDone = status === 'concluido';
   const isNow  = status === 'ativo' || status === 'atual';
 
@@ -398,7 +422,30 @@ function flowItem({ordem, setor, status, acao_finalizadora, acoes}) {
 
   const sub = isDone ? 'Concluído' : (isNow ? 'Destino atual' : '');
 
-  // === Ações internas como UL compacta, com bullet colado no texto (list-inside)
+  // 👇 linha discreta com datas (apenas data) e ícone seta→porta
+  // - Concluído: mostra entrada e saída
+  // - Atual: mostra só entrada
+  const datasHtml = (() => {
+    const entrou = brDay(entrada);
+    const saiu   = isDone ? brDay(saida) : null;
+
+    // ícones Font Awesome (seta longa + porta)
+    const icone  = `<i class="fa-solid fa-arrow-right-long mx-1"></i><i class="fa-solid fa-door-open"></i>`;
+
+    if (isDone) {
+      return `<div class="mt-1 text-xs text-gray-600">
+                <span class="text-gray-500">Entrada:</span> ${entrou}
+                <span class="mx-2 text-gray-400">${icone}</span>
+                <span class="text-gray-500">Saída:</span> ${saiu}
+              </div>`;
+    }
+    // etapa atual: somente a entrada
+    return `<div class="mt-1 text-xs text-gray-600">
+              <span class="text-gray-500">Entrada:</span> ${entrou}
+            </div>`;
+  })();
+
+  // === Ações internas (mantido)
   const acoesHtml = (acoes || []).length
     ? (() => {
         const items = (acoes || []).map(a => {
@@ -417,6 +464,7 @@ function flowItem({ordem, setor, status, acao_finalizadora, acoes}) {
       <div class="flex-1">
         <div class="font-semibold">${esc(setor || '—')}</div>
         ${sub ? `<div class="text-xs text-gray-500">${sub}</div>` : ''}
+        ${datasHtml}                                     <!-- 👈 datas aqui -->
         ${isDone && acao_finalizadora ? `<div class="text-xs text-gray-600">Ação: ${esc(acao_finalizadora)}</div>` : ''}
         ${acoesHtml}
       </div>
@@ -458,7 +506,9 @@ async function renderFlow(processoId){
         setor: f.setor,
         status: f.status,
         acao_finalizadora: f.acao_finalizadora,
-        acoes: mapAcoes[key] || []   // << aqui entram as ações do setor
+        acoes: mapAcoes[key] || [],
+        entrada: f.data_registro,   // << data de entrada no setor
+        saida:  f.data_fim          // << data de saída (quando encaminhou)
       });
     }).join('');
 

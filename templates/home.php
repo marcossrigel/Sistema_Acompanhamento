@@ -9,6 +9,7 @@ if (empty($_SESSION['auth_ok']) || empty($_SESSION['g_id'])) {
 $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
 $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
 ?>
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -92,7 +93,8 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
           <label class="block text-sm font-medium text-gray-700">Enviar para</label>
           <select id="destSector" required
                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-            <option value="" selected disabled>Selecione o setor...</option>
+            <option value="" selected disabled>Selecione o setor.</option>
+              <!-- Mesma lista de opções que acima -->
           </select>
         </div>
 

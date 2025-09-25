@@ -11,7 +11,7 @@ $processoId = $param;
 
 /** tenta histórico direto (assumindo que $param é processo_id) */
 $stmt = $connLocal->prepare("
-  SELECT id, processo_id, ordem, setor, status, data_registro, acao_finalizadora
+  SELECT id, processo_id, ordem, setor, status, data_registro, data_fim, acao_finalizadora
   FROM processo_fluxo
   WHERE processo_id = ?
   ORDER BY ordem ASC, id ASC
@@ -32,7 +32,7 @@ if (!$rows || count($rows) === 0) {
     $processoId = (int)$pf['processo_id'];
 
     $stmt2 = $connLocal->prepare("
-      SELECT id, processo_id, ordem, setor, status, data_registro, acao_finalizadora
+      SELECT id, processo_id, ordem, setor, status, data_registro, data_fim, acao_finalizadora
       FROM processo_fluxo
       WHERE processo_id = ?
       ORDER BY ordem ASC, id ASC
