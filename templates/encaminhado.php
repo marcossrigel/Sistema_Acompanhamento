@@ -404,7 +404,7 @@ document.getElementById('detailsModal').addEventListener('click', (e)=>{
   if (e.target.id === 'detailsModal') closeDetails();
 });
 
-function flowItem({ordem, setor, status, acao_finalizadora, acoes, entrada, saida}) {
+function flowItem({ordem, setor, status, acao_finalizadora, acoes, entrada, saida, tempo}) {
   const isDone = status === 'concluido';
   const isNow  = status === 'ativo' || status === 'atual';
 
@@ -422,36 +422,29 @@ function flowItem({ordem, setor, status, acao_finalizadora, acoes, entrada, said
 
   const sub = isDone ? 'Concluído' : (isNow ? 'Destino atual' : '');
 
-  // 👇 linha discreta com datas (apenas data) e ícone seta→porta
-  // - Concluído: mostra entrada e saída
-  // - Atual: mostra só entrada
-  const datasHtml = (() => {
-    const entrou = brDay(entrada);
-    const saiu   = isDone ? brDay(saida) : null;
+  // linha de datas + tempo
+  const entrou = brDay(entrada);
+  const saiu   = isDone ? brDay(saida) : null;
+  const icone  = `<i class="fa-solid fa-arrow-right-long mx-1"></i><i class="fa-solid fa-door-open"></i>`;
+  const datasHtml = isDone
+    ? `<div class="mt-1 text-xs text-gray-600">
+         <span class="text-gray-500">Entrada:</span> ${entrou}
+         <span class="mx-2 text-gray-400">${icone}</span>
+         <span class="text-gray-500">Saída:</span> ${saiu}
+         <span class="mx-2 text-gray-300">•</span>
+         <span class="text-gray-500">Tempo:</span> ${esc(tempo || '—')}
+       </div>`
+    : `<div class="mt-1 text-xs text-gray-600">
+         <span class="text-gray-500">Entrada:</span> ${entrou}
+         <span class="mx-2 text-gray-300">•</span>
+         <span class="text-gray-500">Tempo no setor:</span> ${esc(tempo || '—')}
+       </div>`;
 
-    // ícones Font Awesome (seta longa + porta)
-    const icone  = `<i class="fa-solid fa-arrow-right-long mx-1"></i><i class="fa-solid fa-door-open"></i>`;
-
-    if (isDone) {
-      return `<div class="mt-1 text-xs text-gray-600">
-                <span class="text-gray-500">Entrada:</span> ${entrou}
-                <span class="mx-2 text-gray-400">${icone}</span>
-                <span class="text-gray-500">Saída:</span> ${saiu}
-              </div>`;
-    }
-    // etapa atual: somente a entrada
-    return `<div class="mt-1 text-xs text-gray-600">
-              <span class="text-gray-500">Entrada:</span> ${entrou}
-            </div>`;
-  })();
-
-  // === Ações internas (mantido)
+  // ações internas
   const acoesHtml = (acoes || []).length
     ? (() => {
         const items = (acoes || []).map(a => {
-          const when = a.data_registro
-            ? ` <span class="text-gray-500">• ${brDate(a.data_registro)}</span>`
-            : '';
+          const when = a.data_registro ? ` <span class="text-gray-500">• ${brDate(a.data_registro)}</span>` : '';
           return `<li class="text-xs leading-snug text-gray-700 break-words">${esc(a.texto)}${when}</li>`;
         }).join('');
         return `<ul class="mt-2 list-disc list-inside space-y-1">${items}</ul>`;
@@ -464,12 +457,13 @@ function flowItem({ordem, setor, status, acao_finalizadora, acoes, entrada, said
       <div class="flex-1">
         <div class="font-semibold">${esc(setor || '—')}</div>
         ${sub ? `<div class="text-xs text-gray-500">${sub}</div>` : ''}
-        ${datasHtml}                                     <!-- 👈 datas aqui -->
+        ${datasHtml}
         ${isDone && acao_finalizadora ? `<div class="text-xs text-gray-600">Ação: ${esc(acao_finalizadora)}</div>` : ''}
         ${acoesHtml}
       </div>
     </div>`;
 }
+
 
 async function renderFlow(processoId){
   const wrap = document.getElementById('flowList');
@@ -507,8 +501,9 @@ async function renderFlow(processoId){
         status: f.status,
         acao_finalizadora: f.acao_finalizadora,
         acoes: mapAcoes[key] || [],
-        entrada: f.data_registro,   // << data de entrada no setor
-        saida:  f.data_fim          // << data de saída (quando encaminhou)
+        entrada: f.data_registro,
+        saida:  f.data_fim,
+        tempo:  f.tempo_legivel      // << AQUI
       });
     }).join('');
 

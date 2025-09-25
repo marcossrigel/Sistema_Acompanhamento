@@ -4,12 +4,32 @@ header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/config.php';
 
+function humanInterval(?string $start, ?string $end = null): ?string {
+  if (empty($start)) return null;
+  try {
+    $d1 = new DateTime($start);
+    $d2 = new DateTime($end ?: 'now'); // se não tiver saída, conta até agora
+  } catch (Exception $e) { return null; }
+
+  $diff = $d1->diff($d2);
+
+  if ($diff->y > 0) {
+    if ($diff->m > 0) return $diff->y.' '.($diff->y>1?'anos':'ano').' e '.$diff->m.' '.($diff->m>1?'meses':'mês');
+    return $diff->y.' '.($diff->y>1?'anos':'ano');
+  }
+  if ($diff->m > 0) return $diff->m.' '.($diff->m>1?'meses':'mês');
+  if ($diff->d > 0) return $diff->d.' d';
+  if ($diff->h > 0) return $diff->h.' h';
+  if ($diff->i > 0) return $diff->i.' min';
+  return 'menos de 1 min';
+}
+
+
 $param = (int)($_GET['proc_id'] ?? $_GET['id'] ?? 0);
 if ($param <= 0) { echo json_encode(['ok'=>false,'error'=>'id inválido']); exit; }
 
 $processoId = $param;
 
-/** tenta histórico direto (assumindo que $param é processo_id) */
 $stmt = $connLocal->prepare("
   SELECT id, processo_id, ordem, setor, status, data_registro, data_fim, acao_finalizadora
   FROM processo_fluxo
@@ -22,7 +42,6 @@ $res = $stmt->get_result();
 $rows = $res->fetch_all(MYSQLI_ASSOC);
 
 if (!$rows || count($rows) === 0) {
-  // talvez $param seja um fluxo_id
   $q = $connLocal->prepare("SELECT processo_id FROM processo_fluxo WHERE id = ? LIMIT 1");
   $q->bind_param("i", $param);
   $q->execute();
@@ -44,13 +63,25 @@ if (!$rows || count($rows) === 0) {
   }
 }
 
-/* 2) Se já tem histórico, devolve */
 if ($rows && count($rows) > 0) {
+  foreach ($rows as &$r) {
+    // tempo legível entre entrada e saída (ou até agora se ainda estiver ativo)
+    $r['tempo_legivel'] = humanInterval($r['data_registro'] ?? null, $r['data_fim'] ?? null);
+
+    // (opcional) total de dias numérico
+    try {
+      $d1 = new DateTime($r['data_registro'] ?? 'now');
+      $d2 = new DateTime(($r['data_fim'] ?? null) ?: 'now');
+      $r['tempo_dias'] = $d1->diff($d2)->days;
+    } catch (Exception $e) { $r['tempo_dias'] = null; }
+  }
+  unset($r);
+
   echo json_encode(['ok'=>true, 'data'=>$rows, 'processo_id'=>$processoId]);
   exit;
 }
 
-/* 3) Plano B: não há histórico ainda → montar 2 passos a partir de novo_processo */
+
 $baseStmt = $connLocal->prepare("
   SELECT setor_demandante, enviar_para, data_registro
   FROM novo_processo
@@ -66,8 +97,28 @@ if (!$base) {
 }
 
 $fake = [
-  ['ordem'=>1,'setor'=>$base['setor_demandante'],'status'=>'concluido','data_registro'=>$base['data_registro']],
-  ['ordem'=>2,'setor'=>$base['enviar_para'],     'status'=>'atual','data_registro'=>$base['data_registro']],
+  [
+    'ordem'             => 1,
+    'setor'             => $base['setor_demandante'],
+    'status'            => 'concluido',
+    'data_registro'     => $base['data_registro'],
+    'data_fim'          => null,
+    'acao_finalizadora' => null,
+    'tempo_legivel'     => humanInterval($base['data_registro']),
+    'tempo_dias'        => (function($s){ try{ $d1=new DateTime($s); $d2=new DateTime('now'); return $d1->diff($d2)->days; }catch(Exception){ return null; } })($base['data_registro'])
+  ],
+  [
+    'ordem'             => 2,
+    'setor'             => $base['enviar_para'],
+    'status'            => 'atual',
+    'data_registro'     => $base['data_registro'],
+    'data_fim'          => null,
+    'acao_finalizadora' => null,
+    'tempo_legivel'     => humanInterval($base['data_registro']),
+    'tempo_dias'        => (function($s){ try{ $d1=new DateTime($s); $d2=new DateTime('now'); return $d1->diff($d2)->days; }catch(Exception){ return null; } })($base['data_registro'])
+  ],
 ];
 
+
 echo json_encode(['ok'=>true,'data'=>$fake,'processo_id'=>$processoId]);
+
