@@ -15,24 +15,26 @@ $meuSetor = trim((string)($_SESSION['setor'] ?? ''));
 if ($meuSetor === '') { $reply(400, ['ok'=>false,'error'=>'Setor não encontrado na sessão.']); }
 
 try {
-  // traz processos cujo destino atual é meu setor OU que já tiveram etapa concluída pelo meu setor
+  // traz processos cujo destino atual é meu setor
+  // OU que já passaram pelo meu setor (registro em processo_fluxo),
+  // mas exclui processos cuja demanda original é do próprio setor (para não mostrar processos que eu mesmo criei)
   $sql = "
-    SELECT np.id, np.numero_processo, np.setor_demandante, np.enviar_para,
+    SELECT DISTINCT np.id, np.numero_processo, np.setor_demandante, np.enviar_para,
            np.tipos_processo_json, np.tipo_outros, np.descricao, np.data_registro
     FROM novo_processo np
+    LEFT JOIN processo_fluxo pf ON pf.processo_id = np.id
     WHERE LOWER(np.enviar_para) = LOWER(?)
-       OR EXISTS (
-            SELECT 1
-              FROM processo_fluxo pf
-             WHERE pf.processo_id = np.id
-               AND LOWER(pf.setor) = LOWER(?)
-               AND pf.status = 'concluido'
-          )
+       OR (
+           LOWER(pf.setor) = LOWER(?)
+           AND pf.status = 'concluido'
+           AND LOWER(np.setor_demandante) <> LOWER(?)
+       )
     ORDER BY np.data_registro DESC
     LIMIT 300
   ";
   $st = $connLocal->prepare($sql);
-  $st->bind_param('ss', $meuSetor, $meuSetor);
+  // bind_param: três strings (meuSetor para enviar_para, meuSetor para pf.setor e meuSetor para comparar com setor_demandante)
+  $st->bind_param('sss', $meuSetor, $meuSetor, $meuSetor);
   $st->execute();
   $res  = $st->get_result();
   $data = [];
