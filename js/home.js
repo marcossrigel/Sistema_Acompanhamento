@@ -29,7 +29,6 @@ const SECTORS_DEST = [
   'DPH - Diretoria de Projetos Habitacionais'
 ];
 
-
 // ====== ELEMENTOS DO MODAL "NOVO PROCESSO" ======
 const openBtn  = document.getElementById('newProcessBtn');
 const modal    = document.getElementById('processModal');
@@ -61,11 +60,11 @@ function closeModal() {
   modal.classList.add('hidden');
   modal.classList.remove('flex');
 }
-openBtn.addEventListener('click', openModal);
-closeBtn.addEventListener('click', closeModal);
-modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+openBtn?.addEventListener('click', openModal);
+closeBtn?.addEventListener('click', closeModal);
+modal?.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
-tipoOutrosCheck.addEventListener('change', () => {
+tipoOutrosCheck?.addEventListener('change', () => {
   if (tipoOutrosCheck.checked) {
     tipoOutrosInput.classList.remove('hidden');
     tipoOutrosInput.focus();
@@ -76,11 +75,11 @@ tipoOutrosCheck.addEventListener('change', () => {
 });
 
 // ====== SALVAR NOVO PROCESSO ======
-form.addEventListener('submit', async (e) => {
+form?.addEventListener('submit', async (e) => {
   e.preventDefault();
 
-  const numero    = document.getElementById('processNumber').value.trim();
-  const descricao = document.getElementById('description').value.trim();
+  const numero     = document.getElementById('processNumber').value.trim();
+  const descricao  = document.getElementById('description').value.trim();
   const enviarPara = destSelect.value;
 
   const tipos = Array.from(document.querySelectorAll('input[name="tipo_proc"]:checked'))
@@ -123,7 +122,7 @@ form.addEventListener('submit', async (e) => {
   }
 });
 
-document.getElementById('successOkBtn').addEventListener('click', () => {
+document.getElementById('successOkBtn')?.addEventListener('click', () => {
   const m = document.getElementById('successModal');
   m.classList.add('hidden');
   m.classList.remove('flex');
@@ -137,6 +136,11 @@ const brDate = iso => {
     ? '—'
     : d.toLocaleDateString('pt-BR') + ' ' +
       d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+};
+const brDay = iso => {
+  if (!iso) return '—';
+  const d = new Date(String(iso).replace(' ', 'T'));
+  return isNaN(d) ? '—' : d.toLocaleDateString('pt-BR');
 };
 const parseTipos = j => {
   try { const a = JSON.parse(j||'[]'); return Array.isArray(a) ? a.join(', ') : ''; }
@@ -172,13 +176,13 @@ async function loadMyProcesses(){
         <div class="flex justify-between items-start">
           <div>
             <div class="text-sm text-gray-500">Nº</div>
-            <div class="font-semibold text-gray-800">${p.numero_processo || '—'}</div>
+            <div class="font-semibold text-gray-800">${esc(p.numero_processo || '—')}</div>
           </div>
           <span class="text-xs px-2 py-1 rounded-full bg-emerald-50 text-emerald-700">
-            ${p.enviar_para || '—'}
+            ${esc(p.enviar_para || '—')}
           </span>
         </div>
-        <div class="mt-3 text-sm text-gray-600 line-clamp-2">${p.descricao || ''}</div>
+        <div class="mt-3 text-sm text-gray-600 line-clamp-2">${esc(p.descricao || '')}</div>
         <div class="mt-3 text-right text-xs text-gray-400">${brDate(p.data_registro)}</div>
       `;
       card.addEventListener('click', () => openDetails(p));
@@ -196,7 +200,7 @@ async function loadMyProcesses(){
 // ====== DETALHES + FLUXO (igual encaminhado.php) ======
 let currentProcess = null;
 
-function flowItem({ordem, setor, status, acao_finalizadora, acoes = []}) {
+function flowItem({ordem, setor, status, acao_finalizadora, acoes = [], entrada, saida, tempo}) {
   const isDone = status === 'concluido';
   const isNow  = status === 'ativo' || status === 'atual';
 
@@ -214,10 +218,29 @@ function flowItem({ordem, setor, status, acao_finalizadora, acoes = []}) {
 
   const sub = isDone ? 'Concluído' : (isNow ? 'Destino atual' : '');
 
-  // lista compacta: últimas 3 ações, só o texto, coladas
-  const acoesHtml = (acoes.slice(-3)).map(a => `
-    <div class="text-xs text-gray-700 leading-tight">• ${esc(a.texto)}</div>
-  `).join('');
+  const entrou = brDay(entrada);
+  const saiu   = isDone ? brDay(saida) : null;
+  const icone  = `<i class="fa-solid fa-arrow-right-long mx-1"></i><i class="fa-solid fa-door-open"></i>`;
+
+  const datasHtml = isDone
+    ? `<div class="mt-1 text-xs text-gray-600">
+         <span class="text-gray-500">Entrada:</span> ${entrou}
+         <span class="mx-2 text-gray-400">${icone}</span>
+         <span class="text-gray-500">Saída:</span> ${saiu}
+         <span class="mx-2 text-gray-300">•</span>
+         <span class="text-gray-500">Tempo:</span> ${esc(tempo || '—')}
+       </div>`
+    : `<div class="mt-1 text-xs text-gray-600">
+         <span class="text-gray-500">Entrada:</span> ${entrou}
+         <span class="mx-2 text-gray-300">•</span>
+         <span class="text-gray-500">Tempo no setor:</span> ${esc(tempo || '—')}
+       </div>`;
+
+  // últimas 3 ações (com data compacta)
+  const acoesHtml = (acoes.slice(-3)).map(a => {
+    const when = a.data_registro ? ` <span class="text-gray-500">• ${brDate(a.data_registro)}</span>` : '';
+    return `<div class="text-xs text-gray-700 leading-tight">• ${esc(a.texto)}${when}</div>`;
+  }).join('');
 
   return `
     <div class="flex items-start gap-3 p-4 rounded-lg border ${boxCls}">
@@ -225,6 +248,7 @@ function flowItem({ordem, setor, status, acao_finalizadora, acoes = []}) {
       <div class="flex-1">
         <div class="font-semibold">${esc(setor || '—')}</div>
         ${sub ? `<div class="text-xs text-gray-500">${sub}</div>` : ''}
+        ${datasHtml}
         ${isDone && acao_finalizadora ? `<div class="text-xs text-gray-600">Ação: ${esc(acao_finalizadora)}</div>` : ''}
         ${acoesHtml ? `<div class="mt-2 space-y-1">${acoesHtml}</div>` : ''}
       </div>
@@ -249,25 +273,28 @@ async function renderFlow(processoId){
     const fluxo = jf.data || [];
     const todasAcoes = ja.data || [];
 
-    // agrupa ações por setor (lowercase)
+    const norm = s => String(s||'')
+      .normalize('NFD').replace(/\p{Diacritic}/gu,'')
+      .replace(/\s+/g,' ').trim().toLowerCase();
+
+    // agrupa ações por setor normalizado
     const mapAcoes = todasAcoes.reduce((acc, a) => {
-      const k = String(a.setor || '').toLowerCase();
+      const k = norm(a.setor);
       (acc[k] ||= []).push(a);
       return acc;
     }, {});
 
     wrap.innerHTML = fluxo.map(f => {
-      const key = String(f.setor || '').toLowerCase();
-
-      // mostra lista pequena só NO SETOR ATUAL para quem criou o processo
-      const acoesParaEtapa = (mapAcoes[key] || []);
-
+      const key = norm(f.setor);
       return flowItem({
         ordem: f.ordem,
         setor: f.setor,
         status: f.status,
         acao_finalizadora: f.acao_finalizadora,
-        acoes: acoesParaEtapa
+        acoes: mapAcoes[key] || [],
+        entrada: f.data_registro,
+        saida:  f.data_fim,
+        tempo:  f.tempo_legivel
       });
     }).join('');
 
@@ -280,18 +307,18 @@ async function renderFlow(processoId){
 function openDetails(p){
   currentProcess = p;
 
-  document.getElementById('d_num').textContent   = p.numero_processo || '—';
-  document.getElementById('d_setor').textContent = p.setor_demandante || '—';
-  document.getElementById('d_dest').textContent  = p.enviar_para || '—';
+  document.getElementById('d_num').textContent   = esc(p.numero_processo || '—');
+  document.getElementById('d_setor').textContent = esc(p.setor_demandante || '—');
+  document.getElementById('d_dest').textContent  = esc(p.enviar_para || '—');
 
   const tipos = parseTipos(p.tipos_processo_json);
-  document.getElementById('d_tipos').textContent = tipos || '—';
+  document.getElementById('d_tipos').textContent = esc(tipos || '—');
 
   const hasOutros = (p.tipo_outros || '').trim() !== '';
   document.getElementById('d_outros_row').classList.toggle('hidden', !hasOutros);
-  document.getElementById('d_outros').textContent = p.tipo_outros || '';
+  document.getElementById('d_outros').textContent = esc(p.tipo_outros || '');
 
-  document.getElementById('d_desc').textContent = p.descricao || '';
+  document.getElementById('d_desc').textContent = esc(p.descricao || '');
   document.getElementById('d_dt').textContent   = brDate(p.data_registro);
 
   // carrega fluxo completo
@@ -306,9 +333,9 @@ function closeDetails(){
   md.classList.add('hidden');
   md.classList.remove('flex');
 }
-document.getElementById('closeDetails').addEventListener('click', closeDetails);
-document.getElementById('okDetails').addEventListener('click', closeDetails);
-document.getElementById('detailsModal').addEventListener('click', (e)=>{ if (e.target.id==='detailsModal') closeDetails(); });
+document.getElementById('closeDetails')?.addEventListener('click', closeDetails);
+document.getElementById('okDetails')?.addEventListener('click', closeDetails);
+document.getElementById('detailsModal')?.addEventListener('click', (e)=>{ if (e.target.id==='detailsModal') closeDetails(); });
 
 // ====== start ======
 loadMyProcesses();
