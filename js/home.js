@@ -36,9 +36,9 @@ const closeBtn       = document.getElementById('closeModalBtn');
 const closeBtnGhost  = document.getElementById('closeModalBtn_ghost');
 const form           = document.getElementById('processForm');
 
-const destSelect      = document.getElementById('destSector');     // <-- Faltavam
-const tipoOutrosCheck = document.getElementById('tipoOutrosCheck'); // <-- Faltavam
-const tipoOutrosInput = document.getElementById('tipoOutrosInput'); // <-- Faltavam
+const destSelect      = document.getElementById('destSector');
+const tipoOutrosCheck = document.getElementById('tipoOutrosCheck');
+const tipoOutrosInput = document.getElementById('tipoOutrosInput');
 
 function populateDest() {
   if (!destSelect) return;
@@ -63,7 +63,6 @@ function closeModal() {
   modal.classList.remove('flex');
 }
 
-// Listeners (um único bloco)
 openBtn?.addEventListener('click', openModal);
 closeBtn?.addEventListener('click', closeModal);
 closeBtnGhost?.addEventListener('click', closeModal);
@@ -79,7 +78,6 @@ tipoOutrosCheck?.addEventListener('change', () => {
   }
 });
 
-// ====== SALVAR NOVO PROCESSO ======
 form?.addEventListener('submit', async (e) => {
   e.preventDefault();
 
