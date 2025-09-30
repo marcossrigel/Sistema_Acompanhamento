@@ -126,7 +126,6 @@ try {
 
 } catch (Throwable $e) {
   if ($connLocal && $connLocal->errno === 0) {
-    // Se a transação ainda existir, tenta rollback
     @$connLocal->rollback();
   }
   $reply(500, ['ok'=>false, 'error'=>$e->getMessage()]);

@@ -30,16 +30,18 @@ const SECTORS_DEST = [
 ];
 
 // ====== ELEMENTOS DO MODAL "NOVO PROCESSO" ======
-const openBtn  = document.getElementById('newProcessBtn');
-const modal    = document.getElementById('processModal');
-const closeBtn = document.getElementById('closeModalBtn');
-const form     = document.getElementById('processForm');
+const openBtn        = document.getElementById('newProcessBtn');
+const modal          = document.getElementById('processModal');
+const closeBtn       = document.getElementById('closeModalBtn');
+const closeBtnGhost  = document.getElementById('closeModalBtn_ghost');
+const form           = document.getElementById('processForm');
 
-const destSelect      = document.getElementById('destSector');
-const tipoOutrosCheck = document.getElementById('tipoOutrosCheck');
-const tipoOutrosInput = document.getElementById('tipoOutrosInput');
+const destSelect      = document.getElementById('destSector');     // <-- Faltavam
+const tipoOutrosCheck = document.getElementById('tipoOutrosCheck'); // <-- Faltavam
+const tipoOutrosInput = document.getElementById('tipoOutrosInput'); // <-- Faltavam
 
 function populateDest() {
+  if (!destSelect) return;
   destSelect.innerHTML = '<option value="" selected disabled>Selecione o setor...</option>';
   SECTORS_DEST.forEach(s => {
     const opt = document.createElement('option');
@@ -52,16 +54,19 @@ function openModal() {
   populateDest();
   modal.classList.remove('hidden');
   modal.classList.add('flex');
-  document.getElementById('processNumber').focus();
+  document.getElementById('processNumber')?.focus();
 }
 function closeModal() {
-  form.reset();
-  tipoOutrosInput.classList.add('hidden');
+  form?.reset();
+  tipoOutrosInput?.classList.add('hidden');
   modal.classList.add('hidden');
   modal.classList.remove('flex');
 }
+
+// Listeners (um único bloco)
 openBtn?.addEventListener('click', openModal);
 closeBtn?.addEventListener('click', closeModal);
+closeBtnGhost?.addEventListener('click', closeModal);
 modal?.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
 tipoOutrosCheck?.addEventListener('change', () => {
@@ -114,7 +119,6 @@ form?.addEventListener('submit', async (e) => {
     document.getElementById('successModal').classList.remove('hidden');
     document.getElementById('successModal').classList.add('flex');
     closeModal();
-    // recarrega a lista da home
     loadMyProcesses();
   } catch (err) {
     console.error(err);
@@ -197,7 +201,7 @@ async function loadMyProcesses(){
   }
 }
 
-// ====== DETALHES + FLUXO (igual encaminhado.php) ======
+// ====== DETALHES + FLUXO ======
 let currentProcess = null;
 
 function flowItem({ordem, setor, status, acao_finalizadora, acoes = [], entrada, saida, tempo}) {
@@ -236,7 +240,6 @@ function flowItem({ordem, setor, status, acao_finalizadora, acoes = [], entrada,
          <span class="text-gray-500">Tempo no setor:</span> ${esc(tempo || '—')}
        </div>`;
 
-  // últimas 3 ações (com data compacta)
   const acoesHtml = (acoes.slice(-3)).map(a => {
     const when = a.data_registro ? ` <span class="text-gray-500">• ${brDate(a.data_registro)}</span>` : '';
     return `<div class="text-xs text-gray-700 leading-tight">• ${esc(a.texto)}${when}</div>`;
@@ -277,7 +280,6 @@ async function renderFlow(processoId){
       .normalize('NFD').replace(/\p{Diacritic}/gu,'')
       .replace(/\s+/g,' ').trim().toLowerCase();
 
-    // agrupa ações por setor normalizado
     const mapAcoes = todasAcoes.reduce((acc, a) => {
       const k = norm(a.setor);
       (acc[k] ||= []).push(a);
@@ -321,7 +323,6 @@ function openDetails(p){
   document.getElementById('d_desc').textContent = esc(p.descricao || '');
   document.getElementById('d_dt').textContent   = brDate(p.data_registro);
 
-  // carrega fluxo completo
   renderFlow(p.id);
 
   const md = document.getElementById('detailsModal');
