@@ -80,6 +80,10 @@ salvarAcao?.addEventListener('click', async ()=>{
 
 const MY_SETOR = window.MY_SETOR || '';
 
+const FINAL_SECTOR = (window.FINAL_SECTOR || 'GFIN - Gerência Financeira');
+// flag de modo do modal (encaminhar x finalizar processo)
+let IS_FINALIZE_MODE = false;
+
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#39;'}[m])
 );
@@ -162,6 +166,28 @@ function openDetails(p){
   const btnAcoesEl = document.getElementById('btnAcoes');
   if (encBlock)  encBlock.classList.toggle('hidden', !canAct);
   if (btnAcoesEl) btnAcoesEl.classList.toggle('hidden', !canAct);
+
+  // --- controle do bloco de FINALIZAÇÃO (GFIN) ---
+  const finalizarBlock = document.getElementById('finalizarBlock');
+  const processoEstaNoGFIN = norm(p.enviar_para) === norm(FINAL_SECTOR);
+  const usuarioEhGFIN      = norm(MY_SETOR)      === norm(FINAL_SECTOR);
+  const podeFinalizar      = processoEstaNoGFIN && usuarioEhGFIN;
+
+  // Se pode finalizar: mostra o bloco de finalizar e esconde o de encaminhar;
+  // caso contrário, volta ao comportamento normal (encaminhar conforme canAct).
+  if (finalizarBlock) finalizarBlock.classList.toggle('hidden', !podeFinalizar);
+  if (encBlock)       encBlock.classList.toggle('hidden',  podeFinalizar ? true : !canAct);
+
+  // botão "Finalizar processo" abre o mesmo modal, mas em modo finalização
+  const btnFinalizar = document.getElementById('btnFinalizarProcesso');
+  if (btnFinalizar) {
+    btnFinalizar.onclick = () => {
+      IS_FINALIZE_MODE = true; // <- marcar modo finalização
+      document.getElementById('acaoFinalizadora').value = '';
+      const fm = document.getElementById('finalizarModal');
+      fm.classList.remove('hidden'); fm.classList.add('flex');
+    };
+  }
 
   currentProcess = p;
 
@@ -314,6 +340,8 @@ const cancelarFinalizar = document.getElementById('cancelarFinalizar');
 const confirmarFinalizar = document.getElementById('confirmarFinalizar');
 
 btnEncaminhar?.addEventListener('click', () => {
+  IS_FINALIZE_MODE = false; // <- modo encaminhar
+  document.getElementById('acaoFinalizadora').value = '';
   finalizarModal.classList.remove('hidden');
   finalizarModal.classList.add('flex');
 });
@@ -327,8 +355,7 @@ confirmarFinalizar?.addEventListener('click', async () => {
   if (!currentProcess) { alert('Nenhum processo selecionado.'); return; }
 
   const acao = document.getElementById('acaoFinalizadora').value.trim();
-  const proxSetor = document.getElementById('nextSector').value;
-  if (!acao || !proxSetor) { alert("Preencha a ação e selecione o setor."); return; }
+  const proxSetor = document.getElementById('nextSector')?.value || '';
 
   const btn = document.getElementById('confirmarFinalizar');
   const cancelar = document.getElementById('cancelarFinalizar');
@@ -337,21 +364,45 @@ confirmarFinalizar?.addEventListener('click', async () => {
   try {
     btn.disabled = true; cancelar.disabled = true; btn.textContent = 'Enviando...';
 
-    const resp = await fetch('encaminhar_processo.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({
-        id_processo: currentProcess.id,
-        setor_origem: MY_SETOR,
-        setor_destino: proxSetor,
-        acao_finalizadora: acao
-      })
-    });
+    if (IS_FINALIZE_MODE) {
+      // ====== FINALIZAR PROCESSO (GFIN) ======
+      if (!acao) { alert('Descreva a ação finalizadora.'); return; }
 
-    const raw = await resp.text();
-    let j; try { j = JSON.parse(raw); } catch { throw new Error('Resposta não-JSON do servidor: ' + raw); }
-    if (!resp.ok || !j.ok) throw new Error(j.error || 'Falha ao encaminhar');
+      const resp = await fetch('finalizar_processo.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          id_processo: currentProcess.id,
+          acao: acao
+        })
+      });
+
+      const raw = await resp.text();
+      let j; try { j = JSON.parse(raw); } catch { throw new Error('Resposta não-JSON do servidor: ' + raw); }
+      if (!resp.ok || !j.ok) throw new Error(j.error || 'Falha ao finalizar');
+
+      alert('Processo finalizado com sucesso!');
+    } else {
+      // ====== ENCAMINHAR PROCESSO (fluxo normal) ======
+      if (!acao || !proxSetor) { alert("Preencha a ação e selecione o próximo setor."); return; }
+
+      const resp = await fetch('encaminhar_processo.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          id_processo: currentProcess.id,
+          setor_origem: MY_SETOR,
+          setor_destino: proxSetor,
+          acao_finalizadora: acao
+        })
+      });
+
+      const raw = await resp.text();
+      let j; try { j = JSON.parse(raw); } catch { throw new Error('Resposta não-JSON do servidor: ' + raw); }
+      if (!resp.ok || !j.ok) throw new Error(j.error || 'Falha ao encaminhar');
+    }
 
     // Atualiza UI
     await renderFlow(currentProcess.id);
@@ -369,6 +420,5 @@ confirmarFinalizar?.addEventListener('click', async () => {
     btn.disabled = false; cancelar.disabled = false; btn.textContent = 'Confirmar e Avançar';
   }
 });
-
 
 loadIncoming();

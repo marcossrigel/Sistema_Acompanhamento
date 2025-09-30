@@ -117,3 +117,4 @@ $_SESSION['setor']            = $uLocal['setor'] ?? '—';
 
 header('Location: templates/home.php');
 exit;
+?>

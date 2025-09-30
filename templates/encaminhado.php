@@ -9,6 +9,7 @@ if (empty($_SESSION['auth_ok']) || empty($_SESSION['g_id'])) {
 
 $setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
 $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
+$SETOR_FINAL = 'GFIN - Gerência Financeira';
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -56,87 +57,96 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
     </div>
   </main>
 
-  <div id="detailsModal" class="modal-backdrop hidden">
-    <div class="modal">
-      <div class="modal__header">
-        <h3 class="modal__title">Detalhes do Processo</h3>
-        <button id="closeDetails" class="modal__close" aria-label="Fechar">
-          <i class="fa-solid fa-xmark" style="font-size:20px;"></i>
-        </button>
-      </div>
+<div id="detailsModal" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal__header">
+      <h3 class="modal__title">Detalhes do Processo</h3>
+      <button id="closeDetails" class="modal__close" aria-label="Fechar">
+        <i class="fa-solid fa-xmark" style="font-size:20px;"></i>
+      </button>
+    </div>
 
-      <div class="modal__body">
-        <div class="modal-grid">
-          <div class="flow-col">
-            <h4 class="flow-title">Histórico e Fluxo do Processo</h4>
-            <div id="flowList" class="flow-list"></div>
-          </div>
-          <aside>
-            <div class="sidebar-box">
-              <h5 class="sidebar-title">Informações Gerais</h5>
-              <div class="info-list">
-                <p><span class="info-label">Número:</span> <span id="d_num" class="font-medium">—</span></p>
-                <p><span class="info-label">Setor Demandante:</span> <span id="d_setor" class="font-medium">—</span></p>
-                <p><span class="info-label">Tipos:</span> <span id="d_tipos" class="font-medium">—</span></p>
-                <p id="d_outros_row" class="hidden">
-                  <span class="info-label">Outros:</span> <span id="d_outros" class="font-medium">—</span>
-                </p>
-                <p><span class="info-label">Descrição:</span> <span id="d_desc" class="font-medium break-words">—</span></p>
-                <p><span class="info-label">Criado em:</span> <span id="d_dt" class="font-medium">—</span></p>
-              </div>
-            </div>
-
-            <div style="margin-top:12px; font-size:14px;">
-              <p>
-                <span class="info-label">Enviar para:</span>
-                <span id="d_dest" class="font-medium">—</span>
-              </p>
-            </div>
-
-            <div id="encBlock" class="encaminhar-block">
-              <label class="label">Encaminhar para</label>
-              <select id="nextSector" class="select">
-                <option value="" selected disabled>Selecione o próximo setor.</option>
-                <option>DAF - Diretoria de Administração e Finanças</option>
-                <option>DOHDU - Diretoria de Obras</option>
-                <option>CELOE I - Comissão de Licitação I</option>
-                <option>CELOE II - Comissão de Licitação II</option>
-                <option>CELOSE - Comissão de Licitação</option>
-                <option>GCOMP - Gerência de Compras</option>
-                <option>GOP - Gerência de Orçamento e Planejamento</option>
-                <option>GFIN - Gerência Financeira</option>
-                <option>GCONT - Gerência de Contabilidade</option>
-                <option>DP - Diretoria da Presidência</option>
-                <option>GAD - Gerência Administrativa</option>
-                <option>GAC - Gerência de Acompanhamento de Contratos</option>
-                <option>CGAB - Chefia de Gabinete</option>
-                <option>DOE - Diretoria de Obras Estratégicas</option>
-                <option>DSU - Diretoria de Obras de Saúde</option>
-                <option>DSG - Diretoria de Obras de Segurança</option>
-                <option>DED - Diretoria de Obras de Educação</option>
-                <option>SPO - Superintendência de Projetos de Obras</option>
-                <option>SUAJ - Superintendência de Apoio Jurídico</option>
-                <option>SUFIN - Superintendência Financeira</option>
-                <option>GAJ - Gerência de Apoio Jurídico</option>
-                <option>SUPLAN - Superintendência de Planejamento</option>
-                <option>DPH - Diretoria de Projetos Habitacionais</option>
-              </select>
-
-              <button id="btnEncaminhar" class="btn--primary" type="button">Encaminhar</button>
-            </div>
-
-            <div style="margin-top:8px;">
-              <button id="btnAcoes" class="btn--ghost" type="button">Ações internas</button>
-            </div>
-          </aside>
+    <div class="modal__body">
+      <div class="modal-grid">
+        <div class="flow-col">
+          <h4 class="flow-title">Histórico e Fluxo do Processo</h4>
+          <div id="flowList" class="flow-list"></div>
         </div>
-      </div>
 
-      <div class="modal__footer">
-        <button id="okDetails" class="btn--ok" type="button">OK</button>
+        <aside>
+          <div class="sidebar-box">
+            <h5 class="sidebar-title">Informações Gerais</h5>
+            <div class="info-list">
+              <p><span class="info-label">Número:</span> <span id="d_num" class="font-medium">—</span></p>
+              <p><span class="info-label">Setor Demandante:</span> <span id="d_setor" class="font-medium">—</span></p>
+              <p><span class="info-label">Tipos:</span> <span id="d_tipos" class="font-medium">—</span></p>
+              <p id="d_outros_row" class="hidden">
+                <span class="info-label">Outros:</span> <span id="d_outros" class="font-medium">—</span>
+              </p>
+              <p><span class="info-label">Descrição:</span> <span id="d_desc" class="font-medium break-words">—</span></p>
+              <p><span class="info-label">Criado em:</span> <span id="d_dt" class="font-medium">—</span></p>
+            </div>
+          </div>
+
+          <div style="margin-top:12px; font-size:14px;">
+            <p>
+              <span class="info-label">Enviar para:</span>
+              <span id="d_dest" class="font-medium">—</span>
+            </p>
+          </div>
+
+          <!-- BLOCO FINALIZAR (somente GFIN) -->
+          <div id="finalizarBlock" class="encaminhar-block hidden">
+            <p class="label" style="margin-bottom:10px;">Finalizar processo</p>
+            <button id="btnFinalizarProcesso" class="btn--primary" type="button">
+              <i class="fa-solid fa-flag-checkered"></i> Finalizar processo
+            </button>
+          </div>
+
+          <!-- BLOCO ENCAMINHAR (padrão) -->
+          <div id="encBlock" class="encaminhar-block">
+            <label class="label">Encaminhar para</label>
+            <select id="nextSector" class="select">
+              <option value="" selected disabled>Selecione o próximo setor.</option>
+              <option>DAF - Diretoria de Administração e Finanças</option>
+              <option>DOHDU - Diretoria de Obras</option>
+              <option>CELOE I - Comissão de Licitação I</option>
+              <option>CELOE II - Comissão de Licitação II</option>
+              <option>CELOSE - Comissão de Licitação</option>
+              <option>GCOMP - Gerência de Compras</option>
+              <option>GOP - Gerência de Orçamento e Planejamento</option>
+              <option>GFIN - Gerência Financeira</option>
+              <option>GCONT - Gerência de Contabilidade</option>
+              <option>DP - Diretoria da Presidência</option>
+              <option>GAD - Gerência Administrativa</option>
+              <option>GAC - Gerência de Acompanhamento de Contratos</option>
+              <option>CGAB - Chefia de Gabinete</option>
+              <option>DOE - Diretoria de Obras Estratégicas</option>
+              <option>DSU - Diretoria de Obras de Saúde</option>
+              <option>DSG - Diretoria de Obras de Segurança</option>
+              <option>DED - Diretoria de Obras de Educação</option>
+              <option>SPO - Superintendência de Projetos de Obras</option>
+              <option>SUAJ - Superintendência de Apoio Jurídico</option>
+              <option>SUFIN - Superintendência Financeira</option>
+              <option>GAJ - Gerência de Apoio Jurídico</option>
+              <option>SUPLAN - Superintendência de Planejamento</option>
+              <option>DPH - Diretoria de Projetos Habitacionais</option>
+            </select>
+            <button id="btnEncaminhar" class="btn--primary" type="button">Encaminhar</button>
+          </div>
+
+          <div style="margin-top:8px;">
+            <button id="btnAcoes" class="btn--ghost" type="button">Ações internas</button>
+          </div>
+        </aside>
       </div>
     </div>
+
+    <div class="modal__footer">
+      <button id="okDetails" class="btn--ok" type="button">OK</button>
+    </div>
   </div>
+</div>
 
   <div id="acoesModal" class="inner-modal-backdrop hidden">
     <div class="inner-modal">
@@ -175,6 +185,7 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
 
   <script>
     window.MY_SETOR = <?= json_encode($_SESSION['setor'] ?? '') ?>;
+    window.FINAL_SECTOR  = <?= json_encode($SETOR_FINAL) ?>;
   </script>
   <script src="../js/encaminhado.js"></script>
 </body>
