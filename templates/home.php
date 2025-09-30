@@ -76,7 +76,16 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
         <div class="form-grid">
           <div>
             <label class="label">Número do Processo</label>
-            <input id="processNumber" type="text" class="input" required>
+            <input id="processNumber"
+                type="text"
+                class="input"
+                required
+                pattern="\d{10}\.\d{6}/\d{4}-\d{2}"
+                maxlength="25"
+                inputmode="numeric"
+                autocomplete="off"
+                placeholder="Ex: 0060900018.001341/2025-49"
+                title="Formato: NNNNNNNNNN.NNNNNN/NNNN-NN">
           </div>
 
           <div>

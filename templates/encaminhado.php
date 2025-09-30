@@ -150,7 +150,7 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
       <ul id="acoesList" class="inner-modal__list"></ul>
 
       <label class="label" style="margin-bottom:6px;">Nova ação (visível a todos):</label>
-      <textarea id="acaoTexto" class="textarea" rows="3" placeholder="Ex.: Tive um problema com tal emenda"></textarea>
+      <textarea id="acaoTexto" class="textarea" rows="3" placeholder="Ex.: Detalhes sobre o processo"></textarea>
 
       <div class="btn-row">
         <button id="cancelarAcoes" class="btn--muted" type="button">Cancelar</button>
