@@ -31,10 +31,12 @@ CREATE TABLE `novo_processo` (
   `tipos_processo_json` json DEFAULT NULL,
   `tipo_outros` varchar(255) DEFAULT NULL,
   `descricao` text NOT NULL,
+  `finalizado` tinyint(1) NOT NULL DEFAULT '0',
+  `finalizado_em` datetime DEFAULT NULL,
   `data_registro` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `id_usuario_cehab_online` (`id_usuario_cehab_online`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -54,7 +56,7 @@ CREATE TABLE `processo_acao_interna` (
   PRIMARY KEY (`id`),
   KEY `idx_proc` (`processo_id`),
   CONSTRAINT `fk_aci_proc` FOREIGN KEY (`processo_id`) REFERENCES `novo_processo` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -78,7 +80,7 @@ CREATE TABLE `processo_fluxo` (
   PRIMARY KEY (`id`),
   KEY `fk_fluxo_processo` (`processo_id`),
   CONSTRAINT `fk_fluxo_processo` FOREIGN KEY (`processo_id`) REFERENCES `novo_processo` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -114,7 +116,7 @@ CREATE TABLE `usuarios` (
   `setor` varchar(100) DEFAULT NULL,
   `tipo` varchar(20) DEFAULT 'comum',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=26 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -126,4 +128,4 @@ CREATE TABLE `usuarios` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-09-30 11:18:50
+-- Dump completed on 2025-10-01 14:43:21

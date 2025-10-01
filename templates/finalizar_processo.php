@@ -1,5 +1,4 @@
 <?php
-// templates/finalizar_processo.php  (mysqli)
 if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 header('Content-Type: application/json; charset=utf-8');
 require __DIR__ . '/config.php';
@@ -39,7 +38,6 @@ try {
     throw new RuntimeException('Falha ao iniciar transação.');
   }
 
-  // 0) trava processo e valida estado
   $st = $connLocal->prepare("SELECT id, finalizado, enviar_para FROM novo_processo WHERE id=? FOR UPDATE");
   $st->bind_param('i', $idProcesso);
   $st->execute();
@@ -53,7 +51,6 @@ try {
     throw new RuntimeException('not_at_final_sector');
   }
 
-  // 1) feche qualquer etapa pendente (inclusive a do GFIN se estiver como 'atual')
   $st = $connLocal->prepare("
     UPDATE processo_fluxo
        SET status='concluido',
@@ -64,7 +61,6 @@ try {
   $st->execute();
   $st->close();
 
-  // 2) pegue a ÚLTIMA etapa do fluxo para colocar a ação finalizadora
   $st = $connLocal->prepare("
     SELECT id, setor
       FROM processo_fluxo
@@ -81,7 +77,6 @@ try {
   $usuarioResp = (string)(($_SESSION['nome'] ?? '') ?: ($_SESSION['u_rede'] ?? $_SESSION['g_id'] ?? 'sistema'));
 
   if ($last) {
-    // 2a) atualiza a última etapa (não cria nova!)
     $st = $connLocal->prepare("
       UPDATE processo_fluxo
          SET status='concluido',
@@ -94,7 +89,6 @@ try {
     $st->execute();
     $st->close();
   } else {
-    // 2b) se por algum motivo não existir nenhuma etapa, cria UMA (única) do GFIN
     $st = $connLocal->prepare("SELECT COALESCE(MAX(ordem),0) FROM processo_fluxo WHERE processo_id=?");
     $st->bind_param('i', $idProcesso);
     $st->execute();
@@ -115,7 +109,6 @@ try {
     $st->close();
   }
 
-  // 3) marca o processo como finalizado
   $st = $connLocal->prepare("
     UPDATE novo_processo
        SET finalizado=1,
