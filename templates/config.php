@@ -18,18 +18,32 @@ $remoto = [
   'port' => 3306,
 ];
 
+// ---- MYSQLI ----
 $connLocal = new mysqli($local['host'], $local['user'], $local['pass'], $local['name'], $local['port']);
 if ($connLocal->connect_error) {
   die('Falha na conexão (local): ' . $connLocal->connect_error);
 }
-
 $connLocal->set_charset('utf8mb4');
-$connRemoto = new mysqli($remoto['host'], $remoto['user'], $remoto['pass'], $remoto['name'], $remoto['port']);
 
+$connRemoto = new mysqli($remoto['host'], $remoto['user'], $remoto['pass'], $remoto['name'], $remoto['port']);
 if ($connRemoto->connect_error) {
   die('Falha na conexão (remota): ' . $connRemoto->connect_error);
 }
 $connRemoto->set_charset('utf8mb4');
+
 $conn     = $connLocal;
 $conexao  = $connLocal;
 $conexao2 = $connRemoto;
+
+// ---- PDO (para endpoints novos, como finalizar_processo.php) ----
+try {
+  $dsn = "mysql:host={$local['host']};dbname={$local['name']};charset=utf8mb4;port={$local['port']}";
+  $pdo = new PDO($dsn, $local['user'], $local['pass'], [
+    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    PDO::ATTR_EMULATE_PREPARES   => false,
+  ]);
+} catch (PDOException $e) {
+  error_log("Erro PDO local: " . $e->getMessage());
+  $pdo = null;
+}

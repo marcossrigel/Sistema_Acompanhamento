@@ -18,20 +18,29 @@ try {
   // traz processos cujo destino atual é meu setor
   // OU que já passaram pelo meu setor (registro em processo_fluxo),
   // mas exclui processos cuja demanda original é do próprio setor (para não mostrar processos que eu mesmo criei)
-  $sql = "
-    SELECT DISTINCT np.id, np.numero_processo, np.setor_demandante, np.enviar_para,
-           np.tipos_processo_json, np.tipo_outros, np.descricao, np.data_registro
-    FROM novo_processo np
-    LEFT JOIN processo_fluxo pf ON pf.processo_id = np.id
-    WHERE LOWER(np.enviar_para) = LOWER(?)
-       OR (
-           LOWER(pf.setor) = LOWER(?)
-           AND pf.status = 'concluido'
-           AND LOWER(np.setor_demandante) <> LOWER(?)
-       )
-    ORDER BY np.data_registro DESC
-    LIMIT 300
-  ";
+// templates/listar_encaminhados.php
+$sql = "
+  SELECT DISTINCT
+         np.id,
+         np.numero_processo,
+         np.setor_demandante,
+         np.enviar_para,
+         np.tipos_processo_json,
+         np.tipo_outros,
+         np.descricao,
+         np.data_registro
+  FROM novo_processo np
+  LEFT JOIN processo_fluxo pf ON pf.processo_id = np.id
+  WHERE LOWER(np.enviar_para) = LOWER(?)
+     OR (
+         LOWER(pf.setor) = LOWER(?)
+         AND pf.status = 'concluido'
+         AND LOWER(np.setor_demandante) <> LOWER(?)
+     )
+  ORDER BY np.data_registro DESC
+  LIMIT 300
+";
+
   $st = $connLocal->prepare($sql);
   // bind_param: três strings (meuSetor para enviar_para, meuSetor para pf.setor e meuSetor para comparar com setor_demandante)
   $st->bind_param('sss', $meuSetor, $meuSetor, $meuSetor);

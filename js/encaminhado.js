@@ -1,4 +1,3 @@
-
 const acoesModal   = document.getElementById('acoesModal');
 const btnAcoes     = document.getElementById('btnAcoes');
 const fecharAcoes  = document.getElementById('fecharAcoes');
@@ -6,6 +5,12 @@ const cancelarAcoes= document.getElementById('cancelarAcoes');
 const salvarAcao   = document.getElementById('salvarAcao');
 const acoesList    = document.getElementById('acoesList');
 const acaoTexto    = document.getElementById('acaoTexto');
+
+function renderBadgeConcluido(){
+  return `<span class="badge-done ml-2 inline-flex items-center px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">
+    <i class="fa-solid fa-check mr-1"></i> Concluído
+  </span>`;
+}
 
 function renderAcoesItem(a){
   const li = document.createElement('li');
@@ -39,16 +44,8 @@ async function loadAcoes(){
   }
 }
 
-function openAcoes(){
-  acaoTexto.value = '';
-  acoesModal.classList.remove('hidden');
-  acoesModal.classList.add('flex');
-  loadAcoes();
-}
-function closeAcoes(){
-  acoesModal.classList.add('hidden');
-  acoesModal.classList.remove('flex');
-}
+function openAcoes(){ acaoTexto.value = ''; acoesModal.classList.remove('hidden'); acoesModal.classList.add('flex'); loadAcoes(); }
+function closeAcoes(){ acoesModal.classList.add('hidden'); acoesModal.classList.remove('flex'); }
 
 btnAcoes?.addEventListener('click', openAcoes);
 fecharAcoes?.addEventListener('click', closeAcoes);
@@ -78,10 +75,8 @@ salvarAcao?.addEventListener('click', async ()=>{
   }
 });
 
-const MY_SETOR = window.MY_SETOR || '';
-
-const FINAL_SECTOR = (window.FINAL_SECTOR || 'GFIN - Gerência Financeira');
-// flag de modo do modal (encaminhar x finalizar processo)
+const MY_SETOR     = window.MY_SETOR || '';
+const FINAL_SECTOR = window.FINAL_SECTOR || 'GFIN - Gerência Financeira';
 let IS_FINALIZE_MODE = false;
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
@@ -100,10 +95,7 @@ const brDay = iso => {
   const d = new Date(String(iso).replace(' ', 'T'));
   return isNaN(d) ? '—' : d.toLocaleDateString('pt-BR');
 };
-const parseTipos = j => {
-  try { const a = JSON.parse(j||'[]'); return Array.isArray(a) ? a.join(', ') : ''; }
-  catch { return ''; }
-};
+const parseTipos = j => { try { const a = JSON.parse(j||'[]'); return Array.isArray(a) ? a.join(', ') : ''; } catch { return ''; } };
 
 async function loadIncoming(){
   const wrap = document.getElementById('encList');
@@ -118,7 +110,6 @@ async function loadIncoming(){
     if (!r.ok || !j.ok) throw new Error(j.error || 'Falha ao listar');
 
     const data = (j.data || []);
-
     if (!data.length) {
       wrap.innerHTML = `
         <div class="col-span-full text-gray-400 border border-dashed rounded-lg p-8 text-center">
@@ -130,20 +121,24 @@ async function loadIncoming(){
     wrap.innerHTML = '';
     data.forEach(p => {
       const card = document.createElement('div');
-      card.className = 'bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer';
+      card.className = 'process-card bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer';
+      card.setAttribute('data-id', String(p.id));
       card.innerHTML = `
         <div class="flex justify-between items-start">
-            <div>
+          <div>
             <div class="text-sm text-gray-500">Nº</div>
-            <div class="font-semibold text-gray-800">${esc(p.numero_processo || '—')}</div>
+            <div class="font-semibold text-gray-800">
+              ${esc(p.numero_processo || '—')}
+              ${Number(p.finalizado) === 1 ? renderBadgeConcluido() : ''}
             </div>
-            <span class="text-xs px-2 py-1 rounded-full bg-emerald-50 text-emerald-700" title="Setor de origem">
+          </div>
+          <span class="text-xs px-2 py-1 rounded-full bg-emerald-50 text-emerald-700" title="Setor de origem">
             ${esc(p.setor_demandante || '—')}
-            </span>
+          </span>
         </div>
         <div class="mt-3 text-sm text-gray-600 line-clamp-2">${esc(p.descricao || '')}</div>
         <div class="mt-3 text-right text-xs text-gray-400">${brDate(p.data_registro)}</div>
-     `;
+      `;
       card.addEventListener('click', () => openDetails(p));
       wrap.appendChild(card);
     });
@@ -160,29 +155,27 @@ let currentProcess = null;
 
 function openDetails(p){
   const norm = s => String(s||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').replace(/\s+/g,' ').trim().toLowerCase();
-  const canAct = norm(p.enviar_para) === norm(MY_SETOR);
 
-  const encBlock = document.getElementById('encBlock');
-  const btnAcoesEl = document.getElementById('btnAcoes');
-  if (encBlock)  encBlock.classList.toggle('hidden', !canAct);
-  if (btnAcoesEl) btnAcoesEl.classList.toggle('hidden', !canAct);
-
-  // --- controle do bloco de FINALIZAÇÃO (GFIN) ---
+  const encBlock       = document.getElementById('encBlock');
   const finalizarBlock = document.getElementById('finalizarBlock');
-  const processoEstaNoGFIN = norm(p.enviar_para) === norm(FINAL_SECTOR);
-  const usuarioEhGFIN      = norm(MY_SETOR)      === norm(FINAL_SECTOR);
-  const podeFinalizar      = processoEstaNoGFIN && usuarioEhGFIN;
+  const btnAcoesEl     = document.getElementById('btnAcoes');
 
-  // Se pode finalizar: mostra o bloco de finalizar e esconde o de encaminhar;
-  // caso contrário, volta ao comportamento normal (encaminhar conforme canAct).
-  if (finalizarBlock) finalizarBlock.classList.toggle('hidden', !podeFinalizar);
-  if (encBlock)       encBlock.classList.toggle('hidden',  podeFinalizar ? true : !canAct);
+  const canAct            = norm(p.enviar_para) === norm(MY_SETOR);
+  const processoFinalizado= Number(p.finalizado) === 1;
+  const processoNoGFIN    = norm(p.enviar_para) === norm(FINAL_SECTOR);
+  const usuarioEhGFIN     = norm(MY_SETOR)      === norm(FINAL_SECTOR);
+  const podeFinalizar     = !processoFinalizado && processoNoGFIN && usuarioEhGFIN;
 
-  // botão "Finalizar processo" abre o mesmo modal, mas em modo finalização
+  // mostra/oculta blocos
+  finalizarBlock?.classList.toggle('hidden', !podeFinalizar);
+  encBlock?.classList.toggle('hidden',  podeFinalizar ? true : !canAct);
+  btnAcoesEl?.classList.toggle('hidden', !canAct);
+
+  // botão finalizar abre o mesmo modal, mas em modo finalização
   const btnFinalizar = document.getElementById('btnFinalizarProcesso');
   if (btnFinalizar) {
     btnFinalizar.onclick = () => {
-      IS_FINALIZE_MODE = true; // <- marcar modo finalização
+      IS_FINALIZE_MODE = true;
       document.getElementById('acaoFinalizadora').value = '';
       const fm = document.getElementById('finalizarModal');
       fm.classList.remove('hidden'); fm.classList.add('flex');
@@ -190,7 +183,6 @@ function openDetails(p){
   }
 
   currentProcess = p;
-
   document.getElementById('d_num').textContent   = p.numero_processo || '—';
   document.getElementById('d_setor').textContent = p.setor_demandante || '—';
   document.getElementById('d_dest').textContent  = p.enviar_para || '—';
@@ -223,9 +215,7 @@ function closeDetails(){
 document.getElementById('closeDetails')?.addEventListener('click', closeDetails);
 document.getElementById('okDetails')?.addEventListener('click', closeDetails);
 const detailsModal = document.getElementById('detailsModal');
-detailsModal?.addEventListener('click', (e) => {
-  if (e.target === detailsModal) closeDetails();
-});
+detailsModal?.addEventListener('click', (e) => { if (e.target === detailsModal) closeDetails(); });
 
 function flowItem({ordem, setor, status, acao_finalizadora, acoes, entrada, saida, tempo}) {
   const isDone = status === 'concluido';
@@ -285,7 +275,6 @@ function flowItem({ordem, setor, status, acao_finalizadora, acoes, entrada, said
     </div>`;
 }
 
-
 async function renderFlow(processoId){
   const wrap = document.getElementById('flowList');
   wrap.innerHTML = '<div class="text-gray-400">Carregando fluxo…</div>';
@@ -305,14 +294,8 @@ async function renderFlow(processoId){
     const fluxo = jf.data || [];
     const acoes = ja.data || [];
 
-    // agrupa ações por setor (case-insensitive)
     const norm = s => String(s||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').replace(/\s+/g,' ').trim().toLowerCase();
-
-    const mapAcoes = acoes.reduce((acc, a) => {
-    const k = norm(a.setor);
-    (acc[k] ||= []).push(a);
-    return acc;
-    }, {});
+    const mapAcoes = acoes.reduce((acc, a) => { const k = norm(a.setor); (acc[k] ||= []).push(a); return acc; }, {});
 
     wrap.innerHTML = fluxo.map(f => {
       const key = norm(f.setor);
@@ -334,13 +317,14 @@ async function renderFlow(processoId){
   }
 }
 
-const btnEncaminhar = document.getElementById('btnEncaminhar'); 
-const finalizarModal = document.getElementById('finalizarModal');
+const btnEncaminhar     = document.getElementById('btnEncaminhar');
+const finalizarModal    = document.getElementById('finalizarModal');
 const cancelarFinalizar = document.getElementById('cancelarFinalizar');
-const confirmarFinalizar = document.getElementById('confirmarFinalizar');
+const confirmarFinalizar= document.getElementById('confirmarFinalizar');
 
 btnEncaminhar?.addEventListener('click', () => {
-  IS_FINALIZE_MODE = false; // <- modo encaminhar
+  // este botão só aparece quando NÃO é modo finalizar
+  IS_FINALIZE_MODE = false;
   document.getElementById('acaoFinalizadora').value = '';
   finalizarModal.classList.remove('hidden');
   finalizarModal.classList.add('flex');
@@ -353,38 +337,39 @@ cancelarFinalizar?.addEventListener('click', () => {
 
 confirmarFinalizar?.addEventListener('click', async () => {
   if (!currentProcess) { alert('Nenhum processo selecionado.'); return; }
-
   const acao = document.getElementById('acaoFinalizadora').value.trim();
   const proxSetor = document.getElementById('nextSector')?.value || '';
 
   const btn = document.getElementById('confirmarFinalizar');
   const cancelar = document.getElementById('cancelarFinalizar');
-  const finalizar = document.getElementById('finalizarModal');
 
   try {
     btn.disabled = true; cancelar.disabled = true; btn.textContent = 'Enviando...';
 
     if (IS_FINALIZE_MODE) {
-      // ====== FINALIZAR PROCESSO (GFIN) ======
       if (!acao) { alert('Descreva a ação finalizadora.'); return; }
 
       const resp = await fetch('finalizar_processo.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify({
-          id_processo: currentProcess.id,
-          acao: acao
-        })
+        body: JSON.stringify({ id_processo: currentProcess.id, acao })
       });
-
-      const raw = await resp.text();
-      let j; try { j = JSON.parse(raw); } catch { throw new Error('Resposta não-JSON do servidor: ' + raw); }
+      const raw = await resp.text(); let j; try { j = JSON.parse(raw); } catch { throw new Error('Resposta não-JSON: '+raw); }
       if (!resp.ok || !j.ok) throw new Error(j.error || 'Falha ao finalizar');
+
+      // marca o card como concluído imediatamente
+      currentProcess.finalizado = 1;
+      const card = document.querySelector(`.process-card[data-id="${currentProcess.id}"]`);
+      if (card) {
+        const titleDiv = card.querySelector('.font-semibold');
+        if (titleDiv && !titleDiv.querySelector('.badge-done')) {
+          titleDiv.insertAdjacentHTML('beforeend', renderBadgeConcluido());
+        }
+      }
 
       alert('Processo finalizado com sucesso!');
     } else {
-      // ====== ENCAMINHAR PROCESSO (fluxo normal) ======
       if (!acao || !proxSetor) { alert("Preencha a ação e selecione o próximo setor."); return; }
 
       const resp = await fetch('encaminhar_processo.php', {
@@ -398,20 +383,16 @@ confirmarFinalizar?.addEventListener('click', async () => {
           acao_finalizadora: acao
         })
       });
-
-      const raw = await resp.text();
-      let j; try { j = JSON.parse(raw); } catch { throw new Error('Resposta não-JSON do servidor: ' + raw); }
+      const raw = await resp.text(); let j; try { j = JSON.parse(raw); } catch { throw new Error('Resposta não-JSON: '+raw); }
       if (!resp.ok || !j.ok) throw new Error(j.error || 'Falha ao encaminhar');
     }
 
-    // Atualiza UI
     await renderFlow(currentProcess.id);
     await loadIncoming();
 
-    // limpa e fecha modal
     document.getElementById('acaoFinalizadora').value = '';
-    finalizar.classList.add('hidden');
-    finalizar.classList.remove('flex');
+    finalizarModal.classList.add('hidden');
+    finalizarModal.classList.remove('flex');
 
   } catch (e) {
     alert('Erro: ' + (e.message || e));

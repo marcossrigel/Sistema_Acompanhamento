@@ -1,80 +1,88 @@
 <?php
+// templates/finalizar_processo.php  (mysqli)
 if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 header('Content-Type: application/json; charset=utf-8');
+require __DIR__ . '/config.php'; // cria $connLocal (mysqli)
 
-require __DIR__ . '/../_db/connect.php'; // ajuste para o seu arquivo de conexão
+const FINAL_SECTOR_CANON = 'GFIN - Gerência Financeira';
+
+$reply = function (int $http, array $obj) {
+  http_response_code($http);
+  echo json_encode($obj, JSON_UNESCAPED_UNICODE);
+  exit;
+};
 
 try {
   if (empty($_SESSION['auth_ok']) || empty($_SESSION['g_id'])) {
-    http_response_code(401);
-    echo json_encode(['ok' => false, 'error' => 'not_authenticated']);
-    exit;
+    $reply(401, ['ok'=>false,'error'=>'not_authenticated']);
   }
 
-  $input = json_decode(file_get_contents('php://input'), true) ?: [];
-  $idProcesso = (int)($input['id_processo'] ?? 0);
-  $acao       = trim($input['acao'] ?? '');
-  $setorUser  = $_SESSION['setor'] ?? '';
-  $FINAL_SECTOR = 'GFIN - Gerência Financeira';
+  $in          = json_decode(file_get_contents('php://input'), true) ?: [];
+  $idProcesso  = isset($in['id_processo']) ? (int)$in['id_processo'] : 0;
+  $acaoFinal   = trim((string)($in['acao'] ?? ''));
 
-  if (!$idProcesso || $acao === '') {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => 'invalid_payload']);
-    exit;
+  if ($idProcesso <= 0 || $acaoFinal === '') {
+    $reply(400, ['ok'=>false,'error'=>'invalid_payload']);
   }
 
-  if ($setorUser !== $FINAL_SECTOR) {
-    http_response_code(403);
-    echo json_encode(['ok' => false, 'error' => 'forbidden']);
-    exit;
+  $meuSetor = (string)($_SESSION['setor'] ?? '');
+  $norm = function($s){ return preg_replace('/\s+/',' ', strtolower(iconv('UTF-8','ASCII//TRANSLIT//IGNORE',$s ?? '')) ); };
+  if ($norm($meuSetor) !== $norm(FINAL_SECTOR_CANON)) {
+    $reply(403, ['ok'=>false,'error'=>'forbidden_not_gfin']);
   }
 
-  $pdo->beginTransaction();
-  $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
-
-  // Confere se o processo existe e não está finalizado
-  $st = $pdo->prepare("SELECT id, finalizado FROM novo_processo WHERE id = :id FOR UPDATE");
-  $st->execute([':id' => $idProcesso]);
-  $proc = $st->fetch(PDO::FETCH_ASSOC);
-  if (!$proc) throw new Exception('process_not_found');
-  if ((int)$proc['finalizado'] === 1) throw new Exception('already_finalized');
-
-  // Confere último destino do fluxo = GFIN
-  $st = $pdo->prepare("
-    SELECT pf.destino_setor
-    FROM processo_fluxo pf
-    WHERE pf.id_processo = :id
-    ORDER BY pf.id DESC
-    LIMIT 1
-  ");
-  $st->execute([':id' => $idProcesso]);
-  $ultimo = $st->fetch(PDO::FETCH_ASSOC);
-  $destinoAtual = $ultimo['destino_setor'] ?? null;
-
-  if ($destinoAtual !== $FINAL_SECTOR) {
-    throw new Exception('not_at_final_sector');
+  if (!$connLocal->begin_transaction()) {
+    throw new RuntimeException('Falha ao iniciar transação.');
   }
 
-  // 1) Insere um registro final no fluxo, marcando conclusão
-  $st = $pdo->prepare("
-    INSERT INTO processo_fluxo (id_processo, origem_setor, destino_setor, acao, concluido, criado_em)
-    VALUES (:id, :origem, :destino, :acao, 1, NOW())
-  ");
-  $st->execute([
-    ':id'      => $idProcesso,
-    ':origem'  => $FINAL_SECTOR,
-    ':destino' => $FINAL_SECTOR,
-    ':acao'    => $acao
-  ]);
+  // trava processo e checa finalizado
+  $st = $connLocal->prepare("SELECT id, finalizado, enviar_para FROM novo_processo WHERE id=? FOR UPDATE");
+  $st->bind_param('i', $idProcesso);
+  $st->execute();
+  $res  = $st->get_result();
+  $proc = $res->fetch_assoc();
+  $st->close();
 
-  // 2) Marca processo como finalizado
-  $st = $pdo->prepare("UPDATE novo_processo SET finalizado = 1, finalizado_em = NOW() WHERE id = :id");
-  $st->execute([':id' => $idProcesso]);
+  if (!$proc)               { throw new RuntimeException('process_not_found'); }
+  if ((int)$proc['finalizado'] === 1) { throw new RuntimeException('already_finalized'); }
+  if ($norm($proc['enviar_para']) !== $norm(FINAL_SECTOR_CANON)) {
+    throw new RuntimeException('not_at_final_sector');
+  }
 
-  $pdo->commit();
-  echo json_encode(['ok' => true]);
+  // 1) concluir todas as etapas pendentes
+  $st = $connLocal->prepare("UPDATE processo_fluxo SET status='concluido', data_fim=COALESCE(data_fim,NOW()) WHERE processo_id=? AND status<>'concluido'");
+  $st->bind_param('i', $idProcesso);
+  $st->execute();
+  $st->close();
+
+  // 2) calcular próxima ordem
+  $st = $connLocal->prepare("SELECT COALESCE(MAX(ordem),0) AS max_ordem FROM processo_fluxo WHERE processo_id=?");
+  $st->bind_param('i', $idProcesso);
+  $st->execute();
+  $res = $st->get_result();
+  $max = (int)($res->fetch_assoc()['max_ordem'] ?? 0);
+  $st->close();
+  $nextOrdem = $max + 1;
+
+  // 3) inserir linha final informativa
+  $usuarioResp = (string)(($_SESSION['nome'] ?? '') ?: ($_SESSION['u_rede'] ?? $_SESSION['g_id'] ?? 'sistema'));
+  $st = $connLocal->prepare("INSERT INTO processo_fluxo (processo_id, ordem, setor, status, acao_finalizadora, usuario, data_registro, data_fim) VALUES (?,?,?,?,?,?,NOW(),NOW())");
+  $status = 'concluido';
+  $setor  = FINAL_SECTOR_CANON;
+  $st->bind_param('iissss', $idProcesso, $nextOrdem, $setor, $status, $acaoFinal, $usuarioResp);
+  $st->execute();
+  $st->close();
+
+  // 4) marcar processo como finalizado
+  $st = $connLocal->prepare("UPDATE novo_processo SET finalizado=1, finalizado_em=NOW(), enviar_para='CONCLUÍDO' WHERE id=?");
+  $st->bind_param('i', $idProcesso);
+  $st->execute();
+  $st->close();
+
+  $connLocal->commit();
+  $reply(200, ['ok'=>true]);
+
 } catch (Throwable $e) {
-  if ($pdo && $pdo->inTransaction()) $pdo->rollBack();
-  http_response_code(500);
-  echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
+  if ($connLocal && $connLocal->errno === 0) { @$connLocal->rollback(); }
+  $reply(500, ['ok'=>false,'error'=>'db_error','msg'=>$e->getMessage()]);
 }
