@@ -128,7 +128,7 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
       const data = await res.json();
       if (data.ok && data.registro) {
         btnPdf.disabled = false;
-        btnPdf.dataset.num = num; // guardar o número p/ gerar pdf
+        btnPdf.dataset.num = num;
         showResult(`
           <div>
             <div class="font-bold mb-1">Processo localizado ✅</div>
@@ -156,7 +156,6 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
   btnPdf.addEventListener('click', () => {
     const num = btnPdf.dataset.num;
     if (!num) return;
-    // Abre o PDF em nova aba
     window.open('svc_relatorio_pdf.php?numero=' + encodeURIComponent(num), '_blank');
   });
 </script>
