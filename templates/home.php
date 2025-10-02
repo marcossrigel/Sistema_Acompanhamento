@@ -31,6 +31,11 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
         <i class="fas fa-sitemap" style="font-size:28px; color:#2563eb;"></i>
         <h1 class="brand__title">CEHAB - Acompanhamento de Processos</h1>
       </a>
+
+      <a href="../pages/gerar_relatorio.php" class="btn btn--outline-green">
+        <i class="fa-solid fa-file-lines"></i> Gerar Relatório
+      </a>
+
       <div class="header-actions">
         <a href="encaminhado.php" class="btn btn--outline-blue">
           <i class="fa-regular fa-share-from-square"></i> Encaminhados
