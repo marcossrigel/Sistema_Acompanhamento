@@ -159,14 +159,18 @@ try {
     $pdf->SetFont('Arial','',10);
     foreach ($fluxo as $f) {
       $ordem   = $f['ordem'] ?? '';
-      $setor   = $f['setor'] ?? '—';
+      $setorFull = $f['setor'] ?? '—';
+      $setor = $setorFull;
+      if (strpos($setorFull, ' - ') !== false) {
+          $setor = substr($setorFull, 0, strpos($setorFull, ' - '));
+      }
+
       $status  = $f['status'] ?? '—';
       $usuario = $f['usuario'] ?? '—';
       $dtIni   = $f['data_registro'] ? date('d/m/Y H:i', strtotime($f['data_registro'])) : '—';
       $dtFim   = $f['data_fim']      ? date('d/m/Y H:i', strtotime($f['data_fim']))      : '—';
 
-      // Truncagens leves para evitar estouro visual (só em linhas da tabela)
-      $setorTr   = tz($setor,   40); // aprox.
+      $setorTr   = tz($setor,   40);
       $statusTr  = tz($status,  22);
       $usuarioTr = tz($usuario, 45);
 
@@ -177,7 +181,6 @@ try {
       $pdf->CellFit($wIni,  8, $dtIni,         1,0,'C');
       $pdf->CellFit($wFim,  8, $dtFim,         1,1,'C');
 
-      // Observação / Ação como linhas corridas abaixo (sem borda de tabela)
       if (!empty($f['observacao'])) {
         $pdf->SetFont('Arial','I',9);
         $pdf->MultiCell(0,6, t('Observação: ').t($f['observacao']), 0, 'L');
@@ -189,6 +192,7 @@ try {
         $pdf->SetFont('Arial','',10);
       }
     }
+
   }
 
   $fname = 'relatorio_'.$proc['numero_processo'].'.pdf';

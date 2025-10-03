@@ -3,11 +3,29 @@ if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 date_default_timezone_set('America/Recife');
 
 if (empty($_SESSION['auth_ok']) || empty($_SESSION['g_id'])) {
-  header('Location: ../index.php');
-  exit;
+  header('Location: ../index.php'); exit;
 }
-$setor = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
-$nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
+
+// garante $_SESSION['tipo']
+if (empty($_SESSION['tipo'])) {
+  try {
+    $pdo = new PDO('mysql:host=127.0.0.1;dbname=sistema_acompanhamento;charset=utf8mb4','root','',[
+      PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,
+      PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,
+    ]);
+    $st = $pdo->prepare('SELECT tipo FROM usuarios WHERE id_usuario_cehab_online = :gid LIMIT 1');
+    $st->execute([':gid' => $_SESSION['g_id']]);
+    $t = $st->fetchColumn();
+    $_SESSION['tipo'] = $t ?: 'comum';
+  } catch (Throwable $e) {
+    $_SESSION['tipo'] = 'comum';
+  }
+}
+
+$setor   = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
+$nome    = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
+$isAdmin = (($_SESSION['tipo'] ?? '') === 'admin'); // <-- controla o botão
+
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -17,10 +35,8 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
   <title>CEHAB - Acompanhamento de Processos</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
-
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-
   <link rel="stylesheet" href="../assets/css/home.css">
 </head>
 <body>
@@ -32,9 +48,18 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
         <h1 class="brand__title">CEHAB - Acompanhamento de Processos</h1>
       </a>
 
-      <a href="../pages/gerar_relatorio.php" class="btn btn--outline-green">
-        <i class="fa-solid fa-file-lines"></i> Gerar Relatório
-      </a>
+      <div class="flex items-center gap-2">
+        <a href="../pages/gerar_relatorio.php" class="btn btn--outline-green">
+          <i class="fa-solid fa-file-lines"></i> Gerar Relatório
+        </a>
+
+        <?php if ($isAdmin): ?>
+        <!-- Botão visível apenas para admin -->
+        <a href="../pages/todos.php" class="btn btn--outline-blue">
+          <i class="fa-solid fa-layer-group"></i> TODOS
+        </a>
+        <?php endif; ?>
+      </div>
 
       <div class="header-actions">
         <a href="encaminhado.php" class="btn btn--outline-blue">
@@ -63,35 +88,35 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
 
         <h2 class="title">Processos em Andamento</h2>
 
-        <!-- Barra de busca estilo YouTube -->
-<form id="frmBuscaHome" class="flex items-center gap-2 mb-4" action="" method="GET">
-  <div class="flex items-center w-full max-w-3xl border rounded-full pl-4 pr-2 py-2 bg-white">
-    <i class="fa-solid fa-magnifying-glass mr-2 opacity-70"></i>
-    <input
-      id="searchNumeroHome"
-      name="numero"
-      type="text"
-      inputmode="numeric"
-      pattern="[0-9./-]*"
-      autocomplete="off"
-      placeholder="Digite o nº do contrato/processo (ex.: 4561184878/4664-68)"
-      class="w-full outline-none"
-      value="<?= htmlspecialchars($_GET['numero'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
-      aria-label="Pesquisar por número do contrato/processo"
-    />
-    <button id="btnBuscarHome" class="ml-2 rounded-full px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition" type="submit">
-      Pesquisar
-    </button>
-  </div>
-  <button id="btnLimparHome" class="btn" type="button" title="Limpar">Limpar</button>
-</form>
-
+        <!-- Barra de busca -->
+        <form id="frmBuscaHome" class="flex items-center gap-2 mb-4" action="" method="GET">
+          <div class="flex items-center w-full max-w-3xl border rounded-full pl-4 pr-2 py-2 bg-white">
+            <i class="fa-solid fa-magnifying-glass mr-2 opacity-70"></i>
+            <input
+              id="searchNumeroHome"
+              name="numero"
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9./-]*"
+              autocomplete="off"
+              placeholder="Digite o nº do contrato/processo (ex.: 4561184878/4664-68)"
+              class="w-full outline-none"
+              value="<?= htmlspecialchars($_GET['numero'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+              aria-label="Pesquisar por número do contrato/processo"
+            />
+            <button id="btnBuscarHome" class="ml-2 rounded-full px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition" type="submit">
+              Pesquisar
+            </button>
+          </div>
+          <button id="btnLimparHome" class="btn" type="button" title="Limpar">Limpar</button>
+        </form>
 
         <div id="processList" class="grid"></div>
       </div>
     </div>
   </main>
 
+  <!-- Modais (inalterados) -->
   <div id="processModal" class="modal-backdrop hidden">
     <div class="modal modal--sm">
       <div class="modal__header">
@@ -106,15 +131,15 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
           <div>
             <label class="label">Número do Processo</label>
             <input id="processNumber"
-                type="text"
-                class="input"
-                required
-                pattern="\d{10}\.\d{6}/\d{4}-\d{2}"
-                maxlength="25"
-                inputmode="numeric"
-                autocomplete="off"
-                placeholder="Ex: 0060900018.001341/2025-49"
-                title="Formato: NNNNNNNNNN.NNNNNN/NNNN-NN">
+              type="text"
+              class="input"
+              required
+              pattern="\d{10}\.\d{6}/\d{4}-\d{2}"
+              maxlength="25"
+              inputmode="numeric"
+              autocomplete="off"
+              placeholder="Ex: 0060900018.001341/2025-49"
+              title="Formato: NNNNNNNNNN.NNNNNN/NNNN-NN">
           </div>
 
           <div>
@@ -218,7 +243,8 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
     window.APP = {
       MY_SETOR: <?= json_encode($_SESSION['setor'] ?? '') ?>,
       USER_NAME: <?= json_encode($_SESSION['nome']  ?? '') ?>,
-      GID:       <?= json_encode($_SESSION['g_id']  ?? '') ?>
+      GID:       <?= json_encode($_SESSION['g_id']  ?? '') ?>,
+      USER_TYPE: <?= json_encode($_SESSION['tipo'] ?? '') ?> // se precisar no JS
     };
   </script>
   <script src="../js/home.js?v=3"></script>
