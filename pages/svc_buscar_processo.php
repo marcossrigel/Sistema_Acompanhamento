@@ -14,10 +14,15 @@ if ($numero === '') {
 }
 
 try {
-  $pdo = new PDO('mysql:host=127.0.0.1;dbname=sistema_acompanhamento;charset=utf8mb4','root','',[
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-  ]);
+  $pdo = new PDO(
+    'mysql:host=127.0.0.1;dbname=sistema_acompanhamento;charset=utf8mb4',
+    'root',
+    '',
+    [
+      PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+      PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    ]
+  );
 
   $sql = "SELECT id,
                  numero_processo,
@@ -56,12 +61,21 @@ try {
   $stmt2->execute([':pid' => $processoId]);
   $fluxo = $stmt2->fetchAll();
 
+  /* === Ajustes de campos === */
   $tipos = [];
   if (!empty($row['tipos_processo_json'])) {
     $tipos = json_decode($row['tipos_processo_json'], true);
   }
+  $tiposStr = $tipos ? implode(', ', $tipos) : '—';
+  if (!empty($row['tipo_outros'])) {
+    $tiposStr = ($tiposStr === '—' ? '' : $tiposStr.' | ').'Outros: '.$row['tipo_outros'];
+  }
+  if ($tiposStr === '') $tiposStr = '—';
 
-  $row['tipos_array'] = $tipos;
+  // Renomeia para bater com o front-end
+  $row['setor_destino'] = $row['enviar_para'];
+  $row['tipos'] = $tiposStr;
+  $row['criado_em'] = $row['data_registro'];
 
   echo json_encode(['ok'=>true,'registro'=>$row,'fluxo'=>$fluxo]);
 } catch (Throwable $e) {
