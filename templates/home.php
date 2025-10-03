@@ -63,6 +63,30 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
 
         <h2 class="title">Processos em Andamento</h2>
 
+        <!-- Barra de busca estilo YouTube -->
+<form id="frmBuscaHome" class="flex items-center gap-2 mb-4" action="" method="GET">
+  <div class="flex items-center w-full max-w-3xl border rounded-full pl-4 pr-2 py-2 bg-white">
+    <i class="fa-solid fa-magnifying-glass mr-2 opacity-70"></i>
+    <input
+      id="searchNumeroHome"
+      name="numero"
+      type="text"
+      inputmode="numeric"
+      pattern="[0-9./-]*"
+      autocomplete="off"
+      placeholder="Digite o nº do contrato/processo (ex.: 4561184878/4664-68)"
+      class="w-full outline-none"
+      value="<?= htmlspecialchars($_GET['numero'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+      aria-label="Pesquisar por número do contrato/processo"
+    />
+    <button id="btnBuscarHome" class="ml-2 rounded-full px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition" type="submit">
+      Pesquisar
+    </button>
+  </div>
+  <button id="btnLimparHome" class="btn" type="button" title="Limpar">Limpar</button>
+</form>
+
+
         <div id="processList" class="grid"></div>
       </div>
     </div>

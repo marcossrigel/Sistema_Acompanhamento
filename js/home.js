@@ -42,6 +42,53 @@ const tipoOutrosInput = document.getElementById('tipoOutrosInput');
 
 const procInput = document.getElementById('processNumber');
 
+// ====== BUSCA NA HOME ======
+const frmBuscaHome   = document.getElementById('frmBuscaHome');
+const inputHome      = document.getElementById('searchNumeroHome');
+const btnLimparHome  = document.getElementById('btnLimparHome');
+
+// foco ao abrir a página
+window.addEventListener('DOMContentLoaded', () => {
+  inputHome?.focus();
+});
+
+// Esc limpa o campo
+inputHome?.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    inputHome.value = '';
+  }
+});
+
+// submit atualiza a URL e recarrega a lista
+frmBuscaHome?.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const termo = (inputHome?.value || '').trim();
+  const url = new URL(window.location.href);
+  if (termo) url.searchParams.set('numero', termo);
+  else url.searchParams.delete('numero');
+  history.replaceState({}, '', url.toString());
+  loadMyProcesses(); // recarrega já filtrando
+});
+
+// botão limpar
+btnLimparHome?.addEventListener('click', () => {
+  inputHome.value = '';
+  inputHome.focus(); inputHome.select?.();
+  const url = new URL(window.location.href);
+  url.searchParams.delete('numero');
+  history.replaceState({}, '', url.toString());
+  loadMyProcesses();
+});
+
+// pré-preenche pelo querystring se houver
+(function initBuscaHomeFromURL(){
+  const url = new URL(window.location.href);
+  const termo = url.searchParams.get('numero') || '';
+  if (inputHome) inputHome.value = termo;
+})();
+
+
 // Formata a partir de *apenas* dígitos (máx 22), montando as quebras fixas
 function formatProc(digits) {
   const d = digits.slice(0, 22);           // <= CORTE DURO: máx 22 dígitos
@@ -182,12 +229,18 @@ const parseTipos = j => {
 // ====== LISTA DA HOME ======
 async function loadMyProcesses(){
   const wrap = document.getElementById('processList');
+  const termo = (document.getElementById('searchNumeroHome')?.value || '').trim();
+
   wrap.innerHTML = `
     <div class="col-span-full text-gray-400 border border-dashed rounded-lg p-8 text-center">
       Carregando…
     </div>`;
+
   try {
-    const r = await fetch('listar_processos.php', { credentials:'same-origin' });
+    const url = new URL('listar_processos.php', window.location.href);
+    if (termo) url.searchParams.set('numero', termo);
+
+    const r = await fetch(url.toString(), { credentials:'same-origin' });
     const j = await r.json();
     if (!r.ok || !j.ok) throw new Error(j.error || 'erro');
     const data = j.data || [];
@@ -195,7 +248,7 @@ async function loadMyProcesses(){
     if (!data.length){
       wrap.innerHTML = `
         <div class="col-span-full text-gray-400 border border-dashed rounded-lg p-8 text-center">
-          Nenhum processo encontrado.
+          Nenhum processo${termo ? ` encontrado para "${esc(termo)}"` : ''}.
         </div>`;
       return;
     }
