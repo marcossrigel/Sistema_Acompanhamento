@@ -1,5 +1,4 @@
 <?php
-// templates/listar_encaminhados.php
 declare(strict_types=1);
 if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 header('Content-Type: application/json; charset=utf-8');
@@ -14,42 +13,67 @@ if (empty($_SESSION['auth_ok']) || empty($_SESSION['g_id'])) { $reply(401, ['ok'
 $meuSetor = trim((string)($_SESSION['setor'] ?? ''));
 if ($meuSetor === '') { $reply(400, ['ok'=>false,'error'=>'Setor não encontrado na sessão.']); }
 
+$busca = trim((string)($_GET['numero'] ?? ''));
+$buscaLike = $busca !== '' ? '%'.$busca.'%' : '';
+$buscaDigits = $busca !== '' ? '%'.preg_replace('/\D+/', '', $busca).'%' : '';
+
 try {
-  // traz processos cujo destino atual é meu setor
-  // OU que já passaram pelo meu setor (registro em processo_fluxo),
-  // mas exclui processos cuja demanda original é do próprio setor (para não mostrar processos que eu mesmo criei)
-// templates/listar_encaminhados.php
-$sql = "
-  SELECT DISTINCT
-         np.id,
-         np.numero_processo,
-         np.setor_demandante,
-         np.enviar_para,
-         np.tipos_processo_json,
-         np.tipo_outros,
-         np.descricao,
-         np.data_registro
-  FROM novo_processo np
-  LEFT JOIN processo_fluxo pf ON pf.processo_id = np.id
-  WHERE LOWER(np.enviar_para) = LOWER(?)
-     OR (
-         LOWER(pf.setor) = LOWER(?)
-         AND pf.status = 'concluido'
-         AND LOWER(np.setor_demandante) <> LOWER(?)
-     )
-  ORDER BY np.data_registro DESC
-  LIMIT 300
-";
+  $sql = "
+    SELECT DISTINCT
+           np.id,
+           np.numero_processo,
+           np.setor_demandante,
+           np.enviar_para,
+           np.tipos_processo_json,
+           np.tipo_outros,
+           np.descricao,
+           np.data_registro,
+           COALESCE(np.finalizado, 0) AS finalizado
+    FROM novo_processo np
+    LEFT JOIN processo_fluxo pf ON pf.processo_id = np.id
+    WHERE (
+            LOWER(np.enviar_para) = LOWER(?)
+         OR (
+              LOWER(pf.setor) = LOWER(?)
+              AND pf.status = 'concluido'
+              AND LOWER(np.setor_demandante) <> LOWER(?)
+            )
+          )
+  ";
+
+  $types = 'sss';
+  $params = [$meuSetor, $meuSetor, $meuSetor];
+
+  if ($busca !== '') {
+    $sql .= "
+      AND (
+            REPLACE(REPLACE(REPLACE(REPLACE(np.numero_processo, '.', ''), '/', ''), '-', ''), ' ', '') LIKE ?
+         OR np.numero_processo LIKE ?
+         OR np.descricao LIKE ?
+          )
+    ";
+    $types .= 'sss';
+    $params[] = $buscaDigits;
+    $params[] = $buscaLike;
+    $params[] = $buscaLike;
+  }
+
+  $sql .= " ORDER BY np.data_registro DESC LIMIT 300 ";
 
   $st = $connLocal->prepare($sql);
-  // bind_param: três strings (meuSetor para enviar_para, meuSetor para pf.setor e meuSetor para comparar com setor_demandante)
-  $st->bind_param('sss', $meuSetor, $meuSetor, $meuSetor);
+
+  $bind = [$types];
+  foreach ($params as $k => $v) { $bind[] = &$params[$k]; }
+  call_user_func_array([$st, 'bind_param'], $bind);
+
   $st->execute();
   $res  = $st->get_result();
   $data = [];
   while ($r = $res->fetch_assoc()) { $data[] = $r; }
   $st->close();
+
   $reply(200, ['ok'=>true, 'data'=>$data]);
+
 } catch (Throwable $e) {
   $reply(500, ['ok'=>false,'error'=>$e->getMessage()]);
 }

@@ -51,134 +51,157 @@ $SETOR_FINAL = 'GFIN - Gerência Financeira';
         </div>
 
         <h2 class="title">Processos Encaminhados</h2>
+
+        <form id="frmBusca" class="flex items-center gap-2 mb-4" action="" method="GET">
+          <div class="flex items-center w-full max-w-3xl border rounded-full pl-4 pr-2 py-2 bg-white">
+            <i class="fa-solid fa-magnifying-glass mr-2 opacity-70"></i>
+            <input
+              id="searchNumero"
+              name="numero"
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9./-]*"
+              placeholder="Digite o nº do contrato/processo (ex.: 4561184878/4664-68)"
+              class="w-full outline-none"
+              value="<?= htmlspecialchars($_GET['numero'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
+            />
+            <button id="btnBuscar" class="ml-2 rounded-full px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 transition" type="submit">
+              Pesquisar
+            </button>
+          </div>
+          <button id="btnLimpar" class="btn" type="button" title="Limpar">Limpar</button>
+        </form>
+
         <div id="encList" class="grid"></div>
       </div>
     </div>
   </main>
 
   <div id="detailsModal" class="modal-backdrop hidden">
-    <div class="modal">
-      <div class="modal__header">
-        <h3 class="modal__title">Detalhes do Processo</h3>
-        <button id="closeDetails" class="modal__close" aria-label="Fechar">
-          <i class="fa-solid fa-xmark" style="font-size:20px;"></i>
-        </button>
-      </div>
+  <div class="modal">
+    <div class="modal__header">
+      <h3 class="modal__title">Detalhes do Processo</h3>
+      <button id="closeDetails" class="modal__close" aria-label="Fechar">
+        <i class="fa-solid fa-xmark" style="font-size:20px;"></i>
+      </button>
+    </div>
 
-      <div class="modal__body">
-        <div class="modal-grid">
-          <div class="flow-col">
-            <h4 class="flow-title">Histórico e Fluxo do Processo</h4>
-            <div id="flowList" class="flow-list"></div>
+    <div class="modal__body">
+      <div class="modal-grid">
+        <div class="flow-col">
+          <h4 class="flow-title">Histórico e Fluxo do Processo</h4>
+          <div id="flowList" class="flow-list"></div>
+        </div>
+
+        <aside>
+          <div class="sidebar-box">
+            <h5 class="sidebar-title">Informações Gerais</h5>
+            <div class="info-list">
+              <p><span class="info-label">Número:</span> <span id="d_num" class="font-medium">—</span></p>
+              <p><span class="info-label">Setor Demandante:</span> <span id="d_setor" class="font-medium">—</span></p>
+              <p><span class="info-label">Tipos:</span> <span id="d_tipos" class="font-medium">—</span></p>
+              <p id="d_outros_row" class="hidden">
+                <span class="info-label">Outros:</span> <span id="d_outros" class="font-medium">—</span>
+              </p>
+              <p><span class="info-label">Descrição:</span> <span id="d_desc" class="font-medium break-words">—</span></p>
+              <p><span class="info-label">Criado em:</span> <span id="d_dt" class="font-medium">—</span></p>
+            </div>
           </div>
 
-          <aside>
-            <div class="sidebar-box">
-              <h5 class="sidebar-title">Informações Gerais</h5>
-              <div class="info-list">
-                <p><span class="info-label">Número:</span> <span id="d_num" class="font-medium">—</span></p>
-                <p><span class="info-label">Setor Demandante:</span> <span id="d_setor" class="font-medium">—</span></p>
-                <p><span class="info-label">Tipos:</span> <span id="d_tipos" class="font-medium">—</span></p>
-                <p id="d_outros_row" class="hidden">
-                  <span class="info-label">Outros:</span> <span id="d_outros" class="font-medium">—</span>
-                </p>
-                <p><span class="info-label">Descrição:</span> <span id="d_desc" class="font-medium break-words">—</span></p>
-                <p><span class="info-label">Criado em:</span> <span id="d_dt" class="font-medium">—</span></p>
-              </div>
-            </div>
+          <div style="margin-top:12px; font-size:14px;">
+            <p>
+              <span class="info-label">Enviar para:</span>
+              <span id="d_dest" class="font-medium">—</span>
+            </p>
+          </div>
 
-            <div style="margin-top:12px; font-size:14px;">
-              <p>
-                <span class="info-label">Enviar para:</span>
-                <span id="d_dest" class="font-medium">—</span>
-              </p>
-            </div>
+          <!-- BLOCO FINALIZAR (aparece para GFIN quando está no GFIN) -->
+          <div id="finalizarBlock" class="encaminhar-block hidden">
+            <p class="label" style="margin-bottom:10px;">Finalizar processo</p>
+            <button id="btnFinalizarProcesso" class="btn--primary" type="button">
+              <i class="fa-solid fa-flag-checkered"></i> Finalizar processo
+            </button>
+          </div>
 
-            <!-- BLOCO FINALIZAR (aparece só para GFIN quando o processo está no GFIN) -->
-            <div id="finalizarBlock" class="encaminhar-block hidden">
-              <p class="label" style="margin-bottom:10px;">Finalizar processo</p>
-              <button id="btnFinalizarProcesso" class="btn--primary" type="button">
-                <i class="fa-solid fa-flag-checkered"></i> Finalizar processo
-              </button>
-            </div>
+          <!-- BLOCO ENCAMINHAR (padrão) -->
+          <div id="encBlock" class="encaminhar-block">
+            <label class="label">Encaminhar para</label>
+            <select id="nextSector" class="select">
+              <option value="" selected disabled>Selecione o próximo setor.</option>
+              <option>DAF - Diretoria de Administração e Finanças</option>
+              <option>DOHDU - Diretoria de Obras</option>
+              <option>CELOE I - Comissão de Licitação I</option>
+              <option>CELOE II - Comissão de Licitação II</option>
+              <option>CELOSE - Comissão de Licitação</option>
+              <option>GCOMP - Gerência de Compras</option>
+              <option>GOP - Gerência de Orçamento e Planejamento</option>
+              <option>GFIN - Gerência Financeira</option>
+              <option>GCONT - Gerência de Contabilidade</option>
+              <option>DP - Diretoria da Presidência</option>
+              <option>GAD - Gerência Administrativa</option>
+              <option>GAC - Gerência de Acompanhamento de Contratos</option>
+              <option>CGAB - Chefia de Gabinete</option>
+              <option>DOE - Diretoria de Obras Estratégicas</option>
+              <option>DSU - Diretoria de Obras de Saúde</option>
+              <option>DSG - Diretoria de Obras de Segurança</option>
+              <option>DED - Diretoria de Obras de Educação</option>
+              <option>SPO - Superintendência de Projetos de Obras</option>
+              <option>SUAJ - Superintendência de Apoio Jurídico</option>
+              <option>SUFIN - Superintendência Financeira</option>
+              <option>GAJ - Gerência de Apoio Jurídico</option>
+              <option>SUPLAN - Superintendência de Planejamento</option>
+              <option>DPH - Diretoria de Projetos Habitacionais</option>
+            </select>
+            <button id="btnEncaminhar" class="btn--primary" type="button">Encaminhar</button>
+          </div>
 
-            <!-- BLOCO ENCAMINHAR (padrão) -->
-            <div id="encBlock" class="encaminhar-block">
-              <label class="label">Encaminhar para</label>
-              <select id="nextSector" class="select">
-                <option value="" selected disabled>Selecione o próximo setor.</option>
-                <option>DAF - Diretoria de Administração e Finanças</option>
-                <option>DOHDU - Diretoria de Obras</option>
-                <option>CELOE I - Comissão de Licitação I</option>
-                <option>CELOE II - Comissão de Licitação II</option>
-                <option>CELOSE - Comissão de Licitação</option>
-                <option>GCOMP - Gerência de Compras</option>
-                <option>GOP - Gerência de Orçamento e Planejamento</option>
-                <option>GFIN - Gerência Financeira</option>
-                <option>GCONT - Gerência de Contabilidade</option>
-                <option>DP - Diretoria da Presidência</option>
-                <option>GAD - Gerência Administrativa</option>
-                <option>GAC - Gerência de Acompanhamento de Contratos</option>
-                <option>CGAB - Chefia de Gabinete</option>
-                <option>DOE - Diretoria de Obras Estratégicas</option>
-                <option>DSU - Diretoria de Obras de Saúde</option>
-                <option>DSG - Diretoria de Obras de Segurança</option>
-                <option>DED - Diretoria de Obras de Educação</option>
-                <option>SPO - Superintendência de Projetos de Obras</option>
-                <option>SUAJ - Superintendência de Apoio Jurídico</option>
-                <option>SUFIN - Superintendência Financeira</option>
-                <option>GAJ - Gerência de Apoio Jurídico</option>
-                <option>SUPLAN - Superintendência de Planejamento</option>
-                <option>DPH - Diretoria de Projetos Habitacionais</option>
-              </select>
-              <button id="btnEncaminhar" class="btn--primary" type="button">Encaminhar</button>
-            </div>
-
-            <div style="margin-top:8px;">
-              <button id="btnAcoes" class="btn--ghost" type="button">Ações internas</button>
-            </div>
-          </aside>
-        </div>
-      </div>
-
-      <div class="modal__footer">
-        <button id="okDetails" class="btn--ok" type="button">OK</button>
+          <div style="margin-top:8px;">
+            <button id="btnAcoes" class="btn--ghost" type="button">Ações internas</button>
+          </div>
+        </aside>
       </div>
     </div>
-  </div>
 
-  <div id="acoesModal" class="inner-modal-backdrop hidden">
-    <div class="inner-modal">
-      <div class="inner-modal__header">
-        <h2 class="modal__title" style="font-size:18px;">Ações Internas do Setor</h2>
-        <button id="fecharAcoes" class="modal__close" aria-label="Fechar">
-          <i class="fa-solid fa-xmark" style="font-size:20px;"></i>
-        </button>
-      </div>
-
-      <ul id="acoesList" class="inner-modal__list"></ul>
-
-      <label class="label" style="margin-bottom:6px;">Nova ação (visível a todos):</label>
-      <textarea id="acaoTexto" class="textarea" rows="3" placeholder="Ex.: Tive um problema com tal emenda"></textarea>
-
-      <div class="btn-row">
-        <button id="cancelarAcoes" class="btn--muted" type="button">Cancelar</button>
-        <button id="salvarAcao" class="btn--blue" type="button">Salvar ação</button>
-      </div>
+    <div class="modal__footer">
+      <button id="okDetails" class="btn--ok" type="button">OK</button>
     </div>
   </div>
+</div>
 
-  <div id="finalizarModal" class="finish-backdrop hidden">
-    <div class="finish-card">
-      <h2 class="finish-title">Finalizar Etapa</h2>
-      <label class="label" style="margin-bottom:6px;">Descreva a ação finalizadora:</label>
-      <textarea id="acaoFinalizadora" class="textarea" rows="3" placeholder="Ex: Finalizando o fluxo desse processo"></textarea>
-      <div class="finish-actions">
-        <button id="cancelarFinalizar" class="btn--muted" type="button">Cancelar</button>
-        <button id="confirmarFinalizar" class="btn--blue" type="button">Confirmar e Avançar</button>
-      </div>
+<!-- ========== MODAL DE AÇÕES INTERNAS ========== -->
+<div id="acoesModal" class="inner-modal-backdrop hidden">
+  <div class="inner-modal">
+    <div class="inner-modal__header">
+      <h2 class="modal__title" style="font-size:18px;">Ações Internas do Setor</h2>
+      <button id="fecharAcoes" class="modal__close" aria-label="Fechar">
+        <i class="fa-solid fa-xmark" style="font-size:20px;"></i>
+      </button>
+    </div>
+
+    <ul id="acoesList" class="inner-modal__list"></ul>
+
+    <label class="label" style="margin-bottom:6px;">Nova ação (visível a todos):</label>
+    <textarea id="acaoTexto" class="textarea" rows="3" placeholder="Ex.: Tive um problema com tal emenda"></textarea>
+
+    <div class="btn-row">
+      <button id="cancelarAcoes" class="btn--muted" type="button">Cancelar</button>
+      <button id="salvarAcao" class="btn--blue" type="button">Salvar ação</button>
     </div>
   </div>
+</div>
+
+<!-- ========== MODAL FINALIZAR/ENCAMINHAR ========== -->
+<div id="finalizarModal" class="finish-backdrop hidden">
+  <div class="finish-card">
+    <h2 class="finish-title">Finalizar Etapa</h2>
+    <label class="label" style="margin-bottom:6px;">Descreva a ação finalizadora:</label>
+    <textarea id="acaoFinalizadora" class="textarea" rows="3" placeholder="Ex: Finalizando o fluxo desse processo"></textarea>
+    <div class="finish-actions">
+      <button id="cancelarFinalizar" class="btn--muted" type="button">Cancelar</button>
+      <button id="confirmarFinalizar" class="btn--blue" type="button">Confirmar e Avançar</button>
+    </div>
+  </div>
+</div>
 
   <script>
     window.MY_SETOR      = <?= json_encode($_SESSION['setor'] ?? '') ?>;

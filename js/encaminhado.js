@@ -99,13 +99,18 @@ const parseTipos = j => { try { const a = JSON.parse(j||'[]'); return Array.isAr
 
 async function loadIncoming(){
   const wrap = document.getElementById('encList');
+  const termo = (document.getElementById('searchNumero')?.value || '').trim();
+
   wrap.innerHTML = `
     <div class="col-span-full text-gray-400 border border-dashed rounded-lg p-8 text-center">
       Carregando…
     </div>`;
 
   try {
-    const r = await fetch('listar_encaminhados.php', { credentials: 'same-origin' });
+    const url = new URL('listar_encaminhados.php', window.location.href);
+    if (termo) url.searchParams.set('numero', termo);
+
+    const r = await fetch(url.toString(), { credentials: 'same-origin' });
     const j = await r.json();
     if (!r.ok || !j.ok) throw new Error(j.error || 'Falha ao listar');
 
@@ -113,7 +118,7 @@ async function loadIncoming(){
     if (!data.length) {
       wrap.innerHTML = `
         <div class="col-span-full text-gray-400 border border-dashed rounded-lg p-8 text-center">
-          Nenhum processo encaminhado para o seu setor no momento.
+          Nenhum processo encontrado${termo ? ' para "'+esc(termo)+'"' : ''}.
         </div>`;
       return;
     }
@@ -150,6 +155,7 @@ async function loadIncoming(){
       </div>`;
   }
 }
+
 
 let currentProcess = null;
 
@@ -316,6 +322,36 @@ async function renderFlow(processoId){
     wrap.innerHTML = '<div class="text-red-500">Erro ao carregar fluxo.</div>';
   }
 }
+
+const frmBusca   = document.getElementById('frmBusca');
+const btnLimpar  = document.getElementById('btnLimpar');
+
+frmBusca?.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const termo = (document.getElementById('searchNumero')?.value || '').trim();
+  const url = new URL(window.location.href);
+  if (termo) url.searchParams.set('numero', termo);
+  else url.searchParams.delete('numero');
+  history.replaceState({}, '', url.toString());
+
+  loadIncoming();
+});
+
+btnLimpar?.addEventListener('click', () => {
+  document.getElementById('searchNumero').value = '';
+  const url = new URL(window.location.href);
+  url.searchParams.delete('numero');
+  history.replaceState({}, '', url.toString());
+  loadIncoming();
+});
+
+(function initBuscaFromURL(){
+  const url = new URL(window.location.href);
+  const termo = url.searchParams.get('numero') || '';
+  const input = document.getElementById('searchNumero');
+  if (input) input.value = termo;
+})();
+
 
 const btnEncaminhar     = document.getElementById('btnEncaminhar');
 const finalizarModal    = document.getElementById('finalizarModal');
