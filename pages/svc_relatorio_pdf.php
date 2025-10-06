@@ -1,7 +1,6 @@
 <?php
 if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 
-/* === Carrega FPDF (procura em alguns caminhos comuns) === */
 $fpdfPaths = [
   __DIR__ . '/libs/fpdf182/fpdf.php',
   __DIR__ . '/../libs/fpdf182/fpdf.php',
@@ -20,23 +19,18 @@ if (!$found) {
   exit;
 }
 
-/* === Helpers de texto === */
 function t($s) {
-  // Converte UTF-8 -> ISO-8859-1 (latin1) para o FPDF
   if ($s === null) return '';
-  // tenta iconv primeiro (mais robusto); se falhar, usa utf8_decode
   $conv = @iconv('UTF-8', 'ISO-8859-1//TRANSLIT', (string)$s);
   if ($conv === false) $conv = utf8_decode((string)$s);
   return $conv;
 }
 function tz($s, $max) {
-  // Trunca de forma segura (contagem simples, adequada a latin1)
   $s = (string)$s;
   if (strlen($s) <= $max) return $s;
   return substr($s, 0, max(0, $max - 1)) . "…";
 }
 
-/* === Entrada === */
 $numero = trim($_GET['numero'] ?? '');
 if ($numero === '') {
   http_response_code(400);
@@ -45,7 +39,6 @@ if ($numero === '') {
 }
 
 try {
-  /* === DB === */
   $pdo = new PDO(
     'mysql:host=127.0.0.1;dbname=sistema_acompanhamento;charset=utf8mb4',
     'root',
