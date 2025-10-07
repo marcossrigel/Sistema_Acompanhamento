@@ -28,13 +28,18 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
     .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;}
     .chip{background:#eef2ff;color:#4f46e5;padding:4px 10px;border-radius:999px;font-weight:600}
     .item{border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;background:#fff}
-    .item + .item{margin-top:10px}
+    .item + .item { margin-top: 10px; }
     .muted{color:#6b7280}
     .badge{font-size:.75rem;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;border-radius:999px;padding:2px 8px;font-weight:700}
     .btn{display:inline-flex;align-items:center;gap:8px;border-radius:10px;padding:9px 12px;font-weight:600}
     .btn--muted{background:#f3f4f6}
     .btn--primary{background:#2563eb;color:#fff}
-    .list{margin-top:12px}
+    .list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+      margin-top: 12px;
+    }
     .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
     .hidden{display:none}
     .modal{background:#fff;border-radius:14px;max-width:1000px;width:100%;max-height:90vh;overflow:auto;border:1px solid #e5e7eb}
@@ -42,6 +47,22 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
     .modal__body{padding:16px}
     .flow-row{display:grid;grid-template-columns:60px 1fr 140px 140px;gap:8px;border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin-bottom:8px}
     .flow-head{font-weight:700;background:#f9fafb}
+    .flow-card {
+  border: 1px solid #bbf7d0;
+  background: #ecfdf5;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+
+.flow-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #065f46;
+}
   </style>
 </head>
 <body>
@@ -89,9 +110,6 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
         <div class="grid md:grid-cols-2 gap-4">
           <div>
             <h4 class="font-bold mb-2">Fluxo</h4>
-            <div class="flow-row flow-head">
-              <div>#</div><div>Setor / Status</div><div>Início</div><div>Fim</div>
-            </div>
             <div id="flowBox"></div>
           </div>
           <aside>
@@ -124,6 +142,18 @@ const fmt = iso => {
   const mi = String(d.getMinutes()).padStart(2,'0');
   return `${dd}/${mm}/${yy} ${hh}:${mi}`;
 };
+
+function calcularTempo(ini, fim) {
+  if (!ini || !fim) return '—';
+  const start = new Date(ini);
+  const end = new Date(fim);
+  const diff = (end - start) / 60000; // minutos
+  if (diff < 1) return 'menos de 1 min';
+  if (diff < 60) return `${Math.round(diff)} min`;
+  const horas = Math.floor(diff / 60);
+  const min = Math.round(diff % 60);
+  return `${horas}h ${min}min`;
+}
 
 function card(p) {
   const r = p.registro;
@@ -179,17 +209,28 @@ function openDetails(id) {
   el('d_desc').textContent  = p.registro.descricao || '—';
   el('d_dt').textContent    = fmt(p.registro.criado_em || p.registro.data_registro);
 
-  const flow = (p.fluxo || []).map(f => `
-    <div class="flow-row">
-      <div>${f.ordem ?? ''}</div>
-      <div><b>${f.setor || '—'}</b> — ${f.status || '—'}<br>
-        ${f.observacao ? `<i class="muted">Obs.: ${f.observacao}</i><br>`:''}
-        ${f.acao_finalizadora ? `<i class="muted">Ação: ${f.acao_finalizadora}</i>`:''}
+  const flow = (p.fluxo || []).map(f => {
+  const entrada = fmt(f.data_registro);
+  const saida = fmt(f.data_fim);
+  const tempo = f.tempo_estimado || calcularTempo(f.data_registro, f.data_fim);
+  const concluido = (f.status || '').toLowerCase().includes('conclu');
+  const icone = concluido ? 'fa-circle-check text-green-500' : 'fa-hourglass-half text-yellow-500';
+  return `
+    <div class="flow-card">
+      <div class="flow-header">
+        <i class="fa-solid ${icone}"></i>
+        <strong>${f.setor || '—'}</strong>
+        <span class="text-sm text-gray-500 ml-2">${f.status || '—'}</span>
       </div>
-      <div>${fmt(f.data_registro)}</div>
-      <div>${fmt(f.data_fim)}</div>
+      <div class="flow-body text-sm text-gray-700 mt-1">
+        <p><b>Entrada:</b> ${entrada} → <b>Saída:</b> ${saida}</p>
+        <p><b>Tempo:</b> ${tempo}</p>
+        ${f.acao_finalizadora ? `<p><b>Ação:</b> ${f.acao_finalizadora}</p>` : ''}
+      </div>
     </div>
-  `).join('');
+  `;
+}).join('');
+
   el('flowBox').innerHTML = flow || `<div class="muted">Sem fluxo.</div>`;
 
   el('detailsModal').classList.remove('hidden');
