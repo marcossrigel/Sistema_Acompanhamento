@@ -36,19 +36,45 @@ $u_rede = trim($_GET['u_rede']  ?? $_POST['u_rede'] ?? '');
 $nome   = trim($_GET['nome']    ?? $_POST['nome']   ?? '');
 $email  = trim($_GET['email']   ?? $_POST['email']  ?? '');
 
+// valores vindos do POST (para repovoar o form em caso de erro)
+$setorPost   = trim($_POST['setor'] ?? '');
+$setorCustom = trim($_POST['setor_custom'] ?? '');
+
 $erro = '';
 $ok   = false;
 
 // se POST: salva uma SOLICITAÇÃO
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $nomePost  = trim($_POST['nome'] ?? '');
-  $setorPost = trim($_POST['setor'] ?? '');
+  $nomePost = trim($_POST['nome'] ?? '');
 
-  if ($g_id <= 0 || $nomePost === '' || !in_array($setorPost, $SETORES, true)) {
-    http_response_code(422);
-    $erro = 'Preencha corretamente os campos (nome e setor).';
+  // decide qual setor usar (lista ou digitado)
+  $setorFinal = '';
+  if ($setorPost === '__custom__') {
+    $setorFinal = $setorCustom;
   } else {
-    // INSERT na tabela solicitacoes
+    $setorFinal = $setorPost;
+  }
+
+  // validações
+  if ($g_id <= 0 || $nomePost === '') {
+    http_response_code(422);
+    $erro = 'Preencha corretamente o nome.';
+  } elseif ($setorPost !== '__custom__' && !in_array($setorFinal, $SETORES, true)) {
+    http_response_code(422);
+    $erro = 'Selecione um setor válido.';
+  } elseif ($setorPost === '__custom__') {
+    // precisa ter algo digitado
+    if ($setorFinal === '') {
+      http_response_code(422);
+      $erro = 'Digite o setor quando escolher "Setor não encontrado".';
+    } elseif (mb_strlen($setorFinal) < 5) {
+      http_response_code(422);
+      $erro = 'O setor digitado é muito curto. Use a sigla e o nome completo.';
+    }
+  }
+
+  // se está tudo ok, grava
+  if ($erro === '') {
     $sql = "INSERT INTO solicitacoes
               (id_usuario_cehab_online, nome, setor, status)
             VALUES (?, ?, ?, 'ABERTA')";
@@ -56,9 +82,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($st === false) {
       $erro = 'Falha ao preparar inserção.';
     } else {
-      $st->bind_param('iss', $g_id, $nomePost, $setorPost);
+      $st->bind_param('iss', $g_id, $nomePost, $setorFinal);
       if ($st->execute()) {
         $ok = true; // exibe modal de sucesso
+        // limpa campos do formulário após sucesso
+        $setorPost = '';
+        $setorCustom = '';
       } else {
         $erro = 'Falha ao salvar a solicitação.';
       }
@@ -67,7 +96,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
 }
 ?>
-
 <!doctype html>
 <html lang="pt-BR">
 <head>
@@ -100,12 +128,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       <div>
         <label class="block text-sm font-medium text-gray-700">Setor</label>
-        <select name="setor" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
-          <option value="" disabled selected>Selecione…</option>
+        <select name="setor" id="setorSelect"
+                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                required>
+          <option value="" <?= $setorPost==='' ? 'selected' : '' ?> disabled>Selecione…</option>
+
           <?php foreach ($SETORES as $s): ?>
-            <option value="<?= htmlspecialchars($s) ?>"><?= htmlspecialchars($s) ?></option>
+            <option value="<?= htmlspecialchars($s) ?>"
+              <?= ($setorPost === $s) ? 'selected' : '' ?>>
+              <?= htmlspecialchars($s) ?>
+            </option>
           <?php endforeach; ?>
+
+          <!-- opção para setor não encontrado -->
+          <option value="__custom__" <?= ($setorPost==='__custom__') ? 'selected' : '' ?>>
+            Setor não encontrado? Digite abaixo
+          </option>
         </select>
+
+        <!-- campo digitável -->
+        <div id="setorCustomWrapper"
+             class="mt-3 <?= ($setorPost==='__custom__') ? '' : 'hidden' ?>">
+          <label class="block text-sm font-medium text-gray-700">
+            Setor não encontrado?
+          </label>
+          <input name="setor_custom" id="setorCustomInput" type="text"
+                 placeholder="digite a sigla do setor e o nome completo"
+                 value="<?= htmlspecialchars($setorCustom) ?>"
+                 class="mt-1 block w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+          <p class="text-xs text-gray-500 mt-1">
+            Ex.: <em>GOP - Gerência de Orçamento e Planejamento</em>
+          </p>
+        </div>
       </div>
 
       <div class="flex justify-end gap-2 pt-2">
@@ -132,8 +186,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </div>
 
   <script>
-    (function() {
+    (function () {
+      const select = document.getElementById('setorSelect');
+      const customWrap = document.getElementById('setorCustomWrapper');
       const okBtn = document.getElementById('successOkBtn');
+
+      function toggleCustom() {
+        if (select.value === '__custom__') {
+          customWrap.classList.remove('hidden');
+        } else {
+          customWrap.classList.add('hidden');
+        }
+      }
+      if (select) select.addEventListener('change', toggleCustom);
+      toggleCustom(); // estado inicial
+
       if (okBtn) {
         okBtn.addEventListener('click', function () {
           window.location.href = <?= json_encode($GETIC_URL) ?>;
