@@ -1,3 +1,42 @@
+let __sectorsCache = null;
+async function getSectors() {
+  if (__sectorsCache) return __sectorsCache;
+  const r = await fetch('../templates/listar_setores.php', { credentials:'same-origin' });
+  const j = await r.json();
+  if (!r.ok || !j.ok) throw new Error(j.error || 'Falha ao listar setores');
+  __sectorsCache = { arr: (j.data || []).map(x => x.nome), final: j.finalizador };
+  return __sectorsCache;
+}
+
+// helper: pega a SIGLA antes do " - "
+const sigla = (s) => String(s || '').split('-')[0].trim().toUpperCase();
+const norm  = (s) => String(s||'')
+  .normalize('NFD').replace(/\p{Diacritic}/gu,'')
+  .replace(/\s+/g,' ').trim().toLowerCase();
+
+
+async function populateNextSectors() {
+  const sel = document.getElementById('nextSector');
+  if (!sel) return;
+
+  sel.innerHTML = '<option value="" selected disabled>Selecione o próximo setor.</option>';
+
+  try {
+    const { arr, final } = await getSectors();
+    // opcional: sincroniza setor finalizador vindo do servidor
+    window.FINAL_SECTOR = final || window.FINAL_SECTOR;
+
+    arr.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s;
+      opt.textContent = s;
+      sel.appendChild(opt);
+    });
+  } catch (e) {
+    console.error(e);
+  }
+}
+
 const acoesModal   = document.getElementById('acoesModal');
 const btnAcoes     = document.getElementById('btnAcoes');
 const fecharAcoes  = document.getElementById('fecharAcoes');
@@ -160,24 +199,20 @@ async function loadIncoming(){
 let currentProcess = null;
 
 function openDetails(p){
-  const norm = s => String(s||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').replace(/\s+/g,' ').trim().toLowerCase();
-
   const encBlock       = document.getElementById('encBlock');
   const finalizarBlock = document.getElementById('finalizarBlock');
   const btnAcoesEl     = document.getElementById('btnAcoes');
 
-  const canAct            = norm(p.enviar_para) === norm(MY_SETOR);
-  const processoFinalizado= Number(p.finalizado) === 1;
-  const processoNoGFIN    = norm(p.enviar_para) === norm(FINAL_SECTOR);
-  const usuarioEhGFIN     = norm(MY_SETOR)      === norm(FINAL_SECTOR);
-  const podeFinalizar     = !processoFinalizado && processoNoGFIN && usuarioEhGFIN;
+  const canAct             = sigla(p.enviar_para) === sigla(MY_SETOR);
+  const processoFinalizado = Number(p.finalizado) === 1;
+  const processoNoGFIN     = sigla(p.enviar_para) === sigla(FINAL_SECTOR);
+  const usuarioEhGFIN      = sigla(MY_SETOR)      === sigla(FINAL_SECTOR);
+  const podeFinalizar      = !processoFinalizado && processoNoGFIN && usuarioEhGFIN;
 
-  // mostra/oculta blocos
   finalizarBlock?.classList.toggle('hidden', !podeFinalizar);
   encBlock?.classList.toggle('hidden',  podeFinalizar ? true : !canAct);
   btnAcoesEl?.classList.toggle('hidden', !canAct);
 
-  // botão finalizar abre o mesmo modal, mas em modo finalização
   const btnFinalizar = document.getElementById('btnFinalizarProcesso');
   if (btnFinalizar) {
     btnFinalizar.onclick = () => {
@@ -192,14 +227,11 @@ function openDetails(p){
   document.getElementById('d_num').textContent   = p.numero_processo || '—';
   document.getElementById('d_setor').textContent = p.setor_demandante || '—';
   document.getElementById('d_dest').textContent  = p.enviar_para || '—';
-
   const tipos = parseTipos(p.tipos_processo_json);
   document.getElementById('d_tipos').textContent = tipos || '—';
-
   const hasOutros = (p.tipo_outros || '').trim() !== '';
   document.getElementById('d_outros_row').classList.toggle('hidden', !hasOutros);
   document.getElementById('d_outros').textContent = p.tipo_outros || '';
-
   document.getElementById('d_desc').textContent = p.descricao || '';
   document.getElementById('d_dt').textContent   = brDate(p.data_registro);
 
@@ -209,9 +241,13 @@ function openDetails(p){
   md.classList.remove('hidden');
   md.classList.add('flex');
 
+  // << aqui popula o select
+  populateNextSectors();
+
   const nextSel = document.getElementById('nextSector');
   if (nextSel) nextSel.value = '';
 }
+
 
 function closeDetails(){
   const md = document.getElementById('detailsModal');

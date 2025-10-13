@@ -1,4 +1,10 @@
 <?php
+
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+ini_set('log_errors', 1);
+error_reporting(E_ALL);
+
 if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 date_default_timezone_set('America/Recife');
 
@@ -62,7 +68,9 @@ if (!empty($_SESSION['auth_ok']) && !empty($_SESSION['g_id'])) {
 }
 
 /* ---------- token obrigatório ---------- */
-$token = trim($_GET['access_dinamic'] ?? $_GET['token'] ?? $_GET['t'] ?? '');
+$token = trim($_GET['access_dinamic'] ?? $_GET['token'] ?? $_GET['t'] ?? $_GET['x'] ?? '');
+file_put_contents(__DIR__.'/debug_login.log', date('c')." | GET: ".json_encode($_GET)."\n", FILE_APPEND);
+
 if ($token === '' || strlen($token) < 32) {
   http_response_code(401);
   echo '<!doctype html><meta charset="utf-8"><style>body{font:16px/1.5 system-ui;padding:40px}</style>

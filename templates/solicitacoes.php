@@ -3,31 +3,20 @@ if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 date_default_timezone_set('America/Recife');
 require_once __DIR__.'/config.php';
 
-$SETORES = [
-  'DAF - Diretoria de Administração e Finanças',
-  'DOHDU - Diretoria de Obras',
-  'CELOE I - Comissão de Licitação I',
-  'CELOE II - Comissão de Licitação II',
-  'CELOSE - Comissão de Licitação',
-  'GCOMP - Gerência de Compras',
-  'GOP - Gerência de Orçamento e Planejamento',
-  'GFIN - Gerência Financeira',
-  'GCONT - Gerência de Contabilidade',
-  'DP - Diretoria da Presidência',
-  'GAD - Gerência Administrativa',
-  'GAC - Gerência de Acompanhamento de Contratos',
-  'CGAB - Chefia de Gabinete',
-  'DOE - Diretoria de Obras Estratégicas',
-  'DSU - Diretoria de Obras de Saúde',
-  'DSG - Diretoria de Obras de Segurança',
-  'DED - Diretoria de Obras de Educação',
-  'SPO - Superintendência de Projetos de Obras',
-  'SUAJ - Superintendência de Apoio Jurídico',
-  'SUFIN - Superintendência Financeira',
-  'GAJ - Gerência de Apoio Jurídico',
-  'SUPLAN - Superintendência de Planejamento',
-  'DPH - Diretoria de Projetos Habitacionais'
-];
+// === Carrega setores do BD (ativos) ===
+$SETORES = [];
+try {
+  $stmt = $connLocal->prepare("SELECT nome FROM setores WHERE ativo = 1 ORDER BY nome");
+  $stmt->execute();
+  $rs = $stmt->get_result();
+  while ($row = $rs->fetch_assoc()) {
+    $SETORES[] = $row['nome'];
+  }
+  $stmt->close();
+} catch (Throwable $e) {
+  // fallback opcional (evita quebrar a tela se o BD falhar)
+  $SETORES = [];
+}
 
 $GETIC_URL = 'https://www.getic.pe.gov.br/';
 
@@ -59,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if ($g_id <= 0 || $nomePost === '') {
     http_response_code(422);
     $erro = 'Preencha corretamente o nome.';
-  } elseif ($setorPost !== '__custom__' && !in_array($setorFinal, $SETORES, true)) {
+  } elseif ($setorPost !== '__custom__' && !setorExiste($connLocal, $setorFinal)) {
     http_response_code(422);
     $erro = 'Selecione um setor válido.';
   } elseif ($setorPost === '__custom__') {
@@ -73,7 +62,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
   }
 
-  // se está tudo ok, grava
   if ($erro === '') {
     $sql = "INSERT INTO solicitacoes
               (id_usuario_cehab_online, nome, setor, status)
@@ -84,8 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
       $st->bind_param('iss', $g_id, $nomePost, $setorFinal);
       if ($st->execute()) {
-        $ok = true; // exibe modal de sucesso
-        // limpa campos do formulário após sucesso
+        $ok = true;
         $setorPost = '';
         $setorCustom = '';
       } else {
@@ -94,6 +81,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $st->close();
     }
   }
+}
+function setorExiste($connLocal, $nome) {
+  $q = $connLocal->prepare("SELECT 1 FROM setores WHERE ativo=1 AND nome = ? LIMIT 1");
+  $q->bind_param('s', $nome);
+  $q->execute();
+  $ok = (bool)$q->get_result()->fetch_row();
+  $q->close();
+  return $ok;
 }
 ?>
 <!doctype html>
