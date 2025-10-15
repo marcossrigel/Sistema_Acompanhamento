@@ -21,6 +21,7 @@ const frmBuscaHome   = document.getElementById('frmBuscaHome');
 const inputHome      = document.getElementById('searchNumeroHome');
 const btnLimparHome  = document.getElementById('btnLimparHome');
 
+
 // foco ao abrir a página
 window.addEventListener('DOMContentLoaded', () => {
   inputHome?.focus();
@@ -39,7 +40,7 @@ frmBuscaHome?.addEventListener('submit', (e) => {
   e.preventDefault();
   const termo = (inputHome?.value || '').trim();
   const url = new URL(window.location.href);
-  if (termo) url.searchParams.set('numero', termo);
+  if (termo) url.searchParams.set('busca', termo);
   else url.searchParams.delete('numero');
   history.replaceState({}, '', url.toString());
   loadMyProcesses(); // recarrega já filtrando
@@ -147,20 +148,27 @@ tipoOutrosCheck?.addEventListener('change', () => {
 form?.addEventListener('submit', async (e) => {
   e.preventDefault();
 
-  const numero     = document.getElementById('processNumber').value.trim();
-  const descricao  = document.getElementById('description').value.trim();
-  const enviarPara = destSelect.value;
+  const numero      = document.getElementById('processNumber').value.trim();
+  const nomeProc    = document.getElementById('processName').value.trim(); // <-- NOVO
+  const descricao   = document.getElementById('description').value.trim();
+  const enviarPara  = destSelect.value;
 
   const tipos = Array.from(document.querySelectorAll('input[name="tipo_proc"]:checked'))
-                .map(i => i.value);
+                  .map(i => i.value);
+
   let outrosTxt = '';
   if (tipos.includes('outros')) {
     outrosTxt = (tipoOutrosInput.value || '').trim();
     if (!outrosTxt) { alert('Descreva o tipo em "outros" ou desmarque.'); return; }
   }
 
-  if (!numero || !descricao || !enviarPara || tipos.length === 0) {
-    alert('Preencha número, descrição, “enviar para” e selecione ao menos um tipo.');
+  // validações
+  if (!numero || !nomeProc || !descricao || !enviarPara || tipos.length === 0) {
+    alert('Preencha número, NOME DO PROCESSO, descrição, “enviar para” e selecione ao menos um tipo.');
+    return;
+  }
+  if (nomeProc.length > 150) {
+    alert('O nome do processo deve ter no máximo 150 caracteres.');
     return;
   }
 
@@ -171,15 +179,22 @@ form?.addEventListener('submit', async (e) => {
       credentials: 'same-origin',
       body: JSON.stringify({
         numero_processo: numero,
-        enviar_para: enviarPara,
-        tipos_processo: tipos,
-        tipo_outros: outrosTxt,
+        nome_processo:   nomeProc,
+        enviar_para:     enviarPara,
+        tipos_processo:  tipos,
+        tipo_outros:     outrosTxt,
         descricao
       })
     });
-    const json = await resp.json();
-    if (!resp.ok || !json.ok) throw new Error(json.error || 'Erro ao salvar.');
 
+    let json = null;
+    try { json = await resp.json(); } catch (_) {}
+
+    if (!resp.ok || !json?.ok) {
+      console.error('Falha ao salvar:', { status: resp.status, json });
+      alert(json?.error || `Erro ao salvar. HTTP ${resp.status}`);
+      return;
+    }
     document.getElementById('successModal').classList.remove('hidden');
     document.getElementById('successModal').classList.add('flex');
     closeModal();
@@ -189,6 +204,7 @@ form?.addEventListener('submit', async (e) => {
     alert('Falha ao salvar o processo. Tente novamente.');
   }
 });
+
 
 document.getElementById('successOkBtn')?.addEventListener('click', () => {
   const m = document.getElementById('successModal');
@@ -217,8 +233,12 @@ const parseTipos = j => {
 
 // ====== LISTA DA HOME ======
 async function loadMyProcesses(){
-  const wrap = document.getElementById('processList');
   const termo = (document.getElementById('searchNumeroHome')?.value || '').trim();
+  const url = new URL('listar_processos.php', window.location.href);
+  if (termo) {
+    // busca genérica (número ou nome)
+    url.searchParams.set('busca', termo);
+  }
 
   wrap.innerHTML = `
     <div class="col-span-full text-gray-400 border border-dashed rounded-lg p-8 text-center">
@@ -226,9 +246,6 @@ async function loadMyProcesses(){
     </div>`;
 
   try {
-    const url = new URL('listar_processos.php', window.location.href);
-    if (termo) url.searchParams.set('numero', termo);
-
     const r = await fetch(url.toString(), { credentials:'same-origin' });
     const j = await r.json();
     if (!r.ok || !j.ok) throw new Error(j.error || 'erro');
@@ -382,6 +399,7 @@ function openDetails(p){
   document.getElementById('d_num').textContent   = esc(p.numero_processo || '—');
   document.getElementById('d_setor').textContent = esc(p.setor_demandante || '—');
   document.getElementById('d_dest').textContent  = esc(p.enviar_para || '—');
+  document.getElementById('d_nome').textContent  = esc(p.nome_processo || '—'); // <-- AQUI
 
   const tipos = parseTipos(p.tipos_processo_json);
   document.getElementById('d_tipos').textContent = esc(tipos || '—');
@@ -399,6 +417,7 @@ function openDetails(p){
   md.classList.remove('hidden');
   md.classList.add('flex');
 }
+
 function closeDetails(){
   const md = document.getElementById('detailsModal');
   md.classList.add('hidden');

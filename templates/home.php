@@ -6,7 +6,6 @@ if (empty($_SESSION['auth_ok']) || empty($_SESSION['g_id'])) {
   header('Location: ../index.php'); exit;
 }
 
-// garante $_SESSION['tipo']
 if (empty($_SESSION['tipo'])) {
   try {
     $pdo = new PDO('mysql:host=127.0.0.1;dbname=sistema_acompanhamento;charset=utf8mb4','root','',[
@@ -143,6 +142,17 @@ $isAdmin = (($_SESSION['tipo'] ?? '') === 'admin'); // <-- controla o botão
           </div>
 
           <div>
+            <label class="label">Nome do Processo</label>
+            <input id="processName"
+                  type="text"
+                  class="input"
+                  maxlength="150"
+                  autocomplete="off"
+                  placeholder="Digite o nome do processo…"
+                  required>
+          </div>
+
+          <div>
             <label class="label">Setor Demandante</label>
             <input id="requestingSectorModal" type="text" value="<?= $setor ?>" readonly class="input">
           </div>
@@ -219,6 +229,7 @@ $isAdmin = (($_SESSION['tipo'] ?? '') === 'admin'); // <-- controla o botão
               <h5 class="sidebar-title">Informações Gerais</h5>
               <div class="info-list">
                 <p><span class="info-label">Número:</span> <span id="d_num" class="font-medium"></span></p>
+                <p><span class="info-label">Nome:</span> <span id="d_nome" class="font-medium"></span></p>
                 <p><span class="info-label">Setor Demandante:</span> <span id="d_setor" class="font-medium"></span></p>
                 <p><span class="info-label">Enviar para:</span> <span id="d_dest" class="font-medium"></span></p>
                 <p><span class="info-label">Tipos:</span> <span id="d_tipos" class="font-medium"></span></p>
@@ -244,7 +255,7 @@ $isAdmin = (($_SESSION['tipo'] ?? '') === 'admin'); // <-- controla o botão
       MY_SETOR: <?= json_encode($_SESSION['setor'] ?? '') ?>,
       USER_NAME: <?= json_encode($_SESSION['nome']  ?? '') ?>,
       GID:       <?= json_encode($_SESSION['g_id']  ?? '') ?>,
-      USER_TYPE: <?= json_encode($_SESSION['tipo'] ?? '') ?> // se precisar no JS
+      USER_TYPE: <?= json_encode($_SESSION['tipo'] ?? '') ?>
     };
   </script>
   <script src="../js/home.js?v=3"></script>

@@ -108,6 +108,7 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
               <h5 class="sidebar-title">Informações Gerais</h5>
               <div class="info-list">
                 <p><span class="info-label">Número:</span> <span id="d_num" class="font-medium">—</span></p>
+                <p><span class="info-label">Nome do processo:</span> <span id="d_nome" class="font-medium">—</span></p>
                 <p><span class="info-label">Setor Demandante:</span> <span id="d_setor" class="font-medium">—</span></p>
                 <p><span class="info-label">Tipos:</span> <span id="d_tipos" class="font-medium">—</span></p>
                 <p id="d_outros_row" class="hidden">

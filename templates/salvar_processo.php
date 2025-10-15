@@ -34,11 +34,12 @@ function read_json_body(): array {
 try {
   $data = read_json_body();
 
-  $numero    = trim($data['numero_processo'] ?? '');
-  $enviar    = trim($data['enviar_para'] ?? '');
-  $tipos     = (array)($data['tipos_processo'] ?? []);
-  $outrosTxt = trim($data['tipo_outros'] ?? '');
-  $desc      = trim($data['descricao'] ?? '');
+  $numero       = trim($data['numero_processo'] ?? '');
+  $nomeProc     = trim($data['nome_processo']    ?? ''); // <-- NOVO
+  $enviar       = trim($data['enviar_para']      ?? '');
+  $tipos        = (array)($data['tipos_processo'] ?? []);
+  $outrosTxt    = trim($data['tipo_outros']      ?? '');
+  $desc         = trim($data['descricao']        ?? '');
 
   // --------- validações básicas ----------
   if ($gId <= 0 || $setorUser === '') {
@@ -47,9 +48,9 @@ try {
     exit;
   }
 
-  if ($numero === '' || $desc === '' || $enviar === '') {
+  if ($numero === '' || $nomeProc === '' || $desc === '' || $enviar === '') {
     http_response_code(422);
-    echo json_encode(['ok'=>false,'error'=>'Preencha número do processo, descrição e setor de destino.']);
+    echo json_encode(['ok'=>false,'error'=>'Preencha número, nome do processo, descrição e setor de destino.']);
     exit;
   }
 
@@ -57,6 +58,13 @@ try {
   if (!preg_match('/^\d{10}\.\d{6}\/\d{4}-\d{2}$/', $numero)) {
     http_response_code(422);
     echo json_encode(['ok'=>false,'error'=>'Número de processo em formato inválido. Use NNNNNNNNNN.NNNNNN/NNNN-NN']);
+    exit;
+  }
+
+  // nome_processo (até 150 chars)
+  if (mb_strlen($nomeProc) > 150) {
+    http_response_code(422);
+    echo json_encode(['ok'=>false,'error'=>'O nome do processo deve ter no máximo 150 caracteres.']);
     exit;
   }
 
@@ -97,29 +105,31 @@ try {
   // --------- transação: cria processo + fluxo inicial ----------
   $connLocal->begin_transaction();
 
-  // INSERT em novo_processo
+  // INSERT em novo_processo (com nome_processo)
   $sql = "INSERT INTO novo_processo
-            (id_usuario_cehab_online, numero_processo, setor_demandante,
+            (id_usuario_cehab_online, numero_processo, nome_processo, setor_demandante,
              enviar_para, tipos_processo_json, tipo_outros, descricao)
-          VALUES (?, ?, ?, ?, ?, ?, ?)";
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
   $stmt = $connLocal->prepare($sql);
   if (!$stmt) throw new RuntimeException('Falha ao preparar inserção do processo.');
 
   // tipo_outros pode ser NULL
   $tipoOutrosOrNull = ($outrosTxt !== '') ? $outrosTxt : null;
 
+  // i + 7s
   $stmt->bind_param(
-    "issssss",
-    $gId,           // i
-    $numero,        // s
-    $setorUser,     // s
-    $enviar,        // s
-    $tiposJson,     // s
+    "isssssss",
+    $gId,            // i
+    $numero,         // s
+    $nomeProc,       // s  <-- NOVO
+    $setorUser,      // s
+    $enviar,         // s
+    $tiposJson,      // s
     $tipoOutrosOrNull, // s (pode ser NULL)
-    $desc           // s
+    $desc            // s
   );
 
-  if (!$stmt->execute()) throw new RuntimeException('Falha ao inserir o processo.');
+  if (!$stmt->execute()) throw new RuntimeException('Falha ao inserir o processo: '.$stmt->error);
   $proc_id = (int)$connLocal->insert_id;
   $stmt->close();
 
@@ -147,8 +157,7 @@ try {
 
 } catch (Throwable $e) {
   // tenta reverter se estivermos em transação
-  if ($connLocal instanceof mysqli && $connLocal->errno === 0) {
-    // apenas tentamos; se não estiver em transação, ignora
+  if ($connLocal instanceof mysqli) {
     @mysqli_rollback($connLocal);
   }
   http_response_code(500);

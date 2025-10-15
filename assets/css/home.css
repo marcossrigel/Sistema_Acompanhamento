@@ -157,3 +157,38 @@
     #detailsModal .flow-col::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:9999px; }
     #detailsModal .modal__body--scroll:hover::-webkit-scrollbar-thumb,
     #detailsModal .flow-col:hover::-webkit-scrollbar-thumb { background:#94a3b8; }
+
+    /* === Modal "Novo Processo" com scroll interno === */
+    #processModal .modal {
+      /* mantém layout em coluna (cabeçalho fixo, body rolável, rodapé se houver) */
+      display: flex;
+      flex-direction: column;
+
+      /* limite pela altura da tela, com folga das margens laterais (margin:16px) */
+      max-height: calc(100vh - 32px);
+    }
+
+    /* torna o corpo do modal (o <form>) rolável */
+    #processModal .modal__body {
+      flex: 1 1 auto;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch; /* suave em mobile */
+    }
+
+    /* scrollbar bonitinha só dentro do modal do formulário */
+    #processModal .modal__body::-webkit-scrollbar { width: 8px; }
+    #processModal .modal__body::-webkit-scrollbar-thumb {
+      background: #cbd5e1; border-radius: 9999px;
+    }
+    #processModal .modal__body:hover::-webkit-scrollbar-thumb { background: #94a3b8; }
+
+    /* (opcional) deixa o modal um pouco mais “compacto” em telas baixas */
+    @media (max-height: 720px) {
+      #processModal .modal__header { padding: 14px 16px; }
+      #processModal .modal__body   { padding: 16px; }
+    }
+
+    #processModal .modal {
+  box-sizing: border-box;
+  max-height: min(calc(100vh - 32px), calc(100dvh - 32px));
+}

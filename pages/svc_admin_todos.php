@@ -23,8 +23,15 @@ try {
 
   // Busca TODOS os processos (ordem: mais recentes primeiro)
   $procs = $pdo->query("
-    SELECT id, numero_processo, setor_demandante, enviar_para,
-           tipos_processo_json, tipo_outros, descricao, data_registro
+  SELECT id,
+          numero_processo,
+          nome_processo,          -- << ADICIONADO
+          setor_demandante,
+          enviar_para,
+          tipos_processo_json,
+          tipo_outros,
+          descricao,
+          data_registro
     FROM novo_processo
     ORDER BY data_registro DESC
   ")->fetchAll();

@@ -115,6 +115,7 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
           <aside>
             <h4 class="font-bold mb-2">Informações</h4>
             <p><b>Número:</b> <span id="d_num"></span></p>
+            <p><b>Nome do Processo:</b> <span id="d_nome"></span></p>
             <p><b>Setor Demandante:</b> <span id="d_setor"></span></p>
             <p><b>Enviar para:</b> <span id="d_dest"></span></p>
             <p><b>Tipos:</b> <span id="d_tipos"></span></p>
@@ -202,6 +203,7 @@ async function loadAll() {
 function openDetails(id) {
   const p = DATA.find(x => String(x.registro.id) === String(id));
   if (!p) return;
+  el('d_nome').textContent = p.registro.nome_processo || '—';
   el('d_num').textContent   = p.registro.numero_processo || '—';
   el('d_setor').textContent = p.registro.setor_demandante || '—';
   el('d_dest').textContent  = p.registro.setor_destino || p.registro.enviar_para || '—';
@@ -243,7 +245,11 @@ el('btnClear').addEventListener('click', () => { el('filterNum').value=''; rende
 el('filterNum').addEventListener('input', e => {
   const q = e.target.value.trim();
   if (!q) return render(DATA);
-  const f = DATA.filter(p => (p.registro.numero_processo||'').includes(q));
+  const f = DATA.filter(p => {
+  const num = (p.registro.numero_processo || '').toLowerCase();
+  const nome = (p.registro.nome_processo || '').toLowerCase();
+  return num.includes(q.toLowerCase()) || nome.includes(q.toLowerCase());
+});
   render(f);
 });
 

@@ -7,14 +7,24 @@ while (ob_get_level() > 0) { ob_end_clean(); }
 
 require __DIR__.'/config.php';
 
-$reply = function(int $http, array $obj){ http_response_code($http); echo json_encode($obj,JSON_UNESCAPED_UNICODE); exit; };
-if (empty($_SESSION['auth_ok']) || empty($_SESSION['g_id'])) { $reply(401, ['ok'=>false,'error'=>'Não autenticado.']); }
+$reply = function(int $http, array $obj){
+  http_response_code($http);
+  echo json_encode($obj, JSON_UNESCAPED_UNICODE);
+  exit;
+};
+
+if (empty($_SESSION['auth_ok']) || empty($_SESSION['g_id'])) {
+  $reply(401, ['ok'=>false,'error'=>'Não autenticado.']);
+}
 
 $meuSetor = trim((string)($_SESSION['setor'] ?? ''));
-if ($meuSetor === '') { $reply(400, ['ok'=>false,'error'=>'Setor não encontrado na sessão.']); }
+if ($meuSetor === '') {
+  $reply(400, ['ok'=>false,'error'=>'Setor não encontrado na sessão.']);
+}
 
-$busca = trim((string)($_GET['numero'] ?? ''));
-$buscaLike = $busca !== '' ? '%'.$busca.'%' : '';
+// 🔹 trocado de 'numero' para 'busca'
+$busca = trim((string)($_GET['busca'] ?? ''));
+$buscaLike   = $busca !== '' ? '%'.$busca.'%' : '';
 $buscaDigits = $busca !== '' ? '%'.preg_replace('/\D+/', '', $busca).'%' : '';
 
 try {
@@ -22,6 +32,7 @@ try {
     SELECT DISTINCT
            np.id,
            np.numero_processo,
+           np.nome_processo,
            np.setor_demandante,
            np.enviar_para,
            np.tipos_processo_json,
@@ -49,13 +60,15 @@ try {
       AND (
             REPLACE(REPLACE(REPLACE(REPLACE(np.numero_processo, '.', ''), '/', ''), '-', ''), ' ', '') LIKE ?
          OR np.numero_processo LIKE ?
+         OR np.nome_processo LIKE ?   -- 🔹 novo campo
          OR np.descricao LIKE ?
-          )
+      )
     ";
-    $types .= 'sss';
+    $types .= 'ssss';
     $params[] = $buscaDigits;
     $params[] = $buscaLike;
-    $params[] = $buscaLike;
+    $params[] = $buscaLike; // nome_processo
+    $params[] = $buscaLike; // descricao
   }
 
   $sql .= " ORDER BY np.data_registro DESC LIMIT 300 ";

@@ -175,6 +175,7 @@ async function loadIncoming(){
               ${esc(p.numero_processo || '—')}
               ${Number(p.finalizado) === 1 ? renderBadgeConcluido() : ''}
             </div>
+            <div class="mt-1 text-sm text-gray-700">${esc(p.nome_processo || '')}</div>
           </div>
           <span class="text-xs px-2 py-1 rounded-full bg-emerald-50 text-emerald-700" title="Setor de origem">
             ${esc(p.setor_demandante || '—')}
@@ -225,6 +226,7 @@ function openDetails(p){
 
   currentProcess = p;
   document.getElementById('d_num').textContent   = p.numero_processo || '—';
+  document.getElementById('d_nome').textContent  = p.nome_processo || '—';
   document.getElementById('d_setor').textContent = p.setor_demandante || '—';
   document.getElementById('d_dest').textContent  = p.enviar_para || '—';
   const tipos = parseTipos(p.tipos_processo_json);
@@ -234,6 +236,7 @@ function openDetails(p){
   document.getElementById('d_outros').textContent = p.tipo_outros || '';
   document.getElementById('d_desc').textContent = p.descricao || '';
   document.getElementById('d_dt').textContent   = brDate(p.data_registro);
+
 
   renderFlow(p.id);
 
@@ -366,7 +369,7 @@ frmBusca?.addEventListener('submit', (e) => {
   e.preventDefault();
   const termo = (document.getElementById('searchNumero')?.value || '').trim();
   const url = new URL(window.location.href);
-  if (termo) url.searchParams.set('numero', termo);
+  if (termo) url.searchParams.set('busca', termo);
   else url.searchParams.delete('numero');
   history.replaceState({}, '', url.toString());
 

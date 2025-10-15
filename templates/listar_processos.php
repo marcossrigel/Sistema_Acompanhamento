@@ -24,7 +24,7 @@ if (empty($_SESSION['auth_ok']) || empty($_SESSION['setor'])) {
 $meuSetor = trim((string)$_SESSION['setor']);
 
 // filtro opcional (?numero=...)
-$busca       = trim((string)($_GET['numero'] ?? ''));
+$busca = trim((string)($_GET['busca'] ?? ''));
 $buscaLike   = $busca !== '' ? '%'.$busca.'%' : '';
 $buscaDigits = $busca !== '' ? '%'.preg_replace('/\D+/', '', $busca).'%' : '';
 
@@ -34,6 +34,7 @@ try {
       np.id,
       np.id_usuario_cehab_online,
       np.numero_processo,
+      np.nome_processo,           -- << NOVO
       np.setor_demandante,
       np.enviar_para,
       np.tipos_processo_json,
@@ -48,23 +49,28 @@ try {
   $params = [$meuSetor];
 
   if ($busca !== '') {
-    // compara versão “só dígitos” OU LIKE direto no número OU trecho na descrição
+    // compara versão “só dígitos” OU LIKE direto no número OU trecho no nome/descrição
     $sql .= "
       AND (
         REPLACE(REPLACE(REPLACE(REPLACE(np.numero_processo, '.', ''), '/', ''), '-', ''), ' ', '') LIKE ?
         OR np.numero_processo LIKE ?
+        OR np.nome_processo LIKE ?     -- novo campo
         OR np.descricao LIKE ?
       )
     ";
-    $types   .= 'sss';
+    $types .= 'ssss';
     $params[] = $buscaDigits;
     $params[] = $buscaLike;
-    $params[] = $buscaLike;
+    $params[] = $buscaLike;  // nome_processo
+    $params[] = $buscaLike;  // descricao
   }
 
   $sql .= " ORDER BY np.id DESC LIMIT 300 ";
 
   $st = $connLocal->prepare($sql);
+  if (!$st) {
+    throw new RuntimeException('Falha ao preparar SELECT');
+  }
 
   // bind dinâmico
   $bind = [$types];
