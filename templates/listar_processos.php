@@ -24,9 +24,10 @@ if (empty($_SESSION['auth_ok']) || empty($_SESSION['setor'])) {
 $meuSetor = trim((string)$_SESSION['setor']);
 
 // filtro opcional (?numero=...)
+// ...
 $busca = trim((string)($_GET['busca'] ?? ''));
-$buscaLike   = $busca !== '' ? '%'.$busca.'%' : '';
-$buscaDigits = $busca !== '' ? '%'.preg_replace('/\D+/', '', $busca).'%' : '';
+$buscaLike = $busca !== '' ? '%'.$busca.'%' : '';
+$digitsRaw = preg_replace('/\D+/', '', $busca);   // <-- só os dígitos puros
 
 try {
   $sql = "
@@ -34,7 +35,7 @@ try {
       np.id,
       np.id_usuario_cehab_online,
       np.numero_processo,
-      np.nome_processo,           -- << NOVO
+      np.nome_processo,
       np.setor_demandante,
       np.enviar_para,
       np.tipos_processo_json,
@@ -49,34 +50,36 @@ try {
   $params = [$meuSetor];
 
   if ($busca !== '') {
-    // compara versão “só dígitos” OU LIKE direto no número OU trecho no nome/descrição
-    $sql .= "
-      AND (
-        REPLACE(REPLACE(REPLACE(REPLACE(np.numero_processo, '.', ''), '/', ''), '-', ''), ' ', '') LIKE ?
-        OR np.numero_processo LIKE ?
-        OR np.nome_processo LIKE ?
-        OR np.descricao LIKE ?
-      )
-    ";
-    $types .= 'ssss';
-    $params[] = $buscaDigits;
+    $or = [];
+
+    // só adiciona filtros por número se existe ao menos 1 dígito
+    if ($digitsRaw !== '') {
+      $or[] = "REPLACE(REPLACE(REPLACE(REPLACE(np.numero_processo, '.', ''), '/', ''), '-', ''), ' ', '') LIKE ?";
+      $types .= 's';
+      $params[] = '%'.$digitsRaw.'%';
+
+      $or[] = "np.numero_processo LIKE ?";
+      $types .= 's';
+      $params[] = '%'.$digitsRaw.'%'; // pode ser $buscaLike, mas com dígitos já resolve
+    }
+
+    // sempre filtra por nome e descrição
+    $or[] = "np.nome_processo LIKE ?";
+    $types .= 's';
     $params[] = $buscaLike;
-    $params[] = $buscaLike; // nome_processo
-    $params[] = $buscaLike; // descricao
+
+    $or[] = "np.descricao LIKE ?";
+    $types .= 's';
+    $params[] = $buscaLike;
+
+    $sql .= " AND (".implode(' OR ', $or).") ";
   }
 
   $sql .= " ORDER BY np.id DESC LIMIT 300 ";
 
-  $st = $connLocal->prepare($sql);
-  if (!$st) {
-    throw new RuntimeException('Falha ao preparar SELECT');
-  }
-
-  // bind dinâmico
-  $bind = [$types];
-  foreach ($params as $k => $v) { $bind[] = &$params[$k]; }
+  $st = $connLocal->prepare($sql) or throw new RuntimeException('Falha ao preparar SELECT');
+  $bind = [$types]; foreach ($params as $k => $v) { $bind[] = &$params[$k]; }
   call_user_func_array([$st, 'bind_param'], $bind);
-
   $st->execute();
   $res  = $st->get_result();
   $rows = [];
@@ -84,7 +87,6 @@ try {
   $st->close();
 
   echo json_encode(['ok'=>true,'data'=>$rows], JSON_UNESCAPED_UNICODE);
-
 } catch (Throwable $e) {
   http_response_code(500);
   echo json_encode(['ok'=>false,'error'=>$e->getMessage()], JSON_UNESCAPED_UNICODE);

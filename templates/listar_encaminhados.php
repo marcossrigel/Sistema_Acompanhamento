@@ -22,10 +22,9 @@ if ($meuSetor === '') {
   $reply(400, ['ok'=>false,'error'=>'Setor não encontrado na sessão.']);
 }
 
-// 🔹 trocado de 'numero' para 'busca'
-$busca = trim((string)($_GET['busca'] ?? ''));
-$buscaLike   = $busca !== '' ? '%'.$busca.'%' : '';
-$buscaDigits = $busca !== '' ? '%'.preg_replace('/\D+/', '', $busca).'%' : '';
+$busca      = trim((string)($_GET['busca'] ?? ''));
+$buscaLike  = $busca !== '' ? '%'.$busca.'%' : '';
+$digitsRaw  = preg_replace('/\D+/', '', $busca); // <-- só dígitos
 
 try {
   $sql = "
@@ -52,29 +51,38 @@ try {
           )
   ";
 
-  $types = 'sss';
+  $types  = 'sss';
   $params = [$meuSetor, $meuSetor, $meuSetor];
 
   if ($busca !== '') {
-    $sql .= "
-      AND (
-            REPLACE(REPLACE(REPLACE(REPLACE(np.numero_processo, '.', ''), '/', ''), '-', ''), ' ', '') LIKE ?
-         OR np.numero_processo LIKE ?
-         OR np.nome_processo LIKE ?   -- 🔹 novo campo
-         OR np.descricao LIKE ?
-      )
-    ";
-    $types .= 'ssss';
-    $params[] = $buscaDigits;
+    $or = [];
+
+    // Só filtra por número quando houver ao menos 1 dígito
+    if ($digitsRaw !== '') {
+      $or[] = "REPLACE(REPLACE(REPLACE(REPLACE(np.numero_processo, '.', ''), '/', ''), '-', ''), ' ', '') LIKE ?";
+      $types   .= 's';
+      $params[] = '%'.$digitsRaw.'%';
+
+      $or[] = "np.numero_processo LIKE ?";
+      $types   .= 's';
+      $params[] = '%'.$digitsRaw.'%';
+    }
+
+    // Sempre filtra por nome e descrição
+    $or[] = "np.nome_processo LIKE ?";
+    $types   .= 's';
     $params[] = $buscaLike;
-    $params[] = $buscaLike; // nome_processo
-    $params[] = $buscaLike; // descricao
+
+    $or[] = "np.descricao LIKE ?";
+    $types   .= 's';
+    $params[] = $buscaLike;
+
+    $sql .= " AND (".implode(' OR ', $or).") ";
   }
 
   $sql .= " ORDER BY np.data_registro DESC LIMIT 300 ";
 
   $st = $connLocal->prepare($sql);
-
   $bind = [$types];
   foreach ($params as $k => $v) { $bind[] = &$params[$k]; }
   call_user_func_array([$st, 'bind_param'], $bind);
