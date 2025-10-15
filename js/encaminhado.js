@@ -147,7 +147,7 @@ async function loadIncoming(){
 
   try {
     const url = new URL('listar_encaminhados.php', window.location.href);
-    if (termo) url.searchParams.set('numero', termo);
+    if (termo) url.searchParams.set('busca', termo);
 
     const r = await fetch(url.toString(), { credentials: 'same-origin' });
     const j = await r.json();
@@ -370,7 +370,7 @@ frmBusca?.addEventListener('submit', (e) => {
   const termo = (document.getElementById('searchNumero')?.value || '').trim();
   const url = new URL(window.location.href);
   if (termo) url.searchParams.set('busca', termo);
-  else url.searchParams.delete('numero');
+  else url.searchParams.delete('busca');
   history.replaceState({}, '', url.toString());
 
   loadIncoming();
@@ -379,14 +379,14 @@ frmBusca?.addEventListener('submit', (e) => {
 btnLimpar?.addEventListener('click', () => {
   document.getElementById('searchNumero').value = '';
   const url = new URL(window.location.href);
-  url.searchParams.delete('numero');
+  url.searchParams.delete('busca');
   history.replaceState({}, '', url.toString());
   loadIncoming();
 });
 
 (function initBuscaFromURL(){
   const url = new URL(window.location.href);
-  const termo = url.searchParams.get('numero') || '';
+  const termo = url.searchParams.get('busca') || '';
   const input = document.getElementById('searchNumero');
   if (input) input.value = termo;
 })();
