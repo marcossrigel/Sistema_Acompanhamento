@@ -54,15 +54,15 @@ try {
       AND (
         REPLACE(REPLACE(REPLACE(REPLACE(np.numero_processo, '.', ''), '/', ''), '-', ''), ' ', '') LIKE ?
         OR np.numero_processo LIKE ?
-        OR np.nome_processo LIKE ?     -- novo campo
+        OR np.nome_processo LIKE ?
         OR np.descricao LIKE ?
       )
     ";
     $types .= 'ssss';
     $params[] = $buscaDigits;
     $params[] = $buscaLike;
-    $params[] = $buscaLike;  // nome_processo
-    $params[] = $buscaLike;  // descricao
+    $params[] = $buscaLike; // nome_processo
+    $params[] = $buscaLike; // descricao
   }
 
   $sql .= " ORDER BY np.id DESC LIMIT 300 ";

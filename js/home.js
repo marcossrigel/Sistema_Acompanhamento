@@ -20,7 +20,7 @@ const procInput = document.getElementById('processNumber');
 const frmBuscaHome   = document.getElementById('frmBuscaHome');
 const inputHome      = document.getElementById('searchNumeroHome');
 const btnLimparHome  = document.getElementById('btnLimparHome');
-
+const wrap = document.getElementById('processList');
 
 // foco ao abrir a página
 window.addEventListener('DOMContentLoaded', () => {
@@ -41,9 +41,9 @@ frmBuscaHome?.addEventListener('submit', (e) => {
   const termo = (inputHome?.value || '').trim();
   const url = new URL(window.location.href);
   if (termo) url.searchParams.set('busca', termo);
-  else url.searchParams.delete('numero');
+  else url.searchParams.delete('busca');
   history.replaceState({}, '', url.toString());
-  loadMyProcesses(); // recarrega já filtrando
+  loadMyProcesses();
 });
 
 // botão limpar
@@ -51,7 +51,7 @@ btnLimparHome?.addEventListener('click', () => {
   inputHome.value = '';
   inputHome.focus(); inputHome.select?.();
   const url = new URL(window.location.href);
-  url.searchParams.delete('numero');
+  url.searchParams.delete('busca');
   history.replaceState({}, '', url.toString());
   loadMyProcesses();
 });
@@ -59,10 +59,9 @@ btnLimparHome?.addEventListener('click', () => {
 // pré-preenche pelo querystring se houver
 (function initBuscaHomeFromURL(){
   const url = new URL(window.location.href);
-  const termo = url.searchParams.get('numero') || '';
+  const termo = url.searchParams.get('busca') || '';
   if (inputHome) inputHome.value = termo;
 })();
-
 
 // Formata a partir de *apenas* dígitos (máx 22), montando as quebras fixas
 function formatProc(digits) {
