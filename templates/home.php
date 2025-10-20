@@ -2,30 +2,54 @@
 if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 date_default_timezone_set('America/Recife');
 
+require_once __DIR__ . '/config.php';
+if (!$pdo) { http_response_code(500); exit('PDO local indisponível (ver config.php).'); }
+
 if (empty($_SESSION['auth_ok']) || empty($_SESSION['g_id'])) {
   header('Location: ../index.php'); exit;
 }
 
-if (empty($_SESSION['tipo'])) {
+if (!isset($_SESSION['tipo']) || !isset($_SESSION['nome']) || !isset($_SESSION['setor'])) {
+  // Sempre recarrega do banco local sistema_acompanhamento
   try {
-    $pdo = new PDO('mysql:host=127.0.0.1;dbname=sistema_acompanhamento;charset=utf8mb4','root','',[
-      PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,
-      PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,
-    ]);
-    $st = $pdo->prepare('SELECT tipo FROM usuarios WHERE id_usuario_cehab_online = :gid LIMIT 1');
-    $st->execute([':gid' => $_SESSION['g_id']]);
-    $t = $st->fetchColumn();
-    $_SESSION['tipo'] = $t ?: 'comum';
+    // Debug opcional: qual DB estou usando?
+    $dbName = $pdo->query('SELECT DATABASE()')->fetchColumn();
+
+    $st = $pdo->prepare('
+      SELECT nome, setor, LOWER(TRIM(tipo)) AS tipo
+      FROM usuarios
+      WHERE id_usuario_cehab_online = ?
+      LIMIT 1
+    ');
+    $st->execute([ (int)($_SESSION['g_id'] ?? 0) ]);
+    $row = $st->fetch();
+
+    if ($row) {
+      $_SESSION['nome']  = $row['nome']  ?? '';
+      $_SESSION['setor'] = $row['setor'] ?? '—';
+      $_SESSION['tipo']  = $row['tipo']  ?: 'comum'; // já vem normalizado
+    } else {
+      // não achou no banco local
+      $_SESSION['tipo'] = 'comum';
+    }
+
+    // Debug temporário (remova depois)
+    echo "<!-- DB=$dbName g_id=".$_SESSION['g_id']." tipo=".$_SESSION['tipo']." -->";
+
   } catch (Throwable $e) {
-    $_SESSION['tipo'] = 'comum';
+    error_log('Falha ao obter dados do usuário: '.$e->getMessage());
+    // fallback, mas mantém o que já tiver
+    $_SESSION['tipo'] = $_SESSION['tipo'] ?? 'comum';
   }
+
 }
 
-$setor   = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
 $nome    = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
-$isAdmin = (($_SESSION['tipo'] ?? '') === 'admin'); // <-- controla o botão
-
+$setor   = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
+$tipo    = htmlspecialchars($_SESSION['tipo']  ?? 'comum', ENT_QUOTES, 'UTF-8');
+$isAdmin = ($tipo === 'admin');
 ?>
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -41,6 +65,7 @@ $isAdmin = (($_SESSION['tipo'] ?? '') === 'admin'); // <-- controla o botão
 <body>
 
   <header class="site-header">
+
     <div class="container site-header__row">
       <a href="home.php" class="brand">
         <i class="fas fa-sitemap" style="font-size:28px; color:#2563eb;"></i>

@@ -1,5 +1,4 @@
 <?php
-// templates/encaminhar_processo.php (mysqli)
 declare(strict_types=1);
 
 if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
@@ -9,7 +8,7 @@ ini_set('display_errors','0');
 ini_set('log_errors','1');
 while (ob_get_level() > 0) { ob_end_clean(); }
 
-require __DIR__ . '/config.php'; // deve criar $connLocal (mysqli) SEM imprimir nada
+require __DIR__ . '/config.php';
 
 $reply = function (int $http, array $obj) {
   http_response_code($http);
@@ -21,7 +20,6 @@ if (empty($_SESSION['auth_ok']) || empty($_SESSION['g_id'])) {
   $reply(401, ['ok'=>false, 'error'=>'Não autenticado.']);
 }
 
-// Lê JSON do fetch; fallback para form-encoded
 $raw  = file_get_contents('php://input') ?: '';
 $data = json_decode($raw, true);
 if (!is_array($data)) { $data = $_POST ?: []; }
