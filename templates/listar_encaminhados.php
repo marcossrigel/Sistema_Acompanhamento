@@ -22,9 +22,20 @@ if ($meuSetor === '') {
   $reply(400, ['ok'=>false,'error'=>'Setor não encontrado na sessão.']);
 }
 
+// ===== normalizador para detectar "concluido/concluído" =====
+$norm = function (?string $s): string {
+  $s = iconv('UTF-8','ASCII//TRANSLIT//IGNORE', (string)($s ?? ''));
+  $s = strtolower($s);
+  return preg_replace('/\s+/', ' ', trim($s));
+};
+
 $busca      = trim((string)($_GET['busca'] ?? ''));
 $buscaLike  = $busca !== '' ? '%'.$busca.'%' : '';
-$digitsRaw  = preg_replace('/\D+/', '', $busca); // <-- só dígitos
+$digitsRaw  = preg_replace('/\D+/', '', $busca);
+$buscaNorm  = $norm($busca);
+
+// quando o usuário digitar "concluido/concluído", filtramos só os finalizados
+$filtrarSoConcluidos = in_array($buscaNorm, ['concluido','concluido.','finalizado','finalizado.'], true);
 
 try {
   $sql = "
@@ -54,10 +65,13 @@ try {
   $types  = 'sss';
   $params = [$meuSetor, $meuSetor, $meuSetor];
 
-  if ($busca !== '') {
+  // aplica o filtro por concluído quando a palavra for digitada
+  if ($filtrarSoConcluidos) {
+    $sql    .= " AND np.finalizado = 1 ";
+  } else if ($busca !== '') {
+    // filtros de texto (quando não é o gatilho de status)
     $or = [];
 
-    // Só filtra por número quando houver ao menos 1 dígito
     if ($digitsRaw !== '') {
       $or[] = "REPLACE(REPLACE(REPLACE(REPLACE(np.numero_processo, '.', ''), '/', ''), '-', ''), ' ', '') LIKE ?";
       $types   .= 's';
@@ -68,14 +82,8 @@ try {
       $params[] = '%'.$digitsRaw.'%';
     }
 
-    // Sempre filtra por nome e descrição
-    $or[] = "np.nome_processo LIKE ?";
-    $types   .= 's';
-    $params[] = $buscaLike;
-
-    $or[] = "np.descricao LIKE ?";
-    $types   .= 's';
-    $params[] = $buscaLike;
+    $or[] = "np.nome_processo LIKE ?";   $types .= 's'; $params[] = $buscaLike;
+    $or[] = "np.descricao LIKE ?";       $types .= 's'; $params[] = $buscaLike;
 
     $sql .= " AND (".implode(' OR ', $or).") ";
   }

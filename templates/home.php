@@ -192,22 +192,25 @@ $isAdmin = ($tipo === 'admin');
           <div>
             <label class="label">Tipo de processo</label>
 
-            <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; cursor:pointer;">
-              <input type="checkbox" name="tipo_proc" value="nova licitação/aquisição">
-              <span>nova licitação/aquisição</span>
-            </label>
+            <div role="radiogroup" aria-label="Tipo de processo" class="space-y-2">
+              <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; cursor:pointer;">
+                <input type="radio" name="tipo_proc" value="nova licitação/aquisição" required>
+                <span>nova licitação/aquisição</span>
+              </label>
 
-            <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; cursor:pointer;">
-              <input type="checkbox" name="tipo_proc" value="solicitação de pagamento">
-              <span>solicitação de pagamento</span>
-            </label>
+              <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; cursor:pointer;">
+                <input type="radio" name="tipo_proc" value="solicitação de pagamento">
+                <span>solicitação de pagamento</span>
+              </label>
 
-            <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; cursor:pointer;">
-              <input id="tipoOutrosCheck" type="checkbox" name="tipo_proc" value="outros">
-              <span>outros</span>
-            </label>
+              <label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; cursor:pointer;">
+                <input id="tipoOutrosRadio" type="radio" name="tipo_proc" value="outros">
+                <span>outros</span>
+              </label>
+            </div>
 
             <input id="tipoOutrosInput" type="text" placeholder="Descreva o tipo…" class="input hidden">
+
           </div>
 
           <div>

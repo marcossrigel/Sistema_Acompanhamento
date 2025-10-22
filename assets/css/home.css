@@ -192,3 +192,11 @@
   box-sizing: border-box;
   max-height: min(calc(100vh - 32px), calc(100dvh - 32px));
 }
+
+.card-processo {
+  transition: all 0.2s ease;
+}
+.card-processo:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
