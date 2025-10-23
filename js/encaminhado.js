@@ -188,7 +188,7 @@ async function loadIncoming(){
     try { await getSectors(); } catch {}
 
     data.forEach(p => {
-      const sig = getSigla(p.setor_demandante) || p.setor_demandante || '—';
+      const sig = getSigla(p.setor_demandante) || sigla(p.setor_demandante) || '—';
 
       const card = document.createElement('div'); // <<< FALTAVA ISTO
 
@@ -207,7 +207,10 @@ async function loadIncoming(){
               ${esc(p.nome_processo || '')}
             </div>
           </div>
-          <span class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 whitespace-nowrap self-start" title="Setor de origem">
+          <span
+            class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 whitespace-nowrap self-start"
+            title="${esc(p.setor_demandante || '')}"
+          >
             ${esc(sig)}
           </span>
         </div>
@@ -498,7 +501,7 @@ confirmarFinalizar?.addEventListener('click', async () => {
 
       // marca o card como concluído imediatamente
       currentProcess.finalizado = 1;
-      const card = document.querySelector(`.process-card[data-id="${currentProcess.id}"]`);
+      const card = document.querySelector(`.card-processo[data-id="${currentProcess.id}"]`);
       if (card) {
         const titleDiv = card.querySelector('.font-semibold');
         if (titleDiv && !titleDiv.querySelector('.badge-done')) {

@@ -38,29 +38,29 @@ function dtbr($s){
 }
 
 // Retorna "Primeiro Último" ignorando partículas comuns
-function nomePrimeiroUltimo($nome) {
+
+function nomePrimeiroSobrenome($nome){
   if (!$nome) return '';
   $nome = trim(preg_replace('/\s+/', ' ', (string)$nome));
   if ($nome === '') return '';
 
   $tokens = explode(' ', $nome);
-  if (count($tokens) === 1) return $tokens[0];
+  $first  = $tokens[0];
 
-  // partículas a ignorar no fim
+  // partículas comuns que NÃO devem ser usadas como 2º token
   $stop = ['de','da','do','das','dos','e','d\'','di','du'];
-  $first = $tokens[0];
 
-  // acha o último token que não é partícula
-  for ($i = count($tokens)-1; $i >= 1; $i--) {
+  // procura o primeiro token após o primeiro que NÃO seja partícula
+  for ($i = 1; $i < count($tokens); $i++) {
     $t = mb_strtolower($tokens[$i], 'UTF-8');
     if (!in_array($t, $stop, true)) {
-      $last = $tokens[$i];
-      return $first.' '.$last;
+      return $first.' '.$tokens[$i];
     }
   }
-  // fallback (se todos fossem partículas, usa o último)
-  return $first.' '.$tokens[count($tokens)-1];
+  // fallback (não encontrou 2º token válido)
+  return $first;
 }
+
 
 // Se $val for ID, busca no mapa; se for nome, usa direto
 function resolveUsuarioNome($val, $usuariosMap) {
@@ -272,12 +272,9 @@ if (empty($fluxo)) {
     }
     $primeiraLinha = false; // a partir da próxima linha, regra não se aplica
 
-    // Nome curto: "Primeiro Último"
-    $usuarioBruto  = $row['usuario'] ?? '';
-    $usuarioCurto  = $usuarioBruto ? nomePrimeiroUltimo($usuarioBruto) : '—';
 
-    // (Se quiser garantir que nunca quebre, pode truncar um pouquinho)
-    // $usuarioCurto = $usuarioCurto !== '—' ? curto($usuarioCurto, 22) : '—';
+    $usuarioBruto = $row['usuario'] ?? '';
+    $usuarioCurto = $usuarioBruto ? nomePrimeiroSobrenome($usuarioBruto) : '—';
 
     $pdf->TableRow([
       $row['ordem'],
