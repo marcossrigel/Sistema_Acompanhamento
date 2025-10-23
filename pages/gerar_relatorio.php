@@ -93,11 +93,72 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
   const resultBox = el('resultBox');
   const btnPdf = el('btnPdf');
 
-  const showResult = (html, ok=false) => {
+  const showBox = (ok = false) => {
     resultBox.classList.remove('hidden');
     resultBox.style.background = ok ? '#ecfdf5' : '#f3f4f6';
     resultBox.style.border = ok ? '1px solid #10b981' : '1px solid #e5e7eb';
+  };
+
+  const renderLista = (lista) => {
+    if (!Array.isArray(lista) || !lista.length) {
+      resultBox.innerHTML = 'Nenhum processo encontrado. ❌';
+      showBox(false);
+      return;
+    }
+    let html = `
+      <div class="font-bold mb-2">Processos encontrados (${lista.length}) ✅</div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="px-3 py-2 text-left">Número</th>
+              <th class="px-3 py-2 text-left">Setor Demandante</th>
+              <th class="px-3 py-2 text-left">Enviar para</th>
+              <th class="px-3 py-2 text-left">Criado em</th>
+              <th class="px-3 py-2 text-left">Eventos</th>
+              <th class="px-3 py-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    for (const r of lista) {
+      html += `
+        <tr class="border-b">
+          <td class="px-3 py-2 whitespace-nowrap">${r.numero_processo}</td>
+          <td class="px-3 py-2">${r.setor_demandante || '—'}</td>
+          <td class="px-3 py-2">${r.enviar_para || '—'}</td>
+          <td class="px-3 py-2">${r.data_registro || '—'}</td>
+          <td class="px-3 py-2 text-center">${r.qte_eventos ?? '0'}</td>
+          <td class="px-3 py-2 text-right">
+            <button class="btn btn--green"
+                    onclick="window.open('svc_relatorio_pdf.php?numero='+encodeURIComponent('${r.numero_processo}'),'_blank')">
+              <i class="fa-regular fa-file-pdf"></i> PDF
+            </button>
+          </td>
+        </tr>`;
+    }
+    html += `</tbody></table></div>`;
     resultBox.innerHTML = html;
+    showBox(true);
+  };
+
+  const renderUnico = (data) => {
+    btnPdf.disabled = false;
+    btnPdf.dataset.num = data.registro.numero_processo;
+    resultBox.innerHTML = `
+      <div>
+        <div class="font-bold mb-1">Processo localizado ✅</div>
+        <div><b>Número:</b> ${data.registro.numero_processo}</div>
+        <div><b>Setor Demandante:</b> ${data.registro.setor_demandante || '—'}</div>
+        <div><b>Enviar para:</b> ${data.registro.enviar_para || '—'}</div>
+        <div><b>Tipos:</b> ${data.registro.tipos || '—'}</div>
+        <div><b>Descrição:</b> ${data.registro.descricao || '—'}</div>
+        <div><b>Criado em:</b> ${data.registro.criado_em || '—'}</div>
+        <div class="mt-2 text-sm text-gray-600">
+          <b>Eventos no fluxo:</b> ${Array.isArray(data.fluxo) ? data.fluxo.length : 0}
+        </div>
+      </div>`;
+    showBox(true);
   };
 
   el('btnClear').addEventListener('click', () => {
@@ -109,47 +170,42 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
   });
 
   el('btnCheck').addEventListener('click', async () => {
-    const num = el('processNumber').value.trim();
+    const num   = el('processNumber').value.trim();
     const setor = el('requestingSector').value.trim();
 
-    if (!num) {
-      showResult('<b>Atenção:</b> informe o número do processo.', false);
-      btnPdf.disabled = true;
-      return;
-    }
-
     try {
-      const res = await fetch('svc_buscar_processo.php', {
+      const body = num
+        ? { numero: num, setor }
+        : { listar_todos: true, setor };     // <-- novo
+
+      const res  = await fetch('svc_buscar_processo.php', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ numero: num, setor })
+        body: JSON.stringify(body)
       });
-
       const data = await res.json();
-      if (data.ok && data.registro) {
-        btnPdf.disabled = false;
-        btnPdf.dataset.num = num;
-        showResult(`
-          <div>
-            <div class="font-bold mb-1">Processo localizado ✅</div>
-            <div><b>Número:</b> ${data.registro.numero_processo}</div>
-            <div><b>Setor Demandante:</b> ${data.registro.setor_demandante || '—'}</div>
-            <div><b>Enviar para:</b> ${data.registro.setor_destino || '—'}</div>
-            <div><b>Tipos:</b> ${data.registro.tipos || '—'}</div>
-            <div><b>Descrição:</b> ${data.registro.descricao || '—'}</div>
-            <div><b>Criado em:</b> ${data.registro.criado_em || '—'}</div>
-            <div class="mt-2 text-sm text-gray-600">
-              <b>Eventos no fluxo:</b> ${Array.isArray(data.fluxo) && data.fluxo.length ? data.fluxo.length : 0}
-            </div>
-          </div>
-        `, true);
+
+      if (!data.ok) {
+        btnPdf.disabled = true;
+        resultBox.innerHTML = 'Erro ao consultar. ❌';
+        showBox(false);
+        return;
+      }
+
+      if (Array.isArray(data.lista)) {
+        btnPdf.disabled = true; // sem um número selecionado
+        renderLista(data.lista);
+      } else if (data.registro) {
+        renderUnico(data);
       } else {
         btnPdf.disabled = true;
-        showResult('Nenhum processo encontrado com esse número (e setor, se informado). ❌', false);
+        resultBox.innerHTML = 'Nenhum processo encontrado. ❌';
+        showBox(false);
       }
     } catch (e) {
       btnPdf.disabled = true;
-      showResult('Erro ao consultar. Verifique a rede/servidor.', false);
+      resultBox.innerHTML = 'Erro ao consultar. Verifique a rede/servidor.';
+      showBox(false);
     }
   });
 

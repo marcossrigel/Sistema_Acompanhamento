@@ -1,11 +1,31 @@
 let __sectorsCache = null;
 async function getSectors() {
   if (__sectorsCache) return __sectorsCache;
+
   const r = await fetch('../templates/listar_setores.php', { credentials:'same-origin' });
   const j = await r.json();
   if (!r.ok || !j.ok) throw new Error(j.error || 'Falha ao listar setores');
-  __sectorsCache = { arr: (j.data || []).map(x => x.nome), final: j.finalizador };
+
+  const data  = j.data || [];
+  const arr   = data.map(x => x.nome);
+  const byName = Object.fromEntries(data.map(x => [x.nome, (x.sigla || '').toUpperCase()]));
+  const norm = s => String(s||'')
+    .normalize('NFD').replace(/\p{Diacritic}/gu,'')
+    .replace(/\s+/g,' ').trim().toLowerCase();
+  const byNorm = Object.fromEntries(data.map(x => [norm(x.nome), (x.sigla || '').toUpperCase()]));
+
+  __sectorsCache = { arr, final: j.finalizador, byName, byNorm };
   return __sectorsCache;
+}
+
+const __norm = s => String(s||'')
+  .normalize('NFD').replace(/\p{Diacritic}/gu,'')
+  .replace(/\s+/g,' ').trim().toLowerCase();
+
+function getSigla(setorNome){
+  if (!__sectorsCache) return '';
+  const k = __norm(setorNome);
+  return __sectorsCache.byNorm[k] || '';
 }
 
 // helper: pega a SIGLA antes do " - "
@@ -125,9 +145,10 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
 const brDate = iso => {
   if (!iso) return '—';
   const d = new Date(String(iso).replace(' ', 'T'));
-  return isNaN(d) ? '—'
-                  : d.toLocaleDateString('pt-BR') + ' ' +
-                    d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+  return isNaN(d)
+    ? '—'
+    : d.toLocaleDateString('pt-BR') + ' ' +
+      d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
 };
 const brDay = iso => {
   if (!iso) return '—';
@@ -163,30 +184,40 @@ async function loadIncoming(){
     }
 
     wrap.innerHTML = '';
+    // (opcional) carrega cache de setores p/ sigla
+    try { await getSectors(); } catch {}
+
     data.forEach(p => {
-      const card = document.createElement('div');
-      card.className = 'process-card bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer';
+      const sig = getSigla(p.setor_demandante) || p.setor_demandante || '—';
+
+      const card = document.createElement('div'); // <<< FALTAVA ISTO
+
+      card.className = 'card-processo bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer';
       card.setAttribute('data-id', String(p.id));
+
       card.innerHTML = `
         <div class="flex justify-between items-start">
-          <div>
-            <div class="text-sm text-gray-500">Nº</div>
-            <div class="font-semibold text-gray-800">
+          <div class="pr-2 min-w-0">
+            <div class="text-[11px] uppercase tracking-wide text-gray-500 mb-0.5">Nº do processo</div>
+            <div class="text-[13px] font-medium text-gray-800 break-all leading-tight">
               ${esc(p.numero_processo || '—')}
               ${Number(p.finalizado) === 1 ? renderBadgeConcluido() : ''}
             </div>
-            <div class="mt-1 text-sm text-gray-700">${esc(p.nome_processo || '')}</div>
+            <div class="mt-1 text-[15px] font-semibold text-gray-900 leading-snug break-words whitespace-normal max-h-[3.5rem] overflow-hidden">
+              ${esc(p.nome_processo || '')}
+            </div>
           </div>
-          <span class="text-xs px-2 py-1 rounded-full bg-emerald-50 text-emerald-700" title="Setor de origem">
-            ${esc(p.setor_demandante || '—')}
+          <span class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 whitespace-nowrap self-start" title="Setor de origem">
+            ${esc(sig)}
           </span>
         </div>
-        <div class="mt-3 text-sm text-gray-600 line-clamp-2">${esc(p.descricao || '')}</div>
-        <div class="mt-3 text-right text-xs text-gray-400">${brDate(p.data_registro)}</div>
+        <div class="mt-2 text-right text-[11px] text-gray-400">${brDate(p.data_registro)}</div>
       `;
+
       card.addEventListener('click', () => openDetails(p));
       wrap.appendChild(card);
     });
+
   } catch (e) {
     console.error(e);
     wrap.innerHTML = `
@@ -262,7 +293,11 @@ document.getElementById('okDetails')?.addEventListener('click', closeDetails);
 const detailsModal = document.getElementById('detailsModal');
 detailsModal?.addEventListener('click', (e) => { if (e.target === detailsModal) closeDetails(); });
 
-function flowItem({ordem, setor, status, acao_finalizadora, acoes, entrada, saida, tempo}) {
+function flowItem({
+  ordem, setor, status, acao_finalizadora,
+  acoes = [], entrada, saida, tempo,
+  isFirstCreator = false
+}) {
   const isDone = status === 'concluido';
   const isNow  = status === 'ativo' || status === 'atual';
 
@@ -280,32 +315,47 @@ function flowItem({ordem, setor, status, acao_finalizadora, acoes, entrada, said
 
   const sub = isDone ? 'Concluído' : (isNow ? 'Destino atual' : '');
 
-  const entrou = brDay(entrada);
-  const saiu   = isDone ? brDay(saida) : null;
-  const icone  = `<i class="fa-solid fa-arrow-right-long mx-1"></i><i class="fa-solid fa-door-open"></i>`;
-  const datasHtml = isDone
-    ? `<div class="mt-1 text-xs text-gray-600">
-         <span class="text-gray-500">Entrada:</span> ${entrou}
-         <span class="mx-2 text-gray-400">${icone}</span>
-         <span class="text-gray-500">Saída:</span> ${saiu}
-         <span class="mx-2 text-gray-300">•</span>
-         <span class="text-gray-500">Tempo:</span> ${esc(tempo || '—')}
-       </div>`
-    : `<div class="mt-1 text-xs text-gray-600">
-         <span class="text-gray-500">Entrada:</span> ${entrou}
-         <span class="mx-2 text-gray-300">•</span>
-         <span class="text-gray-500">Tempo no setor:</span> ${esc(tempo || '—')}
-       </div>`;
+  // Sempre com data + hora
+  const entrou = brDate(entrada);
+  // Regra cirúrgica: primeiro setor (criador) => Saída = Entrada e sem tempo
+  const saidaEfetiva = isFirstCreator ? entrada : saida;
+  const saiu = (isDone || isFirstCreator) ? brDate(saidaEfetiva) : null;
 
-  const acoesHtml = (acoes || []).length
-    ? (() => {
-        const items = (acoes || []).map(a => {
-          const when = a.data_registro ? ` <span class="text-gray-500">• ${brDate(a.data_registro)}</span>` : '';
-          return `<li class="text-xs leading-snug text-gray-700 break-words">${esc(a.texto)}${when}</li>`;
-        }).join('');
-        return `<ul class="mt-2 list-disc list-inside space-y-1">${items}</ul>`;
-      })()
-    : '';
+  const icone  = `<i class="fa-solid fa-arrow-right-long mx-1"></i><i class="fa-solid fa-door-open"></i>`;
+
+  let datasHtml = '';
+  if (isFirstCreator) {
+    // Criador: Entrada e Saída iguais, sem tempo
+    datasHtml = `
+      <div class="mt-1 text-xs text-gray-600">
+        <span class="text-gray-500">Entrada:</span> ${entrou}
+        <span class="mx-2 text-gray-400">${icone}</span>
+        <span class="text-gray-500">Saída:</span> ${saiu}
+      </div>`;
+  } else if (isDone) {
+    // Concluído: Entrada, Saída e Tempo
+    datasHtml = `
+      <div class="mt-1 text-xs text-gray-600">
+        <span class="text-gray-500">Entrada:</span> ${entrou}
+        <span class="mx-2 text-gray-400">${icone}</span>
+        <span class="text-gray-500">Saída:</span> ${saiu}
+        <span class="mx-2 text-gray-300">•</span>
+        <span class="text-gray-500">Tempo:</span> ${esc(tempo || '—')}
+      </div>`;
+  } else {
+    // Ativo/Atual: Entrada + Tempo no setor
+    datasHtml = `
+      <div class="mt-1 text-xs text-gray-600">
+        <span class="text-gray-500">Entrada:</span> ${entrou}
+        <span class="mx-2 text-gray-300">•</span>
+        <span class="text-gray-500">Tempo no setor:</span> ${esc(tempo || '—')}
+      </div>`;
+  }
+
+  const acoesHtml = (acoes.slice(-3)).map(a => {
+    const when = a.data_registro ? ` <span class="text-gray-500">• ${brDate(a.data_registro)}</span>` : '';
+    return `<div class="text-xs text-gray-700 leading-tight">• ${esc(a.texto)}${when}</div>`;
+  }).join('');
 
   return `
     <div class="flex items-start gap-3 p-4 rounded-lg border ${boxCls}">
@@ -315,7 +365,7 @@ function flowItem({ordem, setor, status, acao_finalizadora, acoes, entrada, said
         ${sub ? `<div class="text-xs text-gray-500">${sub}</div>` : ''}
         ${datasHtml}
         ${isDone && acao_finalizadora ? `<div class="text-xs text-gray-600">Ação: ${esc(acao_finalizadora)}</div>` : ''}
-        ${acoesHtml}
+        ${acoesHtml ? `<div class="mt-2 space-y-1">${acoesHtml}</div>` : ''}
       </div>
     </div>`;
 }
@@ -337,13 +387,24 @@ async function renderFlow(processoId){
     if (!ra.ok || !ja.ok) throw new Error(ja.error || 'Falha ao listar ações internas');
 
     const fluxo = jf.data || [];
-    const acoes = ja.data || [];
+    const todasAcoes = ja.data || [];
 
-    const norm = s => String(s||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').replace(/\s+/g,' ').trim().toLowerCase();
-    const mapAcoes = acoes.reduce((acc, a) => { const k = norm(a.setor); (acc[k] ||= []).push(a); return acc; }, {});
+    const norm = s => String(s||'')
+      .normalize('NFD').replace(/\p{Diacritic}/gu,'')
+      .replace(/\s+/g,' ').trim().toLowerCase();
 
-    wrap.innerHTML = fluxo.map(f => {
+    const mapAcoes = todasAcoes.reduce((acc, a) => {
+      const k = norm(a.setor);
+      (acc[k] ||= []).push(a);
+      return acc;
+    }, {});
+
+    // setor demandante do processo atual (quem criou)
+    const setorCriador = currentProcess ? norm(currentProcess.setor_demandante) : '';
+
+    wrap.innerHTML = fluxo.map((f, idx) => {
       const key = norm(f.setor);
+      const isFirstCreator = (idx === 0) && (norm(f.setor) === setorCriador);
       return flowItem({
         ordem: f.ordem,
         setor: f.setor,
@@ -352,7 +413,8 @@ async function renderFlow(processoId){
         acoes: mapAcoes[key] || [],
         entrada: f.data_registro,
         saida:  f.data_fim,
-        tempo:  f.tempo_legivel
+        tempo:  f.tempo_legivel,
+        isFirstCreator
       });
     }).join('');
 
@@ -361,6 +423,7 @@ async function renderFlow(processoId){
     wrap.innerHTML = '<div class="text-red-500">Erro ao carregar fluxo.</div>';
   }
 }
+
 
 const frmBusca   = document.getElementById('frmBusca');
 const btnLimpar  = document.getElementById('btnLimpar');

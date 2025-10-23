@@ -256,15 +256,19 @@ const parseTipos = j => {
   catch { return ''; }
 };
 
+// Adicione (se ainda não tiver neste arquivo)
+function renderBadgeConcluido(){
+  return `<span class="badge-done ml-2 inline-flex items-center px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">
+    <i class="fa-solid fa-check mr-1"></i> Concluído
+  </span>`;
+}
+
 // ====== LISTA DA HOME ======
 async function loadMyProcesses(){
   const termo = (document.getElementById('searchNumeroHome')?.value || '').trim();
   const url = new URL('listar_processos.php', window.location.href);
   url.searchParams.set('scope', 'demandante');
-  if (termo) {
-    // busca genérica (número ou nome)
-    url.searchParams.set('busca', termo);
-  }
+  if (termo) url.searchParams.set('busca', termo);
 
   wrap.innerHTML = `
     <div class="col-span-full text-gray-400 border border-dashed rounded-lg p-8 text-center">
@@ -272,66 +276,73 @@ async function loadMyProcesses(){
     </div>`;
 
   try {
-  const r = await fetch(url.toString(), { credentials:'same-origin' });
+    // <<< garante cache de setores carregado p/ podermos usar getSigla
+    await getSectors();
 
-  // pegue como texto primeiro p/ log e para diagnosticar JSON inválido
-  const raw = await r.text();
-  let j = null;
-  try { j = JSON.parse(raw); } catch(parseErr) {
-    console.error('[listar_processos] JSON inválido. Status=', r.status, 'Raw=', raw);
-    throw new Error('Resposta inválida do servidor.');
-  }
+    const r = await fetch(url.toString(), { credentials:'same-origin' });
+    const raw = await r.text();
+    let j = null;
+    try { j = JSON.parse(raw); } catch { throw new Error('Resposta inválida do servidor.'); }
+    if (!r.ok || !j?.ok) throw new Error(j?.error || `HTTP ${r.status}`);
 
-  if (!r.ok || !j?.ok) {
-    console.error('[listar_processos] Falhou. HTTP', r.status, 'payload=', j);
-    throw new Error(j?.error || `HTTP ${r.status}`);
-  }
+    const data = j.data || [];
+    if (!data.length){
+      wrap.innerHTML = `
+        <div class="col-span-full text-gray-400 border border-dashed rounded-lg p-8 text-center">
+          Nenhum processo${termo ? ` encontrado para "${esc(termo)}"` : ''}.
+        </div>`;
+      return;
+    }
 
-  const data = j.data || [];
-  if (!data.length){
-    wrap.innerHTML = `
-      <div class="col-span-full text-gray-400 border border-dashed rounded-lg p-8 text-center">
-        Nenhum processo${termo ? ` encontrado para "${esc(termo)}"` : ''}.
-      </div>`;
-    return;
-  }
+    wrap.innerHTML = '';
+    data.forEach(p => {
+      // sigla a partir do cache; se não vier, cai no “prefixo antes do hífen”
+      const sig =
+        getSigla(p.setor_demandante) ||
+        String(p.setor_demandante || '')
+          .split('-')[0]
+          .trim()
+          .toUpperCase() ||
+        '—';
 
-  wrap.innerHTML = '';
-  data.forEach(p => {
-    const card = document.createElement('div');
-    card.className = 'card-processo bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer';
-    const nProc   = p.numero_processo || p.numero || '—';
-    const nome    = p.nome_processo   || p.nome   || '';
-    const destino = p.enviar_para      || p.setor_destino || p.destino || '';
-    const sigla   = getSigla(p.enviar_para) || '';
-    card.innerHTML = `
-      <div class="flex justify-between items-start">
-        <div class="pr-2 min-w-0">
-          <div class="text-[11px] uppercase tracking-wide text-gray-500 mb-0.5">Nº do processo</div>
-          <div class="text-[13px] font-medium text-gray-800 break-all leading-tight">${esc(nProc)}</div>
-          <div class="mt-1 text-[15px] font-semibold text-gray-900 leading-snug break-words whitespace-normal max-h-[3.5rem] overflow-hidden">
-            ${esc(nome)}
+      const card = document.createElement('div');
+      card.className = 'card-processo bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer';
+      card.setAttribute('data-id', String(p.id));
+
+      card.innerHTML = `
+        <div class="flex justify-between items-start">
+          <div class="pr-2 min-w-0 flex-1">  <!-- <— dá espaço pra esquerda -->
+            <div class="text-[11px] uppercase tracking-wide text-gray-500 mb-0.5">Nº do processo</div>
+            <div class="text-[13px] font-medium text-gray-800 leading-tight truncate"> <!-- <— sem quebrar -->
+              ${esc(p.numero_processo || '—')}
+              ${Number(p.finalizado) === 1 ? renderBadgeConcluido() : ''}
+            </div>
+            <div class="mt-1 text-[15px] font-semibold text-gray-900 leading-snug break-words line-clamp-2"> <!-- <— 2 linhas -->
+              ${esc(p.nome_processo || '')}
+            </div>
           </div>
+          <span
+            class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 whitespace-nowrap self-start"
+            title="${esc(p.setor_demandante || '')}"  <!-- tooltip com nome completo -->
+            ${esc(sig)}
+          </span>
         </div>
-        <span class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 whitespace-nowrap self-start">
-          ${esc(sigla || destino || '—')}
-        </span>
-      </div>
-      <div class="mt-2 text-right text-[11px] text-gray-400">${brDate(p.data_registro)}</div>
-    `;
-    card.addEventListener('click', () => openDetails(p));
-    wrap.appendChild(card);
-  });
+        <div class="mt-2 text-right text-[11px] text-gray-400">${brDate(p.data_registro)}</div>
+      `;
+      card.addEventListener('click', () => openDetails(p));
+      wrap.appendChild(card);
+    });
 
-} catch(e){
-  console.error(e);
-  wrap.innerHTML = `
-    <div class="col-span-full text-red-500 border border-red-200 rounded-lg p-8 text-center">
-      Erro ao carregar${e?.message ? `: ${esc(e.message)}` : ''}.
-    </div>`;
+
+  } catch(e){
+    console.error(e);
+    wrap.innerHTML = `
+      <div class="col-span-full text-red-500 border border-red-200 rounded-lg p-8 text-center">
+        Erro ao carregar${e?.message ? `: ${esc(e.message)}` : ''}.
+      </div>`;
+  }
 }
 
-}
 
 // ====== DETALHES + FLUXO ======
 let currentProcess = null;
