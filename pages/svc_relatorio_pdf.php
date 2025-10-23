@@ -243,8 +243,9 @@ $pdf->Cell(0,8,enc('Fluxo do Processo'),0,1,'L');
 $pdf->SetFont('Arial','',9);
 
 // Larguras (somam 190 mm) e rótulos
-$widths = [12, 50, 22, 35, 25, 23, 23];
+$widths = [12, 22, 22, 50, 33, 25, 26]; 
 $labels = ['Ord.', 'Setor', 'Status', 'Ação Finalizadora', 'Usuário', 'Data Registro', 'Data Fim'];
+
 $pdf->TableHeader2($widths, $labels);
 
 if (empty($fluxo)) {
@@ -271,18 +272,26 @@ if (empty($fluxo)) {
     }
     $primeiraLinha = false; // a partir da próxima linha, regra não se aplica
 
+    // Nome curto: "Primeiro Último"
+    $usuarioBruto  = $row['usuario'] ?? '';
+    $usuarioCurto  = $usuarioBruto ? nomePrimeiroUltimo($usuarioBruto) : '—';
+
+    // (Se quiser garantir que nunca quebre, pode truncar um pouquinho)
+    // $usuarioCurto = $usuarioCurto !== '—' ? curto($usuarioCurto, 22) : '—';
+
     $pdf->TableRow([
       $row['ordem'],
       $setorNome,
       $row['status'],
       $row['acao_finalizadora'] ?: '—',
-      $row['usuario'] ?: '—',
-      $dataRegistro ? dtbr($dataRegistro) : '—',     // Data Registro
-      $dataFimRaw  ? dtbr($dataFimRaw)   : '—'       // Data Fim (copiada na 1ª linha se necessário)
+      $usuarioCurto,                                // << aqui vai só Nome + Sobrenome
+      $dataRegistro ? dtbr($dataRegistro) : '—',
+      $dataFimRaw  ? dtbr($dataFimRaw)   : '—'
     ], $widths, [
       'small_cols' => [5, 6],
       'small_size' => 7
     ]);
+
   }
 }
 
