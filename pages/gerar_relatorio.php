@@ -93,6 +93,13 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
   const resultBox = el('resultBox');
   const btnPdf = el('btnPdf');
 
+  const selectedNums = new Set();
+
+  function refreshPdfButton() {
+    // habilita o botão se houver pelo menos 1 marcado
+    btnPdf.disabled = selectedNums.size === 0 && !btnPdf.dataset.num;
+  }
+
   const showBox = (ok = false) => {
     resultBox.classList.remove('hidden');
     resultBox.style.background = ok ? '#ecfdf5' : '#f3f4f6';
@@ -100,49 +107,100 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
   };
 
   const renderLista = (lista) => {
-    if (!Array.isArray(lista) || !lista.length) {
-      resultBox.innerHTML = 'Nenhum processo encontrado. ❌';
-      showBox(false);
-      return;
+  selectedNums.clear(); // ao renderizar, limpamos seleção
+  btnPdf.dataset.num = ''; // desabilita modo "único"
+  refreshPdfButton();
+
+  if (!Array.isArray(lista) || !lista.length) {
+    resultBox.innerHTML = 'Nenhum processo encontrado. ❌';
+    showBox(false);
+    return;
+  }
+
+  let html = `
+    <div class="font-bold mb-2">Processos encontrados (${lista.length}) ✅</div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-gray-100">
+          <tr>
+            <th class="px-3 py-2 text-left w-10">
+              <input id="chkAll" type="checkbox" class="h-4 w-4" />
+            </th>
+            <th class="px-3 py-2 text-left">Número</th>
+            <th class="px-3 py-2 text-left">Setor Demandante</th>
+            <th class="px-3 py-2 text-left">Enviar para</th>
+            <th class="px-3 py-2 text-left">Criado em</th>
+            <th class="px-3 py-2 text-left">Eventos</th>
+            <th class="px-3 py-2"></th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  for (const r of lista) {
+    const num = r.numero_processo;
+    html += `
+      <tr class="border-b">
+        <td class="px-3 py-2">
+          <input type="checkbox" class="chk-proc h-4 w-4" value="${num}">
+        </td>
+        <td class="px-3 py-2 whitespace-nowrap">${num}</td>
+        <td class="px-3 py-2">${r.setor_demandante || '—'}</td>
+        <td class="px-3 py-2">${r.enviar_para || '—'}</td>
+        <td class="px-3 py-2">${r.data_registro || '—'}</td>
+        <td class="px-3 py-2 text-center">${r.qte_eventos ?? '0'}</td>
+        <td class="px-3 py-2 text-right">
+          <button class="btn btn--green"
+                  onclick="window.open('svc_relatorio_pdf.php?numero='+encodeURIComponent('${num}'),'_blank')">
+            <i class="fa-regular fa-file-pdf"></i> PDF
+          </button>
+        </td>
+      </tr>`;
+  }
+
+  html += `</tbody></table></div>`;
+  resultBox.innerHTML = html;
+  showBox(true);
+
+  // listeners dos checkboxes
+  document.querySelectorAll('.chk-proc').forEach(chk => {
+    chk.addEventListener('change', (e) => {
+      const val = e.target.value;
+      if (e.target.checked) selectedNums.add(val);
+      else selectedNums.delete(val);
+      refreshPdfButton();
+
+      // sincroniza "marcar todos"
+      const all = document.getElementById('chkAll');
+      if (all) {
+        const total = document.querySelectorAll('.chk-proc').length;
+        const marcados = selectedNums.size;
+        all.checked = (marcados === total && total > 0);
+        all.indeterminate = (marcados > 0 && marcados < total);
+      }
+    });
+  });
+
+  const chkAll = document.getElementById('chkAll');
+    if (chkAll) {
+      chkAll.addEventListener('change', () => {
+        const marca = chkAll.checked;
+        selectedNums.clear();
+        document.querySelectorAll('.chk-proc').forEach(chk => {
+          chk.checked = marca;
+          if (marca) selectedNums.add(chk.value);
+        });
+        refreshPdfButton();
+        chkAll.indeterminate = false;
+      });
     }
-    let html = `
-      <div class="font-bold mb-2">Processos encontrados (${lista.length}) ✅</div>
-      <div class="overflow-x-auto">
-        <table class="min-w-full text-sm">
-          <thead class="bg-gray-100">
-            <tr>
-              <th class="px-3 py-2 text-left">Número</th>
-              <th class="px-3 py-2 text-left">Setor Demandante</th>
-              <th class="px-3 py-2 text-left">Enviar para</th>
-              <th class="px-3 py-2 text-left">Criado em</th>
-              <th class="px-3 py-2 text-left">Eventos</th>
-              <th class="px-3 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-    `;
-    for (const r of lista) {
-      html += `
-        <tr class="border-b">
-          <td class="px-3 py-2 whitespace-nowrap">${r.numero_processo}</td>
-          <td class="px-3 py-2">${r.setor_demandante || '—'}</td>
-          <td class="px-3 py-2">${r.enviar_para || '—'}</td>
-          <td class="px-3 py-2">${r.data_registro || '—'}</td>
-          <td class="px-3 py-2 text-center">${r.qte_eventos ?? '0'}</td>
-          <td class="px-3 py-2 text-right">
-            <button class="btn btn--green"
-                    onclick="window.open('svc_relatorio_pdf.php?numero='+encodeURIComponent('${r.numero_processo}'),'_blank')">
-              <i class="fa-regular fa-file-pdf"></i> PDF
-            </button>
-          </td>
-        </tr>`;
-    }
-    html += `</tbody></table></div>`;
-    resultBox.innerHTML = html;
-    showBox(true);
   };
 
+
   const renderUnico = (data) => {
+    selectedNums.clear();
+    btnPdf.dataset.num = data.registro.numero_processo;
+    refreshPdfButton();
     btnPdf.disabled = false;
     btnPdf.dataset.num = data.registro.numero_processo;
     resultBox.innerHTML = `
@@ -210,10 +268,22 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
   });
 
   btnPdf.addEventListener('click', () => {
-    const num = btnPdf.dataset.num;
-    if (!num) return;
-    window.open('svc_relatorio_pdf.php?numero=' + encodeURIComponent(num), '_blank');
-  });
+  const numUnico = btnPdf.dataset.num;
+
+  // 1) Se há seleção múltipla, chama o PDF em lote
+  if (selectedNums.size > 0) {
+    const nums = Array.from(selectedNums);
+    const qs = encodeURIComponent(JSON.stringify(nums));
+    window.open('svc_relatorio_pdf_lote.php?nums=' + qs, '_blank');
+    return;
+  }
+
+  // 2) Caso contrário, se vier do "único"
+  if (numUnico) {
+    window.open('svc_relatorio_pdf.php?numero=' + encodeURIComponent(numUnico), '_blank');
+  }
+});
+
 </script>
 
 </body>
