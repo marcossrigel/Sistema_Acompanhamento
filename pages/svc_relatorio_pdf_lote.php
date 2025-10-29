@@ -26,10 +26,7 @@ $raw = $_GET['nums'] ?? '';
 if ($raw === '') { http_response_code(400); echo 'Seleção vazia.'; exit; }
 
 $nums = json_decode($raw, true);
-if (!is_array($nums)) {
-  // tenta CSV
-  $nums = array_filter(array_map('trim', explode(',', $raw)));
-}
+if (!is_array($nums)) { $nums = array_filter(array_map('trim', explode(',', $raw))); }
 $nums = array_values(array_unique(array_filter($nums)));
 if (!$nums) { http_response_code(400); echo 'Nenhum processo válido.'; exit; }
 
@@ -145,16 +142,33 @@ class PDF extends FPDF {
     }
     $this->SetY($maxY);
   }
+  // separador tipo <hr>
+  function HrSeparator() {
+    $this->Ln(2);
+    $this->SetDrawColor(210,210,210);
+    $this->SetLineWidth(0.2);
+    $y = $this->GetY();
+    $this->Line(10, $y, 200, $y);
+    $this->Ln(4);
+  }
 }
 
 $pdf = new PDF('P','mm','A4');
 $pdf->AliasNbPages();
+// quebra automática
+$pdf->SetAutoPageBreak(true, 15);
 
+// larguras/labels para a tabela do fluxo
 $widths = [12, 22, 22, 50, 33, 25, 26];
 $labels = ['Ord.', 'Setor', 'Status', 'Ação Finalizadora', 'Usuário', 'Data Registro', 'Data Fim'];
 
+// uma única página inicial
+$pdf->AddPage();
+
 foreach ($nums as $idx => $numero) {
-  $pdf->AddPage();
+
+  if ($idx > 0) { $pdf->HrSeparator(); }
+
   $pdf->SetFont('Arial','B',11);
   $pdf->Cell(0,8,enc('Dados do Processo'),0,1,'L');
   $pdf->SetFont('Arial','',9);
@@ -167,6 +181,7 @@ foreach ($nums as $idx => $numero) {
       continue;
     }
 
+    // Tipos
     $tiposArr = [];
     if (!empty($proc['tipos_processo_json'])) {
       $tmp = json_decode($proc['tipos_processo_json'], true);
@@ -187,6 +202,9 @@ foreach ($nums as $idx => $numero) {
     $pdf->RowKV('Criado em',        dtbr($proc['data_registro']));
     $pdf->Ln(3);
 
+    // evita quebrar título do fluxo "órfão" no fim da página
+    if ($pdf->GetY() > 250) { $pdf->AddPage(); }
+
     // bloco fluxo
     $pdf->SetFont('Arial','B',11);
     $pdf->Cell(0,8,enc('Fluxo do Processo'),0,1,'L');
@@ -201,15 +219,18 @@ foreach ($nums as $idx => $numero) {
     } else {
       $primeiraLinha = true;
       foreach ($fluxo as $row) {
+        // setor curto
         $setorNome = $row['setor'];
         if (strpos($setorNome, ' - ') !== false) $setorNome = trim(explode(' - ', $setorNome)[0]);
 
+        // datas (regra: primeira linha sem data_fim recebe data_registro)
         $dataRegistro = $row['data_registro'] ?: null;
         $dataFimRaw = $row['data_fim'] ?? null;
         $isEmptyFim = ($dataFimRaw === null || $dataFimRaw === '' || $dataFimRaw === '0000-00-00 00:00:00');
         if ($primeiraLinha && $isEmptyFim) $dataFimRaw = $dataRegistro;
         $primeiraLinha = false;
 
+        // usuário curto
         $usuarioBruto = $row['usuario'] ?? '';
         $usuarioCurto = $usuarioBruto ? nomePrimeiroSobrenome($usuarioBruto) : '—';
 
