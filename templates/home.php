@@ -10,9 +10,7 @@ if (empty($_SESSION['auth_ok']) || empty($_SESSION['g_id'])) {
 }
 
 if (!isset($_SESSION['tipo']) || !isset($_SESSION['nome']) || !isset($_SESSION['setor'])) {
-  // Sempre recarrega do banco local sistema_acompanhamento
   try {
-    // Debug opcional: qual DB estou usando?
     $dbName = $pdo->query('SELECT DATABASE()')->fetchColumn();
 
     $st = $pdo->prepare('
@@ -27,18 +25,15 @@ if (!isset($_SESSION['tipo']) || !isset($_SESSION['nome']) || !isset($_SESSION['
     if ($row) {
       $_SESSION['nome']  = $row['nome']  ?? '';
       $_SESSION['setor'] = $row['setor'] ?? '—';
-      $_SESSION['tipo']  = $row['tipo']  ?: 'comum'; // já vem normalizado
+      $_SESSION['tipo']  = $row['tipo']  ?: 'comum';
     } else {
-      // não achou no banco local
       $_SESSION['tipo'] = 'comum';
     }
 
-    // Debug temporário (remova depois)
     echo "<!-- DB=$dbName g_id=".$_SESSION['g_id']." tipo=".$_SESSION['tipo']." -->";
 
   } catch (Throwable $e) {
     error_log('Falha ao obter dados do usuário: '.$e->getMessage());
-    // fallback, mas mantém o que já tiver
     $_SESSION['tipo'] = $_SESSION['tipo'] ?? 'comum';
   }
 
@@ -78,7 +73,6 @@ $isAdmin = ($tipo === 'admin');
         </a>
 
         <?php if ($isAdmin): ?>
-        <!-- Botão visível apenas para admin -->
         <a href="../pages/todos.php" class="btn btn--outline-blue">
           <i class="fa-solid fa-layer-group"></i> TODOS
         </a>

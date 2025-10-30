@@ -297,12 +297,11 @@ async function loadMyProcesses(){
     wrap.innerHTML = '';
     data.forEach(p => {
       // sigla a partir do cache; se não vier, cai no “prefixo antes do hífen”
+      const currentSetor = p.setor_atual || p.setor_demandante || '';
       const sig =
-        getSigla(p.setor_demandante) ||
-        String(p.setor_demandante || '')
-          .split('-')[0]
-          .trim()
-          .toUpperCase() ||
+        (p.sigla_atual && String(p.sigla_atual).toUpperCase()) ||
+        getSigla(currentSetor) ||
+        (currentSetor.split(' - ', 1)[0] || '').toUpperCase() ||
         '—';
 
       const card = document.createElement('div');
@@ -323,9 +322,8 @@ async function loadMyProcesses(){
           </div>
           <span
             class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 whitespace-nowrap self-start"
-            title="${esc(p.setor_demandante || '')}"  <!-- tooltip com nome completo -->
-            ${esc(sig)}
-          </span>
+            title="${esc(currentSetor)}"
+          >${esc(sig)}</span>
         </div>
         <div class="mt-2 text-right text-[11px] text-gray-400">${brDate(p.data_registro)}</div>
       `;
