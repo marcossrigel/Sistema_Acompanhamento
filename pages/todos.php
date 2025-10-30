@@ -42,6 +42,12 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
       margin-top: 12px;
     }
 
+    .proc-num {
+      font-size: 0.95rem;   /* ~15px — um pouco menor que text-base */
+      line-height: 1.2;
+      word-break: break-all; /* evita estourar o card em números longos */
+    }
+
     /* ===== Modal base ===== */
     .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}
     .hidden{display:none}
@@ -147,6 +153,7 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
   const el = id => document.getElementById(id);
   const list = el('list');
   let DATA = []; // memória local para filtrar
+  let TEMPO_TIMER = null;
 
   const fmt = iso => {
     if (!iso) return '—';
@@ -162,15 +169,17 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
 
   function calcularTempo(ini, fim) {
     if (!ini || !fim) return '—';
-    const start = new Date(ini);
-    const end = new Date(fim);
-    const diff = (end - start) / 60000; // minutos
+    const start = new Date(String(ini).replace(' ', 'T'));
+    const end   = new Date(String(fim).replace(' ', 'T'));
+    if (isNaN(start) || isNaN(end)) return '—';
+    const diff = (end - start) / 60000;
     if (diff < 1) return 'menos de 1 min';
     if (diff < 60) return `${Math.round(diff)} min`;
     const horas = Math.floor(diff / 60);
     const min = Math.round(diff % 60);
     return `${horas}h ${min}min`;
   }
+
 
   function card(p) {
     const r = p.registro;
@@ -181,7 +190,7 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
         <div class="flex items-center justify-between">
           <div>
             <div class="text-sm muted">Nº</div>
-            <div class="text-lg font-extrabold">${r.numero_processo}</div>
+            <div class="proc-num font-extrabold">${r.numero_processo}</div>
           </div>
           <div>${status ? `<span class="badge">${status.toUpperCase()}</span>` : ''}</div>
         </div>
@@ -216,6 +225,29 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
     render(DATA);
   }
 
+  // diferença humana entre a entrada e "agora"
+function tempoNoSetor(entradaIso){
+  if (!entradaIso) return '—';
+  const start = new Date(String(entradaIso).replace(' ', 'T'));
+  if (isNaN(start)) return '—';
+
+  const now   = new Date();
+  let diffMin = Math.floor((now - start) / 60000); // minutos
+
+  if (diffMin < 1) return 'menos de 1 min';
+  if (diffMin < 60) return `${diffMin} min`;
+
+  const horas = Math.floor(diffMin / 60);
+  const min   = diffMin % 60;
+  if (horas < 24) return `${horas}h ${min}min`;
+
+  const dias = Math.floor(horas / 24);
+  const hRest = horas % 24;
+  // mostra “N dias” e, se fizer sentido, as horas restantes
+  return hRest ? `${dias} dia${dias>1?'s':''} • ${hRest}h` : `${dias} dia${dias>1?'s':''}`;
+}
+
+
   // === helpers iguais aos de home/encaminhado ===
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
     ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#39;'}[m])
@@ -236,8 +268,8 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
   };
 
   // === renderer do item do fluxo (mesmo dos outros arquivos) ===
-  function flowItem({ordem, setor, status, acao_finalizadora, acoes = [], entrada, saida, tempo, isFirstCreator = false}) {
-    const st = String(status||'').toLowerCase();
+  function flowItem({ordem, setor, status, acao_finalizadora, acoes = [], entrada, saida, tempo, isFirstCreator = false, extraHtml = ''}) {
+    const st = String(status||'').trim().toLowerCase();
     const isDone = st === 'concluido' || st.includes('conclu');
     const isNow  = st === 'ativo' || st === 'atual';
 
@@ -282,7 +314,8 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
         <div class="mt-1 text-xs text-gray-600">
           <span class="text-gray-500">Entrada:</span> ${entrou}
           <span class="mx-2 text-gray-300">•</span>
-          <span class="text-gray-500">Tempo no setor:</span> ${esc(tempo || '—')}
+          <span class="text-gray-500">Tempo no setor:</span>
+          <span class="tempo-no-setor" data-entrada-setor="${entrada}">${esc(tempo || '—')}</span>
         </div>`;
     }
 
@@ -294,12 +327,14 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
           ${sub ? `<div class="text-xs text-gray-500">${sub}</div>` : ''}
           ${datasHtml}
           ${isDone && acao_finalizadora ? `<div class="text-xs text-gray-600">Ação: ${esc(acao_finalizadora)}</div>` : ''}
+          ${extraHtml}
         </div>
       </div>`;
   }
 
   // === abre o modal com o mesmo layout/UX dos outros ===
   function openDetails(id) {
+
     const p = DATA.find(x => String(x.registro.id) === String(id));
     if (!p) return;
 
@@ -336,13 +371,23 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
 
     // fluxo (garante array)
     const fluxo = Array.isArray(p.fluxo) ? p.fluxo : [];
+    
 
     // primeira ocorrência do criador no fluxo
     const firstCreatorIdx = fluxo.findIndex(f => normKey(f.setor) === setorCriador);
 
     // render dos cards do fluxo
-    const htmlFlow = fluxo.map((f, idx) => {
+    let htmlFlow = '';
+    let idxAtual = -1;
+    htmlFlow = fluxo.map((f, idx) => {
       const isFirstCreator = (idx === firstCreatorIdx);
+      const st = String(f.status||'').trim().toLowerCase();
+      const isNow  = st === 'ativo' || st === 'atual';
+
+      // tempo: se já concluiu, calcula entre entrada e saída; se atual, calcula até agora
+      const tempoCalc = isNow
+        ? tempoNoSetor(f.data_registro)
+        : (f.data_registro && f.data_fim ? calcularTempo(f.data_registro, f.data_fim) : '—');
 
       return flowItem({
         ordem: f.ordem,
@@ -352,14 +397,68 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
         acoes: [],
         entrada: f.data_registro,
         saida:  f.data_fim,
-        // tempo NÃO será exibido dentro do flowItem quando isFirstCreator === true
-        tempo:  f.tempo_legivel || f.tempo_estimado || (f.data_registro && f.data_fim ? '' : '—'),
-        isFirstCreator
+        tempo:  tempoCalc,
+        isFirstCreator,
+        extraHtml: isNow ? '<div id="acoes-internas" class="mt-2"></div>' : ''
       });
     }).join('');
 
-    document.getElementById('flowList').innerHTML =
-      htmlFlow || `<div class="text-gray-400">Sem fluxo.</div>`;
+document.getElementById('flowList').innerHTML =
+  htmlFlow || `<div class="text-gray-400">Sem fluxo.</div>`;
+
+// atualiza imediatamente os spans "tempo-no-setor"
+document.querySelectorAll('.tempo-no-setor').forEach(span => {
+  const entrada = span.getAttribute('data-entrada-setor');
+  span.textContent = tempoNoSetor(entrada);
+});
+
+// renova o timer (1 min) enquanto o modal estiver aberto
+if (TEMPO_TIMER) clearInterval(TEMPO_TIMER);
+TEMPO_TIMER = setInterval(() => {
+  document.querySelectorAll('.tempo-no-setor').forEach(span => {
+    const entrada = span.getAttribute('data-entrada-setor');
+    span.textContent = tempoNoSetor(entrada);
+  });
+}, 60000);
+
+
+fetch(`../templates/listar_acoes_internas.php?id=${encodeURIComponent(id)}`, { credentials: 'same-origin' })
+  .then(async res => {
+    const raw = await res.text();
+    let data; try { data = JSON.parse(raw); } catch { throw new Error('Resposta não-JSON: ' + raw); }
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Falha ao listar ações internas');
+
+    const acoes = data.data || [];
+
+    const fluxo = Array.isArray(p.fluxo) ? p.fluxo : [];
+    const norm = s => String(s||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').replace(/\s+/g,' ').trim().toLowerCase();
+    const keyBase = s => norm(String(s||'').split(' - ')[0]);
+
+    let setorAtual = '';
+    for (const f of fluxo) {
+      const st = String(f.status||'').toLowerCase();
+      if (st === 'ativo' || st === 'atual') { setorAtual = f.setor || ''; break; }
+    }
+    if (!setorAtual && r.enviar_para) setorAtual = r.enviar_para;
+
+    const keyAtual = keyBase(setorAtual);
+    let acoesDoSetor = keyAtual ? acoes.filter(a => keyBase(a.setor) === keyAtual) : acoes;
+    if (!acoesDoSetor.length) acoesDoSetor = acoes;
+
+    const blocos = acoesDoSetor.map(a => `
+      <div class="ml-8 mt-2 text-sm text-gray-700 border-l-4 border-blue-300 pl-3">
+        <span class="block text-gray-800">• ${esc(a.texto)}</span>
+        <span class="text-xs text-gray-500">
+          ${a.setor ? esc(a.setor)+' • ' : ''}${a.usuario ? esc(a.usuario)+' • ' : ''}${brDate(a.data_registro)}
+        </span>
+      </div>
+    `).join('');
+
+    const alvo = document.getElementById('acoes-internas');
+    if (alvo) alvo.innerHTML = blocos;
+    else document.getElementById('flowList').insertAdjacentHTML('beforeend', blocos);
+  })
+  .catch(err => console.error('Erro ao carregar ações internas:', err));
 
     const md = document.getElementById('detailsModal');
     md.classList.remove('hidden');
@@ -367,11 +466,11 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
   }
   window.openDetails = openDetails;
 
-  // handlers do modal padronizados
   function closeDetails(){
     const md = document.getElementById('detailsModal');
     md.classList.add('hidden');
     md.classList.remove('flex');
+    if (TEMPO_TIMER) { clearInterval(TEMPO_TIMER); TEMPO_TIMER = null; }
   }
   document.getElementById('closeDetails')?.addEventListener('click', closeDetails);
   document.getElementById('okDetails')?.addEventListener('click', closeDetails);
