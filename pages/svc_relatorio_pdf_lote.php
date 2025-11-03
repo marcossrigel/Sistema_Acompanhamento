@@ -93,6 +93,29 @@ function buscarFluxo($pid, $driver, $pdo, $conexao) {
   }
 }
 
+function buscarAcoesInternas($pid, $driver, $pdo, $conexao) {
+  if ($driver === 'pdo') {
+    $st = $pdo->prepare(
+      "SELECT texto, data_registro
+         FROM processo_acao_interna
+        WHERE processo_id = :pid
+        ORDER BY data_registro ASC"
+    );
+    $st->execute([':pid' => $pid]);
+    return $st->fetchAll();
+  } else {
+    $sql = "SELECT texto, data_registro
+              FROM processo_acao_interna
+             WHERE processo_id = ".(int)$pid."
+             ORDER BY data_registro ASC";
+    $res = $conexao->query($sql);
+    if (!$res) throw new RuntimeException('MySQLi: '.$conexao->error);
+    return $res->fetch_all(MYSQLI_ASSOC);
+  }
+}
+
+
+
 /* ===== PDF ===== */
 class PDF extends FPDF {
   function Header(){
@@ -159,8 +182,8 @@ $pdf->AliasNbPages();
 $pdf->SetAutoPageBreak(true, 15);
 
 // larguras/labels para a tabela do fluxo
-$widths = [12, 22, 22, 50, 33, 25, 26];
-$labels = ['Ord.', 'Setor', 'Status', 'Ação Finalizadora', 'Usuário', 'Data Registro', 'Data Fim'];
+$widths = [12, 25, 25, 40, 55, 25];
+$labels = ['Ord.', 'Setor', 'Status', 'Ação Finalizadora', 'Ações Internas', 'Data Registro'];
 
 // uma única página inicial
 $pdf->AddPage();
@@ -231,18 +254,25 @@ foreach ($nums as $idx => $numero) {
         $primeiraLinha = false;
 
         // usuário curto
-        $usuarioBruto = $row['usuario'] ?? '';
-        $usuarioCurto = $usuarioBruto ? nomePrimeiroSobrenome($usuarioBruto) : '—';
+        $acoes = buscarAcoesInternas((int)$proc['id'], $driver, $pdo ?? null, $conexao ?? null);
+        $acoesText = '—';
+        if (!empty($acoes)) {
+          $acoesText = '';
+          foreach ($acoes as $a) {
+            $acoesText .= '- ' . $a['texto'] . "\n";
+          }
+          $acoesText = trim($acoesText);
+        }
 
+        // Montar linha com nova estrutura (sem usuário)
         $pdf->TableRow([
           $row['ordem'],
           $setorNome,
           $row['status'],
           $row['acao_finalizadora'] ?: '—',
-          $usuarioCurto,
-          $dataRegistro ? dtbr($dataRegistro) : '—',
-          $dataFimRaw  ? dtbr($dataFimRaw)   : '—'
-        ], $widths, ['small_cols' => [5,6], 'small_size' => 7]);
+          $acoesText,
+          $dataRegistro ? dtbr($dataRegistro) : '—'
+        ], $widths, ['small_cols' => [4,5], 'small_size' => 7]);
       }
     }
   } catch (Throwable $e) {
