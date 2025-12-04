@@ -81,34 +81,6 @@ btnLimparHome?.addEventListener('click', () => {
   if (inputHome) inputHome.value = termo;
 })();
 
-// Formata a partir de *apenas* dígitos (máx 22), montando as quebras fixas
-function formatProc(digits) {
-  const d = digits.slice(0, 22);           // <= CORTE DURO: máx 22 dígitos
-  const a = d.slice(0, 10);
-  const b = d.slice(10, 16);
-  const c = d.slice(16, 20);
-  const e = d.slice(20, 22);
-
-  let out = a;
-  if (d.length > 10) out += '.' + b;
-  if (d.length > 16) out += '/' + c;
-  if (d.length > 20) out += '-' + e;
-  return out;
-}
-
-procInput?.addEventListener('input', (e) => {
-  const digits = e.target.value.replace(/\D/g, '');
-  e.target.value = formatProc(digits);
-});
-
-procInput?.addEventListener('paste', (e) => {
-  e.preventDefault();
-  const text = (e.clipboardData || window.clipboardData).getData('text') || '';
-  const digits = text.replace(/\D/g, '');
-  procInput.value = formatProc(digits);
-});
-
-
 let __sectorsCache = null;
 async function getSectors() {
   if (__sectorsCache) return __sectorsCache;

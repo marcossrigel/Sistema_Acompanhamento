@@ -43,6 +43,9 @@ $nome    = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
 $setor   = htmlspecialchars($_SESSION['setor'] ?? '—', ENT_QUOTES, 'UTF-8');
 $tipo    = htmlspecialchars($_SESSION['tipo']  ?? 'comum', ENT_QUOTES, 'UTF-8');
 $isAdmin = ($tipo === 'admin');
+
+$userIdCehab = (int)($_SESSION['g_id'] ?? 0);
+$isBruno = ($userIdCehab === 600);
 ?>
 
 <!DOCTYPE html>
@@ -74,6 +77,18 @@ $isAdmin = ($tipo === 'admin');
         <a href="../pages/gerar_relatorio.php" class="btn btn--outline-green">
           <i class="fa-solid fa-file-lines"></i> Gerar Relatório
         </a>
+
+         <?php if ($isBruno): ?>
+          <!-- Para Bruno (id 600) aparece SOLICITAÇÕES -->
+          <a href="../pages/solicitacoes.php" class="btn btn--outline-blue">
+            <i class="fa-solid fa-inbox"></i> Solicitações
+          </a>
+        <?php else: ?>
+          <!-- Para todos os outros usuários aparece EXCLUSÃO -->
+          <a href="../pages/exclusao.php" class="btn btn--outline-red">
+            <i class="fa-solid fa-ban"></i> Exclusão
+          </a>
+        <?php endif; ?>
 
         <?php if ($isAdmin): ?>
         <a href="../pages/todos.php" class="btn btn--outline-blue">
@@ -153,15 +168,12 @@ $isAdmin = ($tipo === 'admin');
           <div>
             <label class="label">Número do Processo</label>
             <input id="processNumber"
-              type="text"
-              class="input"
-              required
-              pattern="\d{10}\.\d{6}/\d{4}-\d{2}"
-              maxlength="25"
-              inputmode="numeric"
-              autocomplete="off"
-              placeholder="Ex: 0060900018.001341/2025-49"
-              title="Formato: NNNNNNNNNN.NNNNNN/NNNN-NN">
+            type="text"
+            class="input"
+            required
+            maxlength="150"
+            autocomplete="off"
+            placeholder="Digite o número ou identificação do processo…">
           </div>
 
           <div>
