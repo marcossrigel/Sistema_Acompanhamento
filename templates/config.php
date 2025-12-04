@@ -24,6 +24,7 @@ if ($connLocal->connect_error) {
   die('Falha na conexão (local): ' . $connLocal->connect_error);
 }
 $connLocal->set_charset('utf8mb4');
+$connLocal->query("SET time_zone = '-03:00'"); 
 
 $connRemoto = new mysqli($remoto['host'], $remoto['user'], $remoto['pass'], $remoto['name'], $remoto['port']);
 if ($connRemoto->connect_error) {
@@ -31,11 +32,12 @@ if ($connRemoto->connect_error) {
 }
 $connRemoto->set_charset('utf8mb4');
 
+$connRemoto->query("SET time_zone = '-03:00'"); 
+
 $conn     = $connLocal;
 $conexao  = $connLocal;
 $conexao2 = $connRemoto;
 
-// ---- PDO (para endpoints novos, como finalizar_processo.php) ----
 try {
   $dsn = "mysql:host={$local['host']};dbname={$local['name']};charset=utf8mb4;port={$local['port']}";
   $pdo = new PDO($dsn, $local['user'], $local['pass'], [
@@ -43,6 +45,9 @@ try {
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     PDO::ATTR_EMULATE_PREPARES   => false,
   ]);
+
+  $pdo->exec("SET time_zone = '-03:00'");
+
 } catch (PDOException $e) {
   error_log("Erro PDO local: " . $e->getMessage());
   $pdo = null;

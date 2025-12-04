@@ -68,6 +68,9 @@ $isAdmin = ($tipo === 'admin');
       </a>
 
       <div class="flex items-center gap-2">
+        <a href="suporte.php" class="btn btn--outline-purple" title="Suporte (WhatsApp)">
+          <i class="fa-solid fa-headset"></i> Ajuda
+        </a>
         <a href="../pages/gerar_relatorio.php" class="btn btn--outline-green">
           <i class="fa-solid fa-file-lines"></i> Gerar Relatório
         </a>
@@ -80,6 +83,7 @@ $isAdmin = ($tipo === 'admin');
       </div>
 
       <div class="header-actions">
+        
         <a href="encaminhado.php" class="btn btn--outline-blue">
           <i class="fa-regular fa-share-from-square"></i> Encaminhados
         </a>

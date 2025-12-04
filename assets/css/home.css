@@ -188,9 +188,44 @@
       #processModal .modal__body   { padding: 16px; }
     }
 
+    /* Header mais compacto em telas até 1440px de largura */
+    @media (max-width: 1440px) {
+      .site-header__row {
+        column-gap: 8px;
+        padding: 10px 0;              /* menos altura */
+      }
+
+      .brand__title {
+        font-size: 18px;              /* título menor */
+      }
+
+      .site-header .btn {
+        padding: 6px 10px;            /* botões mais estreitos */
+        font-size: 13px;              /* texto menor */
+        border-radius: 8px;
+        gap: 6px;
+      }
+
+      .header-actions {
+        gap: 6px;
+      }
+    }
+
+    /* Em telas ainda menores (ex.: 1280, 1200), deixa o header quebrar em 2 linhas */
+    @media (max-width: 1200px) {
+      .site-header__row {
+        flex-wrap: wrap;              /* permite quebrar linha */
+        row-gap: 8px;
+      }
+
+      .header-actions {
+        margin-left: auto;
+      }
+    }
+
     #processModal .modal {
-  box-sizing: border-box;
-  max-height: min(calc(100vh - 32px), calc(100dvh - 32px));
+    box-sizing: border-box;
+    max-height: min(calc(100vh - 32px), calc(100dvh - 32px));
 }
 
 .card-processo {

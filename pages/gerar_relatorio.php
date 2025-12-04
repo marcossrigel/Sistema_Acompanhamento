@@ -106,9 +106,9 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
     resultBox.style.border = ok ? '1px solid #10b981' : '1px solid #e5e7eb';
   };
 
-  const renderLista = (lista) => {
-  selectedNums.clear(); // ao renderizar, limpamos seleção
-  btnPdf.dataset.num = ''; // desabilita modo "único"
+const renderLista = (lista) => {
+  selectedNums.clear();
+  btnPdf.dataset.num = '';
   refreshPdfButton();
 
   if (!Array.isArray(lista) || !lista.length) {
@@ -129,8 +129,8 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
             <th class="px-3 py-2 text-left">Número</th>
             <th class="px-3 py-2 text-left">Setor Demandante</th>
             <th class="px-3 py-2 text-left">Enviar para</th>
-            <th class="px-3 py-2 text-left">Criado em</th>
-            <th class="px-3 py-2 text-left">Eventos</th>
+            <th class="px-3 py-2 text-left">Nome do Processo</th>
+            <th class="px-3 py-2 text-left">Descrição</th>
             <th class="px-3 py-2"></th>
           </tr>
         </thead>
@@ -139,16 +139,19 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
 
   for (const r of lista) {
     const num = r.numero_processo;
+    const setorDemandante = (r.setor_demandante || '—').split(' - ')[0];
+    const enviarPara = (r.enviar_para || '—').split(' - ')[0];
+
     html += `
       <tr class="border-b">
         <td class="px-3 py-2">
           <input type="checkbox" class="chk-proc h-4 w-4" value="${num}">
         </td>
         <td class="px-3 py-2 whitespace-nowrap">${num}</td>
-        <td class="px-3 py-2">${r.setor_demandante || '—'}</td>
-        <td class="px-3 py-2">${r.enviar_para || '—'}</td>
-        <td class="px-3 py-2">${r.data_registro || '—'}</td>
-        <td class="px-3 py-2 text-center">${r.qte_eventos ?? '0'}</td>
+        <td class="px-3 py-2">${setorDemandante}</td>
+        <td class="px-3 py-2">${enviarPara}</td>
+        <td class="px-3 py-2">${r.nome_processo || '—'}</td>
+        <td class="px-3 py-2">${r.descricao || '—'}</td>
         <td class="px-3 py-2 text-right">
           <button class="btn btn--green"
                   onclick="window.open('svc_relatorio_pdf.php?numero='+encodeURIComponent('${num}'),'_blank')">
@@ -170,7 +173,6 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
       else selectedNums.delete(val);
       refreshPdfButton();
 
-      // sincroniza "marcar todos"
       const all = document.getElementById('chkAll');
       if (all) {
         const total = document.querySelectorAll('.chk-proc').length;
@@ -182,19 +184,20 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
   });
 
   const chkAll = document.getElementById('chkAll');
-    if (chkAll) {
-      chkAll.addEventListener('change', () => {
-        const marca = chkAll.checked;
-        selectedNums.clear();
-        document.querySelectorAll('.chk-proc').forEach(chk => {
-          chk.checked = marca;
-          if (marca) selectedNums.add(chk.value);
-        });
-        refreshPdfButton();
-        chkAll.indeterminate = false;
+  if (chkAll) {
+    chkAll.addEventListener('change', () => {
+      const marca = chkAll.checked;
+      selectedNums.clear();
+      document.querySelectorAll('.chk-proc').forEach(chk => {
+        chk.checked = marca;
+        if (marca) selectedNums.add(chk.value);
       });
-    }
-  };
+      refreshPdfButton();
+      chkAll.indeterminate = false;
+    });
+  }
+};
+
 
 
   const renderUnico = (data) => {
