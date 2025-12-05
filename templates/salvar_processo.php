@@ -54,10 +54,10 @@ try {
     exit;
   }
 
-  // valida formato do número: 1234567890.123456/1234-12
-  if (!preg_match('/^\d{10}\.\d{6}\/\d{4}-\d{2}$/', $numero)) {
+  // ✅ validação simples do número: apenas tamanho máximo (sem formato fixo)
+  if (mb_strlen($numero) > 150) {
     http_response_code(422);
-    echo json_encode(['ok'=>false,'error'=>'Número de processo em formato inválido. Use NNNNNNNNNN.NNNNNN/NNNN-NN']);
+    echo json_encode(['ok'=>false,'error'=>'O número/identificação do processo deve ter no máximo 150 caracteres.']);
     exit;
   }
 
@@ -121,7 +121,7 @@ try {
     "isssssss",
     $gId,            // i
     $numero,         // s
-    $nomeProc,       // s  <-- NOVO
+    $nomeProc,       // s
     $setorUser,      // s
     $enviar,         // s
     $tiposJson,      // s

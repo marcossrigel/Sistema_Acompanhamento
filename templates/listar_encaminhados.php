@@ -22,7 +22,6 @@ if ($meuSetor === '') {
   $reply(400, ['ok'=>false,'error'=>'Setor não encontrado na sessão.']);
 }
 
-// ===== normalizador para detectar "concluido/concluído" =====
 $norm = function (?string $s): string {
   $s = iconv('UTF-8','ASCII//TRANSLIT//IGNORE', (string)($s ?? ''));
   $s = strtolower($s);
@@ -34,7 +33,6 @@ $buscaLike  = $busca !== '' ? '%'.$busca.'%' : '';
 $digitsRaw  = preg_replace('/\D+/', '', $busca);
 $buscaNorm  = $norm($busca);
 
-// quando o usuário digitar "concluido/concluído", filtramos só os finalizados
 $filtrarSoConcluidos = in_array($buscaNorm, ['concluido','concluido.','finalizado','finalizado.'], true);
 
 try {
@@ -65,11 +63,9 @@ try {
   $types  = 'sss';
   $params = [$meuSetor, $meuSetor, $meuSetor];
 
-  // aplica o filtro por concluído quando a palavra for digitada
   if ($filtrarSoConcluidos) {
     $sql    .= " AND np.finalizado = 1 ";
   } else if ($busca !== '') {
-    // filtros de texto (quando não é o gatilho de status)
     $or = [];
 
     if ($digitsRaw !== '') {

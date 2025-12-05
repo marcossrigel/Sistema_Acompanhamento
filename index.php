@@ -69,7 +69,7 @@ if (!empty($_SESSION['auth_ok']) && !empty($_SESSION['g_id'])) {
 
 /* ---------- token obrigatório ---------- */
 $token = trim($_GET['access_dinamic'] ?? $_GET['token'] ?? $_GET['t'] ?? $_GET['x'] ?? '');
-file_put_contents(__DIR__.'/debug_login.log', date('c')." | GET: ".json_encode($_GET)."\n", FILE_APPEND);
+// file_put_contents(__DIR__.'/debug_login.log', date('c')." | GET: ".json_encode($_GET)."\n", FILE_APPEND);
 
 if ($token === '' || strlen($token) < 32) {
   http_response_code(401);

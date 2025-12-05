@@ -18,7 +18,6 @@ $remoto = [
   'port' => 3306,
 ];
 
-// ---- MYSQLI ----
 $connLocal = new mysqli($local['host'], $local['user'], $local['pass'], $local['name'], $local['port']);
 if ($connLocal->connect_error) {
   die('Falha na conexão (local): ' . $connLocal->connect_error);
