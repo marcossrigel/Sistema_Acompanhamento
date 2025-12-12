@@ -56,11 +56,11 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
       <div>
         <label class="label">Número do Processo</label>
         <input id="processNumber" type="text" class="input"
-               placeholder="Ex: 0060900018.001341/2025-49"
-               maxlength="25"
-               pattern="\d{10}\.\d{6}/\d{4}-\d{2}"
-               title="Formato: NNNNNNNNNN.NNNNNN/NNNN-NN"
-               autocomplete="off">
+          placeholder="Ex: 00609110021714.000030/2025-83"
+          maxlength="50"
+          pattern="\d{14}\.\d{6}/\d{4}-\d{2}"
+          title="Formato: NNNNNNNNNNNNNN.NNNNNN/NNNN-NN"
+          autocomplete="off">
         <p class="text-gray-500 text-sm mt-2">Digite o número completo. O sistema validará a existência.</p>
       </div>
 

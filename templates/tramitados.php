@@ -25,11 +25,11 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>CEHAB - Encaminhados</title>
+  <title>CEHAB - Tramitados</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="stylesheet" href="../assets/css/encaminhado.css">
+  <link rel="stylesheet" href="../assets/css/encaminhado.css"> <!-- reaproveitando o mesmo CSS -->
 </head>
 <body>
 
@@ -40,19 +40,16 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
         <h1 class="brand__title">CEHAB - Acompanhamento de Processos</h1>
       </a>
       <div class="header-actions">
-        <span class="badge-primary">
-          <i class="fa-regular fa-share-from-square"></i> Encaminhados
-        </span>
-
-        <a href="tramitados.php" class="btn">
-          <i class="fa-solid fa-right-left"></i> Tramitados
+        <a href="encaminhado.php" class="btn">
+          <i class="fa-solid fa-share-from-square"></i> Encaminhados
         </a>
-
+        <span class="badge-primary">
+          <i class="fa-solid fa-right-left"></i> Tramitados
+        </span>
         <a href="home.php" class="btn">
           <i class="fa-solid fa-arrow-left"></i> Voltar
         </a>
       </div>
-
     </div>
   </header>
 
@@ -65,7 +62,7 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
           <span class="chip"><?= $setor ?></span>
         </div>
 
-        <h2 class="title">Processos Encaminhados</h2>
+        <h2 class="title">Processos Tramitados</h2>
 
         <form id="frmBusca" class="flex items-center gap-2 mb-4" action="" method="GET">
           <div class="flex items-center w-full max-w-3xl border rounded-full pl-4 pr-2 py-2 bg-white">
@@ -91,6 +88,9 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
       </div>
     </div>
   </main>
+
+  <!-- você pode reaproveitar os mesmos modais de detalhes / ações se quiser,
+       ou, se em TRAMITADOS for só consulta, pode remover os blocos de encaminhar/finalizar -->
 
   <div id="detailsModal" class="modal-backdrop hidden">
     <div class="modal">
@@ -161,47 +161,11 @@ $nome  = htmlspecialchars($_SESSION['nome']  ?? '',  ENT_QUOTES, 'UTF-8');
     </div>
   </div>
 
-  <!-- ========== MODAL DE AÇÕES INTERNAS ========== -->
-  <div id="acoesModal" class="inner-modal-backdrop hidden">
-    <div class="inner-modal">
-      <div class="inner-modal__header">
-        <h2 class="modal__title" style="font-size:18px;">Ações Internas do Setor</h2>
-        <button id="fecharAcoes" class="modal__close" aria-label="Fechar">
-          <i class="fa-solid fa-xmark" style="font-size:20px;"></i>
-        </button>
-      </div>
-
-      <ul id="acoesList" class="inner-modal__list"></ul>
-
-      <label class="label" style="margin-bottom:6px;">Nova ação (visível a todos):</label>
-      <textarea id="acaoTexto" class="textarea" rows="3" placeholder="Ex.: Tive um problema com tal emenda"></textarea>
-
-      <div class="btn-row">
-        <button id="cancelarAcoes" class="btn--muted" type="button">Cancelar</button>
-        <button id="salvarAcao" class="btn--blue" type="button">Salvar ação</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========== MODAL FINALIZAR/ENCAMINHAR ========== -->
-  <div id="finalizarModal" class="finish-backdrop hidden">
-    <div class="finish-card">
-      <h2 class="finish-title">Finalizar Etapa</h2>
-      <label class="label" style="margin-bottom:6px;">Descreva a ação finalizadora:</label>
-      <textarea id="acaoFinalizadora" class="textarea" rows="3" placeholder="Ex: Finalizando o fluxo desse processo"></textarea>
-      <div class="finish-actions">
-        <button id="cancelarFinalizar" class="btn--muted" type="button">Cancelar</button>
-        <button id="confirmarFinalizar" class="btn--blue" type="button">Confirmar e Avançar</button>
-      </div>
-    </div>
-  </div>
-
   <script>
-    window.PAGE_MODE   = 'encaminhados';
+    window.PAGE_MODE   = 'tramitados';
     window.MY_SETOR    = <?= json_encode($_SESSION['setor'] ?? '') ?>;
     window.FINAL_SECTOR= <?= json_encode($SETOR_FINAL) ?>;
-  </script>
-  <script src="../js/encaminhado.js?v=20251212_1"></script>
-
+</script>
+    <script src="../js/encaminhado.js?v=20251212_1"></script>
 </body>
 </html>

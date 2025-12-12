@@ -112,6 +112,10 @@ cancelarAcoes?.addEventListener('click', closeAcoes);
 acoesModal?.addEventListener('click', (e)=>{ if (e.target===acoesModal) closeAcoes(); });
 
 salvarAcao?.addEventListener('click', async ()=>{
+  if (IS_TRAMITADOS) {
+    alert('Ações internas só podem ser registradas na tela de Encaminhados.');
+    return;
+  }
   const txt = (acaoTexto.value||'').trim();
   if (!txt) { alert('Descreva a ação.'); return; }
   try{
@@ -137,6 +141,8 @@ salvarAcao?.addEventListener('click', async ()=>{
 const MY_SETOR     = window.MY_SETOR || '';
 const FINAL_SECTOR = window.FINAL_SECTOR || 'GFIN - Gerência Financeira';
 let IS_FINALIZE_MODE = false;
+const PAGE_MODE      = window.PAGE_MODE || 'encaminhados';
+const IS_TRAMITADOS  = PAGE_MODE === 'tramitados';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#39;'}[m])
@@ -157,7 +163,7 @@ const brDay = iso => {
 };
 const parseTipos = j => { try { const a = JSON.parse(j||'[]'); return Array.isArray(a) ? a.join(', ') : ''; } catch { return ''; } };
 
-async function loadIncoming(){
+async function loadList(){
   const wrap = document.getElementById('encList');
   const termo = (document.getElementById('searchNumero')?.value || '').trim();
 
@@ -167,7 +173,9 @@ async function loadIncoming(){
     </div>`;
 
   try {
-    const url = new URL('listar_encaminhados.php', window.location.href);
+    // aqui muda o endpoint conforme a página
+    const endpoint = IS_TRAMITADOS ? 'listar_tramitados.php' : 'listar_encaminhados.php';
+    const url = new URL(endpoint, window.location.href);
     if (termo) url.searchParams.set('busca', termo);
 
     const r = await fetch(url.toString(), { credentials: 'same-origin' });
@@ -184,13 +192,12 @@ async function loadIncoming(){
     }
 
     wrap.innerHTML = '';
-    // (opcional) carrega cache de setores p/ sigla
     try { await getSectors(); } catch {}
 
     data.forEach(p => {
       const sig = getSigla(p.setor_demandante) || sigla(p.setor_demandante) || '—';
 
-      const card = document.createElement('div'); // <<< FALTAVA ISTO
+      const card = document.createElement('div');
 
       card.className = 'card-processo bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer';
       card.setAttribute('data-id', String(p.id));
@@ -238,11 +245,15 @@ function openDetails(p){
   const finalizarBlock = document.getElementById('finalizarBlock');
   const btnAcoesEl     = document.getElementById('btnAcoes');
 
-  const canAct             = sigla(p.enviar_para) === sigla(MY_SETOR);
+ // Em tramitados, NUNCA pode agir: só visualizar
+  const canActBase         = sigla(p.enviar_para) === sigla(MY_SETOR);
   const processoFinalizado = Number(p.finalizado) === 1;
   const processoNoGFIN     = sigla(p.enviar_para) === sigla(FINAL_SECTOR);
   const usuarioEhGFIN      = sigla(MY_SETOR)      === sigla(FINAL_SECTOR);
-  const podeFinalizar      = !processoFinalizado && processoNoGFIN && usuarioEhGFIN;
+  const podeFinalizarBase  = !processoFinalizado && processoNoGFIN && usuarioEhGFIN;
+
+  const canAct        = IS_TRAMITADOS ? false : canActBase;
+  const podeFinalizar = IS_TRAMITADOS ? false : podeFinalizarBase;
 
   finalizarBlock?.classList.toggle('hidden', !podeFinalizar);
   encBlock?.classList.toggle('hidden',  podeFinalizar ? true : !canAct);
@@ -439,7 +450,7 @@ frmBusca?.addEventListener('submit', (e) => {
   else url.searchParams.delete('busca');
   history.replaceState({}, '', url.toString());
 
-  loadIncoming();
+  loadList();
 });
 
 btnLimpar?.addEventListener('click', () => {
@@ -447,7 +458,7 @@ btnLimpar?.addEventListener('click', () => {
   const url = new URL(window.location.href);
   url.searchParams.delete('busca');
   history.replaceState({}, '', url.toString());
-  loadIncoming();
+  loadList();
 });
 
 (function initBuscaFromURL(){
@@ -464,7 +475,10 @@ const cancelarFinalizar = document.getElementById('cancelarFinalizar');
 const confirmarFinalizar= document.getElementById('confirmarFinalizar');
 
 btnEncaminhar?.addEventListener('click', () => {
-  // este botão só aparece quando NÃO é modo finalizar
+  if (IS_TRAMITADOS) {
+    alert('Não é possível encaminhar pela tela de Tramitados.');
+    return;
+  }
   IS_FINALIZE_MODE = false;
   document.getElementById('acaoFinalizadora').value = '';
   finalizarModal.classList.remove('hidden');
@@ -477,6 +491,11 @@ cancelarFinalizar?.addEventListener('click', () => {
 });
 
 confirmarFinalizar?.addEventListener('click', async () => {
+  if (IS_TRAMITADOS) {
+    alert('Encaminhamento e finalização só podem ser feitos na tela de Encaminhados.');
+    return;
+  }
+
   if (!currentProcess) { alert('Nenhum processo selecionado.'); return; }
   const acao = document.getElementById('acaoFinalizadora').value.trim();
   const proxSetor = document.getElementById('nextSector')?.value || '';
@@ -529,7 +548,7 @@ confirmarFinalizar?.addEventListener('click', async () => {
     }
 
     await renderFlow(currentProcess.id);
-    await loadIncoming();
+    await loadList();
 
     document.getElementById('acaoFinalizadora').value = '';
     finalizarModal.classList.add('hidden');
@@ -543,4 +562,4 @@ confirmarFinalizar?.addEventListener('click', async () => {
   }
 });
 
-loadIncoming();
+loadList();

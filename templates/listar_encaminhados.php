@@ -1,8 +1,10 @@
 <?php
 declare(strict_types=1);
+
 if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
 header('Content-Type: application/json; charset=utf-8');
-ini_set('display_errors','0'); ini_set('log_errors','1');
+ini_set('display_errors','0');
+ini_set('log_errors','1');
 while (ob_get_level() > 0) { ob_end_clean(); }
 
 require __DIR__.'/config.php';
@@ -18,54 +20,35 @@ if (empty($_SESSION['auth_ok']) || empty($_SESSION['g_id'])) {
 }
 
 $meuSetor = trim((string)($_SESSION['setor'] ?? ''));
-if ($meuSetor === '') {
-  $reply(400, ['ok'=>false,'error'=>'Setor não encontrado na sessão.']);
-}
+if ($meuSetor === '') $reply(400, ['ok'=>false,'error'=>'Setor não encontrado na sessão.']);
 
-$norm = function (?string $s): string {
-  $s = iconv('UTF-8','ASCII//TRANSLIT//IGNORE', (string)($s ?? ''));
-  $s = strtolower($s);
-  return preg_replace('/\s+/', ' ', trim($s));
-};
-
-$busca      = trim((string)($_GET['busca'] ?? ''));
-$buscaLike  = $busca !== '' ? '%'.$busca.'%' : '';
-$digitsRaw  = preg_replace('/\D+/', '', $busca);
-$buscaNorm  = $norm($busca);
-
-$filtrarSoConcluidos = in_array($buscaNorm, ['concluido','concluido.','finalizado','finalizado.'], true);
+$busca     = trim((string)($_GET['busca'] ?? ''));
+$buscaLike = $busca !== '' ? '%'.$busca.'%' : '';
+$digitsRaw = preg_replace('/\D+/', '', $busca);
 
 try {
   $sql = "
-    SELECT DISTINCT
-           np.id,
-           np.numero_processo,
-           np.nome_processo,
-           np.setor_demandante,
-           np.enviar_para,
-           np.tipos_processo_json,
-           np.tipo_outros,
-           np.descricao,
-           np.data_registro,
-           COALESCE(np.finalizado, 0) AS finalizado
+    SELECT
+      np.id,
+      np.numero_processo,
+      np.nome_processo,
+      np.setor_demandante,
+      np.enviar_para,
+      np.tipos_processo_json,
+      np.tipo_outros,
+      np.descricao,
+      np.data_registro,
+      COALESCE(np.finalizado, 0) AS finalizado
     FROM novo_processo np
-    LEFT JOIN processo_fluxo pf ON pf.processo_id = np.id
-    WHERE (
-            LOWER(np.enviar_para) = LOWER(?)
-         OR (
-              LOWER(pf.setor) = LOWER(?)
-              AND pf.status = 'concluido'
-              AND LOWER(np.setor_demandante) <> LOWER(?)
-            )
-          )
+    WHERE
+      LOWER(np.enviar_para) = LOWER(?)
+      AND COALESCE(np.finalizado, 0) = 0
   ";
 
-  $types  = 'sss';
-  $params = [$meuSetor, $meuSetor, $meuSetor];
+  $types  = 's';
+  $params = [$meuSetor];
 
-  if ($filtrarSoConcluidos) {
-    $sql    .= " AND np.finalizado = 1 ";
-  } else if ($busca !== '') {
+  if ($busca !== '') {
     $or = [];
 
     if ($digitsRaw !== '') {
@@ -78,8 +61,8 @@ try {
       $params[] = '%'.$digitsRaw.'%';
     }
 
-    $or[] = "np.nome_processo LIKE ?";   $types .= 's'; $params[] = $buscaLike;
-    $or[] = "np.descricao LIKE ?";       $types .= 's'; $params[] = $buscaLike;
+    $or[] = "np.nome_processo LIKE ?"; $types .= 's'; $params[] = $buscaLike;
+    $or[] = "np.descricao LIKE ?";     $types .= 's'; $params[] = $buscaLike;
 
     $sql .= " AND (".implode(' OR ', $or).") ";
   }
@@ -94,11 +77,10 @@ try {
   $st->execute();
   $res  = $st->get_result();
   $data = [];
-  while ($r = $res->fetch_assoc()) { $data[] = $r; }
+  while ($r = $res->fetch_assoc()) $data[] = $r;
   $st->close();
 
-  $reply(200, ['ok'=>true, 'data'=>$data]);
-
+  $reply(200, ['ok'=>true,'data'=>$data]);
 } catch (Throwable $e) {
   $reply(500, ['ok'=>false,'error'=>$e->getMessage()]);
 }
