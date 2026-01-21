@@ -110,7 +110,7 @@ if (!$uLocal) {
     'email'  => $uRemote['u_email'] ?? '',
     'origem' => 'token'
   ]);
-  header('Location: templates/solicitacoes.php?'.$query);
+  header('Location: pages/solicitacoes.php?'.$query);
   exit;
 }
 

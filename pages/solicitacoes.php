@@ -7,15 +7,17 @@ if (!$pdo) {
   exit('PDO local indisponível (ver config.php).');
 }
 
-// precisa estar autenticado
 if (empty($_SESSION['auth_ok']) || empty($_SESSION['g_id'])) {
   header("Location: ../index.php");
   exit;
 }
 
-// somente Bruno (id_usuario_cehab_online = 600)
 $userId = (int)($_SESSION['g_id'] ?? 0);
-if ($userId !== 600) {
+
+$solicitacoesAllowedIds = [600, 989];
+
+if (!in_array($userId, $solicitacoesAllowedIds, true)) {
+  http_response_code(403);
   header("Location: ../templates/home.php");
   exit;
 }
@@ -142,15 +144,17 @@ try {
               </div>
 
               <!-- Conteúdo clicável -->
-              <button
-                type="button"
-                class="w-full text-left"
+              <div
+                role="button"
+                tabindex="0"
+                class="w-full text-left cursor-pointer select-text"
                 data-id="<?= htmlspecialchars($s['id']) ?>"
                 data-processo="<?= htmlspecialchars($s['processo']) ?>"
                 data-motivo="<?= htmlspecialchars($s['motivo']) ?>"
                 data-criado="<?= htmlspecialchars($s['criado_em_fmt']) ?>"
                 data-usuario="<?= htmlspecialchars($s['id_usuario']) ?>"
                 onclick="openSolicModal(this)"
+                onkeydown="if(event.key==='Enter' || event.key===' '){ event.preventDefault(); openSolicModal(this); }"
               >
                 <p class="font-semibold text-gray-800 mb-1">
                   Processo: <?= htmlspecialchars($s['processo']) ?>
@@ -163,7 +167,9 @@ try {
                 <p class="text-xs text-gray-400">
                   Criado em: <?= htmlspecialchars($s['criado_em_fmt']) ?>
                 </p>
-              </button>
+              </div>
+
+
             </div>
 
 

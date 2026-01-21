@@ -20,7 +20,7 @@ body { font-family: 'Poppins'; }
 
   <h1 class="text-xl font-semibold text-slate-800 mb-2">Suporte Técnico</h1>
   <p class="text-slate-600 mb-4">
-    Em caso de dúvidas ou dificuldades no sistema, entre em contato:
+    Em casos de dúvidas, exclusão ou alteração do fluxo dos processos, entre em contato:
   </p>
 
   <a href="https://wa.me/5581994994977"

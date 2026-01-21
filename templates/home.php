@@ -45,7 +45,11 @@ $tipo    = htmlspecialchars($_SESSION['tipo']  ?? 'comum', ENT_QUOTES, 'UTF-8');
 $isAdmin = ($tipo === 'admin');
 
 $userIdCehab = (int)($_SESSION['g_id'] ?? 0);
-$isBruno = ($userIdCehab === 600);
+// IDs que podem ver "Solicitações"
+$solicitacoesAllowedIds = [600, 989];
+
+$isSolicitacoes = in_array($userIdCehab, $solicitacoesAllowedIds, true);
+
 ?>
 
 <!DOCTYPE html>
@@ -78,13 +82,11 @@ $isBruno = ($userIdCehab === 600);
           <i class="fa-solid fa-file-lines"></i> Gerar Relatório
         </a>
 
-         <?php if ($isBruno): ?>
-          <!-- Para Bruno (id 600) aparece SOLICITAÇÕES -->
+         <?php if ($isSolicitacoes): ?>
           <a href="../pages/solicitacoes.php" class="btn btn--outline-blue">
             <i class="fa-solid fa-inbox"></i> Solicitações
           </a>
         <?php else: ?>
-          <!-- Para todos os outros usuários aparece EXCLUSÃO -->
           <a href="../pages/exclusao.php" class="btn btn--outline-red">
             <i class="fa-solid fa-ban"></i> Exclusão
           </a>
