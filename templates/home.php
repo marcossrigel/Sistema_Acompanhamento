@@ -74,31 +74,6 @@ $isSolicitacoes = in_array($userIdCehab, $solicitacoesAllowedIds, true);
         <h1 class="brand__title">CEHAB - Acompanhamento de Processos</h1>
       </a>
 
-      <div class="flex items-center gap-2">
-        <a href="suporte.php" class="btn btn--outline-purple" title="Suporte (WhatsApp)">
-          <i class="fa-solid fa-headset"></i> Ajuda
-        </a>
-        <a href="../pages/gerar_relatorio.php" class="btn btn--outline-green">
-          <i class="fa-solid fa-file-lines"></i> Gerar Relatório
-        </a>
-
-         <?php if ($isSolicitacoes): ?>
-          <a href="../pages/solicitacoes.php" class="btn btn--outline-blue">
-            <i class="fa-solid fa-inbox"></i> Solicitações
-          </a>
-        <?php else: ?>
-          <a href="../pages/exclusao.php" class="btn btn--outline-red">
-            <i class="fa-solid fa-ban"></i> Exclusão
-          </a>
-        <?php endif; ?>
-
-        <?php if ($isAdmin): ?>
-        <a href="../pages/todos.php" class="btn btn--outline-blue">
-          <i class="fa-solid fa-layer-group"></i> TODOS
-        </a>
-        <?php endif; ?>
-      </div>
-
       <div class="header-actions">
         
         <a href="encaminhado.php" class="btn btn--outline-blue">
@@ -112,7 +87,14 @@ $isSolicitacoes = in_array($userIdCehab, $solicitacoesAllowedIds, true);
         <a href="../index.php?logout=1&go=getic" class="btn btn--danger-outline">
           <i class="fa-solid fa-right-from-bracket"></i> Sair
         </a>
+
       </div>
+      
+      <!-- Botão 3 pontinhos fixo no canto direito -->
+      <button id="moreMenuBtn" class="more-menu-btn" title="Mais opções" type="button" aria-label="Mais opções">
+        <i class="fa-solid fa-ellipsis-vertical"></i>
+      </button>
+
     </div>
   </header>
 
@@ -290,6 +272,62 @@ $isSolicitacoes = in_array($userIdCehab, $solicitacoesAllowedIds, true);
     </div>
   </div>
 
+  <!-- Drawer lateral -->
+<div id="drawerOverlay" class="drawer-overlay hidden" aria-hidden="true"></div>
+
+<aside id="drawer" class="drawer" aria-hidden="true">
+  <div class="drawer-header">
+    <h3 class="drawer-title">Opções</h3>
+    <button id="drawerCloseBtn" class="drawer-close" type="button" aria-label="Fechar">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+
+  <div class="drawer-body">
+
+    <a class="drawer-item" href="../pages/formulario_pagamento.php">
+      <i class="fa-solid fa-file-invoice-dollar"></i>
+      <span>Formulario Solicitação de Pagamento</span>
+    </a>
+
+    <hr class="drawer-sep">
+
+
+
+    <a class="drawer-item" href="../pages/gerar_relatorio.php">
+      <i class="fa-solid fa-file-lines"></i>
+      <span>Gerar Relatório</span>
+    </a>
+
+    <?php if ($isSolicitacoes): ?>
+      <a class="drawer-item" href="../pages/solicitacoes.php">
+        <i class="fa-solid fa-inbox"></i>
+        <span>Solicitações</span>
+      </a>
+    <?php else: ?>
+      <a class="drawer-item" href="../pages/exclusao.php">
+        <i class="fa-solid fa-ban"></i>
+        <span>Exclusão</span>
+      </a>
+    <?php endif; ?>
+
+    <?php if ($isAdmin): ?>
+      <a class="drawer-item" href="../pages/todos.php">
+        <i class="fa-solid fa-layer-group"></i>
+        <span>TODOS</span>
+      </a>
+    <?php endif; ?>
+
+    <a class="drawer-item" href="suporte.php">
+      <i class="fa-solid fa-headset"></i>
+      <span>Ajuda</span>
+    </a>
+
+  </div>
+</aside>
+
+<script src="../js/home.js?v=3"></script>
+
   <script>
     window.APP = {
       MY_SETOR: <?= json_encode($_SESSION['setor'] ?? '') ?>,
@@ -297,7 +335,34 @@ $isSolicitacoes = in_array($userIdCehab, $solicitacoesAllowedIds, true);
       GID:       <?= json_encode($_SESSION['g_id']  ?? '') ?>,
       USER_TYPE: <?= json_encode($_SESSION['tipo'] ?? '') ?>
     };
+
+     (function(){
+      const btn = document.getElementById('moreMenuBtn');
+      const drawer = document.getElementById('drawer');
+      const overlay = document.getElementById('drawerOverlay');
+      const closeBtn = document.getElementById('drawerCloseBtn');
+
+      function openDrawer(){
+        overlay.classList.remove('hidden');
+        drawer.classList.add('open');
+        drawer.setAttribute('aria-hidden', 'false');
+        overlay.setAttribute('aria-hidden', 'false');
+      }
+
+      function closeDrawer(){
+        drawer.classList.remove('open');
+        overlay.classList.add('hidden');
+        drawer.setAttribute('aria-hidden', 'true');
+        overlay.setAttribute('aria-hidden', 'true');
+      }
+
+      btn?.addEventListener('click', openDrawer);
+      closeBtn?.addEventListener('click', closeDrawer);
+      overlay?.addEventListener('click', closeDrawer);
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeDrawer();
+      });
+    })();
   </script>
-  <script src="../js/home.js?v=3"></script>
 </body>
 </html>
